@@ -1,3 +1,4 @@
+
 export interface Footballer {
   id: string;
   name: string;
@@ -17,11 +18,11 @@ export const FOOTBALLERS: Footballer[] = [
     rarity: 'GOLD', 
     club: 'Inter Miami',
     hints: [
-      "Often called 'La Pulga' due to his height.",
-      "Has won a record-breaking number of Ballon d'Or awards.",
-      "Spent over 20 years at FC Barcelona.",
-      "Finally won the World Cup in 2022 with Argentina.",
-      "He currently plays in the MLS."
+      "This player is famous for having the most Ballon d'Or awards in history.",
+      "He spent the vast majority of his career at FC Barcelona.",
+      "He led his nation to victory in the 2022 World Cup.",
+      "His nickname is 'La Pulga' (The Flea).",
+      "He currently plays for Inter Miami in the MLS."
     ]
   },
   { 
@@ -32,11 +33,11 @@ export const FOOTBALLERS: Footballer[] = [
     rarity: 'GOLD', 
     club: 'Al Nassr',
     hints: [
-      "Known for his incredible work ethic and physique.",
-      "The all-time leading goal scorer in international football.",
-      "Wore the iconic number 7 at Manchester United and Real Madrid.",
-      "Has won the UEFA Champions League five times.",
-      "Currently playing in the Saudi Pro League."
+      "He is the all-time leading goalscorer in international football.",
+      "He has won five UEFA Champions League titles.",
+      "He is a legendary figure for both Manchester United and Real Madrid.",
+      "Known for his incredible work ethic and the 'Siu' celebration.",
+      "He currently plays in the Saudi Pro League for Al Nassr."
     ]
   },
   { 
@@ -47,11 +48,11 @@ export const FOOTBALLERS: Footballer[] = [
     rarity: 'GOLD', 
     club: 'Real Madrid',
     hints: [
-      "Famous for his lightning-fast speed and finishing.",
-      "Scored a hat-trick in a World Cup final.",
-      "Left PSG as their all-time leading scorer.",
-      "Joined Real Madrid in the summer of 2024.",
-      "He is the face of modern French football."
+      "He burst onto the scene as a teenager with Monaco.",
+      "He scored a hat-trick in the 2022 World Cup Final.",
+      "He is widely considered the fastest elite forward in the world.",
+      "He recently joined Real Madrid after years at PSG.",
+      "He won the World Cup at just 19 years old in 2018."
     ]
   },
   { 
@@ -62,11 +63,11 @@ export const FOOTBALLERS: Footballer[] = [
     rarity: 'GOLD', 
     club: 'Manchester City',
     hints: [
-      "Often referred to as a 'Cyborg' for his clinical scoring.",
-      "Broke the Premier League single-season scoring record in his debut year.",
-      "Previously played for Borussia Dortmund.",
-      "Known for his unique meditation celebration.",
-      "The star striker for Manchester City."
+      "He is a physical powerhouse known as 'The Terminator' or 'Cyborg'.",
+      "He broke the Premier League single-season scoring record in his debut year.",
+      "He previously dominated at Borussia Dortmund.",
+      "He plays for Manchester City and represents Norway.",
+      "His father also played for Manchester City in the early 2000s."
     ]
   },
   { 
@@ -77,56 +78,56 @@ export const FOOTBALLERS: Footballer[] = [
     rarity: 'ICON', 
     club: 'Icon',
     hints: [
-      "One of the most elegant midfielders in history.",
-      "Famously headbutted an opponent in the 2006 World Cup Final.",
-      "Scored an iconic volley in the 2002 Champions League Final.",
-      "Managed Real Madrid to three consecutive Champions League titles.",
-      "Nicknamed 'Zizou'."
+      "He is one of the most elegant midfielders to ever play the game.",
+      "He famously scored two headers in the 1998 World Cup Final.",
+      "His career ended with a red card for a headbutt in the 2006 Final.",
+      "He won three consecutive Champions Leagues as a manager.",
+      "His nickname is 'Zizou'."
     ]
   },
   { 
     id: '6', 
-    name: 'David Beckham', 
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 
-    position: 'RM', 
-    rarity: 'ICON', 
-    club: 'Icon',
+    name: 'Mohamed Salah', 
+    flag: '🇪🇬', 
+    position: 'RW', 
+    rarity: 'GOLD', 
+    club: 'Liverpool',
     hints: [
-      "Renowned for his world-class free-kicks and crossing.",
-      "Part of the 'Class of 92' at Manchester United.",
-      "Played for Real Madrid, AC Milan, PSG, and LA Galaxy.",
-      "Co-owner of Inter Miami CF.",
-      "Former captain of the England national team."
+      "He is known as 'The Egyptian King'.",
+      "He has won multiple Premier League Golden Boots with Liverpool.",
+      "He played for Roma and Chelsea before becoming a superstar at Anfield.",
+      "He holds the record for most goals in a 38-game PL season (until Haaland).",
+      "He is arguably the greatest African player of the modern era."
     ]
   },
   { 
     id: '7', 
-    name: 'Vinícius Júnior', 
+    name: 'Neymar Jr', 
     flag: '🇧🇷', 
     position: 'LW', 
     rarity: 'GOLD', 
-    club: 'Real Madrid',
+    club: 'Al Hilal',
     hints: [
-      "A flashy Brazilian winger with elite dribbling skills.",
-      "Scored the winning goal in the 2022 Champions League Final.",
-      "A key figure in Real Madrid's 'New Era'.",
-      "Known for his passionate dance celebrations.",
-      "Inherited the number 7 shirt from Eden Hazard."
+      "He was part of the famous 'MSN' trio at Barcelona.",
+      "He is the world's most expensive player in terms of transfer fee.",
+      "He is Brazil's all-time leading goalscorer, surpassing Pelé.",
+      "Known for his incredible flair, skill, and rainbow flicks.",
+      "He left PSG to join the Saudi Pro League."
     ]
   },
   { 
     id: '8', 
-    name: 'Kevin De Bruyne', 
-    flag: '🇧🇪', 
+    name: 'Luka Modrić', 
+    flag: '🇭🇷', 
     position: 'CM', 
     rarity: 'GOLD', 
-    club: 'Manchester City',
+    club: 'Real Madrid',
     hints: [
-      "Widely regarded as one of the best passers in the world.",
-      "Known for his 'let me talk' moment with his manager.",
-      "The creative engine of Manchester City's midfield.",
-      "The 'Golden Generation' talisman for Belgium.",
-      "Nicknamed 'KDB'."
+      "He broke the Messi-Ronaldo Ballon d'Or streak in 2018.",
+      "He led Croatia to a World Cup Final and a third-place finish.",
+      "He is a maestro in the Real Madrid midfield with 6 CL titles.",
+      "Known for his outside-of-the-foot passes (Trivela).",
+      "He played for Tottenham Hotspur before moving to Spain."
     ]
   }
 ];

@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -12,15 +13,15 @@
         },
         "googleAccountId": {
           "type": "string",
-          "description": "The unique identifier provided by Google for the authenticated user. (Relationship: Google Account 1:1 UserProfile)"
+          "description": "The unique identifier provided by Google for the authenticated user."
         },
         "displayName": {
           "type": "string",
-          "description": "The user's public display name, typically retrieved from their Google account."
+          "description": "The user's public display name."
         },
         "avatarUrl": {
           "type": "string",
-          "description": "URL to the user's profile picture, if available from their Google account.",
+          "description": "URL to the user's profile picture.",
           "format": "uri"
         },
         "totalGamesPlayed": {
@@ -54,31 +55,31 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Footballer",
       "type": "object",
-      "description": "Stores comprehensive data for a specific footballer, serving as the correct answer for game rounds and providing details for the result animation.",
+      "description": "Stores comprehensive data for a specific footballer.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Footballer entity."
+          "description": "Unique identifier."
         },
         "name": {
           "type": "string",
-          "description": "The full name of the footballer."
+          "description": "Full name."
         },
         "country": {
           "type": "string",
-          "description": "The country the footballer represents, used for flag display in game animations."
+          "description": "Country name."
         },
         "position": {
           "type": "string",
-          "description": "The primary playing position of the footballer (e.g., 'Striker', 'Midfielder', 'Defender', 'Goalkeeper')."
+          "description": "Playing position."
         },
         "rarity": {
           "type": "string",
-          "description": "The rarity level of the footballer, influencing visual presentation (e.g., 'Common', 'Rare', 'Legendary')."
+          "description": "Rarity level."
         },
         "cardImageUrl": {
           "type": "string",
-          "description": "URL to the image of the footballer's card, displayed on the result screen.",
+          "description": "Card image URL.",
           "format": "uri"
         }
       },
@@ -87,215 +88,68 @@
         "name",
         "country",
         "position",
-        "rarity",
-        "cardImageUrl"
-      ]
-    },
-    "Hint": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Hint",
-      "type": "object",
-      "description": "Represents a specific piece of textual information or clue related to a footballer, used to help players guess in a round.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Hint entity."
-        },
-        "footballerId": {
-          "type": "string",
-          "description": "Reference to Footballer. (Relationship: Footballer 1:N Hint)"
-        },
-        "text": {
-          "type": "string",
-          "description": "The actual text content of the hint."
-        },
-        "order": {
-          "type": "number",
-          "description": "The sequential order in which this hint should be revealed for its associated footballer (e.g., 1 for the easiest, 8 for the most specific)."
-        }
-      },
-      "required": [
-        "id",
-        "footballerId",
-        "text",
-        "order"
+        "rarity"
       ]
     },
     "GameRoom": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "GameRoom",
       "type": "object",
-      "description": "Represents a single 1v1 game session, managing lobby settings, player connections, and the overall state of the match.",
+      "description": "Represents a single 1v1 game session.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the GameRoom entity, also serving as the Firebase-generated room code used for joining."
+          "description": "Unique room code."
         },
         "creatorId": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N GameRoom) The ID of the player who created the room."
+          "description": "ID of the room creator."
         },
         "player1Id": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:1 GameRoom) The ID of the first player in the room, typically the creator."
+          "description": "ID of player 1."
         },
         "player2Id": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:1 GameRoom) The ID of the second player who joined the room."
+          "description": "ID of player 2."
         },
         "status": {
           "type": "string",
-          "description": "The current state of the game room (e.g., 'Lobby', 'InProgress', 'Completed', 'Cancelled')."
+          "description": "Room status: Lobby, InProgress, Completed."
         },
         "healthOption": {
           "type": "number",
-          "description": "The initial health value chosen by the room creator for both players (e.g., 50, 70, 100, 150, 200)."
-        },
-        "gameVersion": {
-          "type": "string",
-          "description": "The game version or update identifier chosen for this session (e.g., 'DEMO', 'GTF 1')."
+          "description": "Starting HP."
         },
         "player1CurrentHealth": {
           "type": "number",
-          "description": "Player 1's current health remaining in the ongoing match."
+          "description": "P1 HP."
         },
         "player2CurrentHealth": {
           "type": "number",
-          "description": "Player 2's current health remaining in the ongoing match."
+          "description": "P2 HP."
         },
         "currentRoundNumber": {
           "type": "number",
-          "description": "The sequential number of the current active round within this game."
+          "description": "Active round index."
         },
         "createdAt": {
           "type": "string",
-          "description": "Timestamp when the game room was initially created.",
-          "format": "date-time"
-        },
-        "startedAt": {
-          "type": "string",
-          "description": "Timestamp when the game officially started from the lobby state.",
-          "format": "date-time"
-        },
-        "completedAt": {
-          "type": "string",
-          "description": "Timestamp when the game concluded and results were finalized.",
           "format": "date-time"
         }
       },
       "required": [
         "id",
-        "creatorId",
         "player1Id",
         "status",
         "healthOption",
-        "gameVersion",
         "createdAt"
-      ]
-    },
-    "GameRound": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "GameRound",
-      "type": "object",
-      "description": "Records the specific details, player guesses, and outcomes for a single round within a GameRoom.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the GameRound entity."
-        },
-        "gameRoomId": {
-          "type": "string",
-          "description": "Reference to GameRoom. (Relationship: GameRoom 1:N GameRound)"
-        },
-        "roundNumber": {
-          "type": "number",
-          "description": "The sequential number of this round within its respective game (e.g., 1 for the first round)."
-        },
-        "footballerId": {
-          "type": "string",
-          "description": "Reference to Footballer. (Relationship: Footballer 1:N GameRound) The ID of the footballer who is the correct answer for this round."
-        },
-        "hintsRevealedCount": {
-          "type": "number",
-          "description": "The number of hints revealed in this round before a player made a guess or time expired."
-        },
-        "player1Guess": {
-          "type": "string",
-          "description": "The name of the footballer guessed by Player 1."
-        },
-        "player1ScoreChange": {
-          "type": "number",
-          "description": "The score change for Player 1 in this round (+10 for correct, -10 for wrong, 0 for no guess)."
-        },
-        "player1GuessedCorrectly": {
-          "type": "boolean",
-          "description": "Indicates whether Player 1 guessed the footballer correctly in this round."
-        },
-        "player1GuessTime": {
-          "type": "string",
-          "description": "Timestamp when Player 1 submitted their guess.",
-          "format": "date-time"
-        },
-        "player2Guess": {
-          "type": "string",
-          "description": "The name of the footballer guessed by Player 2."
-        },
-        "player2ScoreChange": {
-          "type": "number",
-          "description": "The score change for Player 2 in this round (+10 for correct, -10 for wrong, 0 for no guess)."
-        },
-        "player2GuessedCorrectly": {
-          "type": "boolean",
-          "description": "Indicates whether Player 2 guessed the footballer correctly in this round."
-        },
-        "player2GuessTime": {
-          "type": "string",
-          "description": "Timestamp when Player 2 submitted their guess.",
-          "format": "date-time"
-        },
-        "finalizedAt": {
-          "type": "string",
-          "description": "Timestamp when the round results were finalized and health reductions applied.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "gameRoomId",
-        "roundNumber",
-        "footballerId"
-      ]
-    },
-    "Emote": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Emote",
-      "type": "object",
-      "description": "Defines the static attributes of an emote that players can use during a game.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Emote entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The descriptive name of the emote (e.g., 'Thumbs Up', 'Clap', 'Cry')."
-        },
-        "iconUrl": {
-          "type": "string",
-          "description": "URL to the visual icon representation of the emote.",
-          "format": "uri"
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "iconUrl"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
+      "google.com",
       "anonymous"
     ]
   },
@@ -308,49 +162,7 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profiles, linked to their Google account. Access is strictly restricted to the owner (`request.auth.uid` must match the `userId` in the path). This embodies the 'Private Data' access model (Strategy C.1) and provides authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user profile, matching the authenticated user's Firebase UID."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/footballers/{footballerId}",
-        "definition": {
-          "entityName": "Footballer",
-          "schema": {
-            "$ref": "#/backend/entities/Footballer"
-          },
-          "description": "Contains static, globally readable information about footballers used in the game. This collection follows 'Structural Segregation' (Strategy B), ensuring a homogeneous 'public read-only' security posture for game clients.",
-          "params": [
-            {
-              "name": "footballerId",
-              "description": "The unique identifier for a specific footballer."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/footballers/{footballerId}/hints/{hintId}",
-        "definition": {
-          "entityName": "Hint",
-          "schema": {
-            "$ref": "#/backend/entities/Hint"
-          },
-          "description": "Stores individual hints associated with a specific footballer. This subcollection adheres to 'Continue Hierarchy for Nested Data' (Strategy C.3) and shares the 'public read-only' security posture of its parent `Footballer` collection, maintaining structural segregation.",
-          "params": [
-            {
-              "name": "footballerId",
-              "description": "The unique identifier of the parent footballer."
-            },
-            {
-              "name": "hintId",
-              "description": "The unique identifier for the hint."
-            }
-          ]
+          "description": "User profile data."
         }
       },
       {
@@ -360,52 +172,9 @@
           "schema": {
             "$ref": "#/backend/entities/GameRoom"
           },
-          "description": "Represents a 1v1 game session. Documents include `player1Id` and `player2Id`, which serve as the authorization context. The room creator (`player1Id`) has control over settings and starting the game. Supports QAPs for players to list rooms they are participating in using queries on `player1Id` or `player2Id`. This adheres to 'Collaborative Data' access modeling (Strategy C.3).",
-          "params": [
-            {
-              "name": "gameRoomId",
-              "description": "The unique identifier for the game room, also used as the join code."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/gameRooms/{gameRoomId}/gameRounds/{roundId}",
-        "definition": {
-          "entityName": "GameRound",
-          "schema": {
-            "$ref": "#/backend/entities/GameRound"
-          },
-          "description": "Records the details and outcomes of each round within a game room. To achieve Authorization Independence (Strategy A), each `GameRound` document **must contain denormalized `player1Id` and `player2Id` fields copied from its parent `GameRoom`**. This enables atomic and robust security rules for player actions (e.g., submitting guesses) without requiring `get()` calls on the parent `GameRoom` document. It also follows 'Continue Hierarchy for Nested Data' (Strategy C.3).",
-          "params": [
-            {
-              "name": "gameRoomId",
-              "description": "The unique identifier of the parent game room."
-            },
-            {
-              "name": "roundId",
-              "description": "The unique identifier for the game round."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/emotes/{emoteId}",
-        "definition": {
-          "entityName": "Emote",
-          "schema": {
-            "$ref": "#/backend/entities/Emote"
-          },
-          "description": "Contains static, globally readable information about available emotes. This collection follows 'Structural Segregation' (Strategy B) ensuring a homogeneous 'public read-only' security posture for game clients.",
-          "params": [
-            {
-              "name": "emoteId",
-              "description": "The unique identifier for a specific emote."
-            }
-          ]
+          "description": "Active game sessions."
         }
       }
-    ],
-    "reasoning": "The Firestore structure for FootyDuel prioritizes security, scalability, and debuggability by adhering strictly to the core design principles and strategy mandates. The design leverages structural segregation, path-based authorization, and critical denormalization to ensure robust and easily auditable security rules.\n\n**1. Authorization Independence (CRITICAL) and Denormalization (Strategy A):**\n    *   **UserProfile:** Access is intrinsically tied to the user's UID via the document path `/userProfiles/{userId}`. This makes authorization rules simple and independent, as `request.auth.uid` must match `userId` in the path.\n    *   **GameRoom:** Documents contain `player1Id` and `player2Id`, which are the primary authorization contexts for room participation. For rules directly on `GameRoom` documents, authorization is self-contained.\n    *   **GameRound:** This is the most critical area for Authorization Independence. `GameRound` documents are nested under `GameRoom`. To strictly adhere to the mandate of avoiding `get()` calls on parent documents for authorization, each `GameRound` document **MUST include denormalized `player1Id` and `player2Id` fields copied from its parent `GameRoom`**. This allows security rules for `GameRound` to evaluate player permissions directly against the document's own fields (`resource.data.player1Id` or `resource.data.player2Id`), without needing to perform `get()` calls on the parent `GameRoom` document. This design choice enables atomic operations (like updating a round's status or recording a guess) and simplifies rule debugging. *It's important to note that this implies an extension to the provided `GameRound` schema to include these denormalized fields.*\n\n**2. Structural Segregation (Strategy B):**\n    *   **Static Content (`/footballers`, `/emotes`, `/footballers/{footballerId}/hints`):** These collections are designed with a homogeneous 'public read-only' security posture. All documents within these collections are accessible for reading by any authenticated user (or potentially unauthenticated if content is public). This simplifies security rules, as there's no mixed access requirement within a single collection.\n    *   **User-Specific Data (`/userProfiles/{userId}`):** This collection is private to the owning user, isolating personal data.\n    *   **Game-Specific Data (`/gameRooms/{gameRoomId}`, `/gameRooms/{gameRoomId}/gameRounds`):** These collections are segregated for collaborative, real-time game data, where access is strictly controlled by the participating players.\n\n**3. Access Modeling (Strategy C) and QAPs (Query Access Patterns):**\n    *   **Private Data:** `/userProfiles/{userId}` uses the Path-Based ownership model. `list` operations for user profiles are not typically required for other users, making this structure inherently secure.\n    *   **Collaborative Data (`/gameRooms/{gameRoomId}`):** The `player1Id` and `player2Id` fields within `GameRoom` documents act as an explicit membership map. This enables efficient Query Access Patterns (QAPs) where a user can easily `list` all rooms they are a part of by querying `gameRooms` using `where('player1Id', '==', request.auth.uid)` or `where('player2Id', '==', request.auth.uid)`. Security rules will enforce that only rooms where the requesting user is a participant are returned, preventing unauthorized `list` access.\n    *   **Nested Data (`/footballers/{footballerId}/hints`, `/gameRooms/{gameRoomId}/gameRounds`):** The hierarchy is continued for 1:N relationships. QAPs for subcollections are secure because access to the parent document context (e.g., `gameRoomId` ownership) is already enforced.\n    *   **Global Roles (DBAC):** Although not explicitly requested in the provided entities, if administrative access is required for managing static content (footballers, hints, emotes), a dedicated collection like `/roles_admin/{userId}` would be implemented. The mere existence of a document for a `userId` in this collection would grant admin privileges, following the 'Existence over Content' principle.\n\n**4. Data Clarity and Predictability (Strategy D):**\n    *   The `GameRoom` entity uses a clear `status` field (`Lobby`, `InProgress`, `Completed`, `Cancelled`) to explicitly model its state, avoiding ambiguous boolean flags. Wildcards such as `{userId}`, `{footballerId}`, and `{gameRoomId}` are descriptive and semantically consistent across the structure, enhancing predictability and debuggability of rules."
+    ]
   }
 }
