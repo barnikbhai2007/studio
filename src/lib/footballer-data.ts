@@ -189,6 +189,126 @@ export const FOOTBALLERS: Footballer[] = [
       "I have a statue outside the Emirates Stadium.",
       "I am famous for my va-va-voom and clinical finishing."
     ]
+  },
+  {
+    id: '13',
+    name: 'Neymar Jr',
+    flag: '🇧🇷',
+    position: 'LW',
+    rarity: 'GOLD',
+    club: 'Al Hilal',
+    hints: [
+      "I became the world's most expensive player in 2017.",
+      "I formed the legendary MSN trio at Barcelona.",
+      "I won Olympic Gold with Brazil in 2016.",
+      "I am famous for my incredible skill and 'Rainbow Flick'.",
+      "I currently play for Al Hilal in Saudi Arabia."
+    ]
+  },
+  {
+    id: '14',
+    name: 'Ronaldinho',
+    flag: '🇧🇷',
+    position: 'CAM',
+    rarity: 'ICON',
+    club: 'Icon',
+    hints: [
+      "I am famous for always playing with a smile on my face.",
+      "I received a standing ovation from Real Madrid fans at the Bernabéu.",
+      "I won the Ballon d'Or in 2005.",
+      "I was a key part of Brazil's 2002 World Cup winning team.",
+      "I am a legend for both Barcelona and AC Milan."
+    ]
+  },
+  {
+    id: '15',
+    name: 'Pelé',
+    flag: '🇧🇷',
+    position: 'ST',
+    rarity: 'ICON',
+    club: 'Icon',
+    hints: [
+      "I am the only player to win three FIFA World Cups.",
+      "I scored over 1,000 career goals.",
+      "I spent the vast majority of my career at Santos.",
+      "I was named the FIFA Player of the Century.",
+      "I am widely regarded as the 'King of Football'."
+    ]
+  },
+  {
+    id: '16',
+    name: 'Diego Maradona',
+    flag: '🇦🇷',
+    position: 'CAM',
+    rarity: 'ICON',
+    club: 'Icon',
+    hints: [
+      "I am famous for the 'Hand of God' goal.",
+      "I scored the 'Goal of the Century' against England in 1986.",
+      "I led Napoli to their first ever Serie A titles.",
+      "I single-handedly inspired Argentina to the 1986 World Cup.",
+      "I am a god-like figure in both Buenos Aires and Naples."
+    ]
+  },
+  {
+    id: '17',
+    name: 'Jude Bellingham',
+    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    position: 'CAM',
+    rarity: 'GOLD',
+    club: 'Real Madrid',
+    hints: [
+      "My former club Birmingham City retired my shirt number when I was 17.",
+      "I moved to Borussia Dortmund before joining Real Madrid.",
+      "I wear the number 5 at Real Madrid, previously worn by Zidane.",
+      "I am the youngest player ever to play for England in a major tournament.",
+      "I had an incredible debut season in Spain, winning La Liga and the UCL."
+    ]
+  },
+  {
+    id: '18',
+    name: 'Wayne Rooney',
+    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    position: 'ST',
+    rarity: 'ICON',
+    club: 'Icon',
+    hints: [
+      "I scored a hat-trick on my Manchester United debut at age 18.",
+      "I held the record for most goals for England and Manchester United.",
+      "I am famous for a spectacular bicycle kick against Manchester City.",
+      "I started my career as a child prodigy at Everton.",
+      "I was known for my incredible work rate, power, and aggression."
+    ]
+  },
+  {
+    id: '19',
+    name: 'David Beckham',
+    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    position: 'RM',
+    rarity: 'ICON',
+    club: 'Icon',
+    hints: [
+      "I am famous for my incredible free-kick taking ability.",
+      "I was part of the 'Class of 92' at Manchester United.",
+      "I played for Real Madrid, LA Galaxy, AC Milan, and PSG.",
+      "I am a global fashion icon and former England captain.",
+      "I am one of the owners of Inter Miami."
+    ]
+  },
+  {
+    id: '20',
+    name: 'Son Heung-min',
+    flag: '🇰🇷',
+    position: 'LW',
+    rarity: 'GOLD',
+    club: 'Tottenham',
+    hints: [
+      "I am the all-time leading Asian goalscorer in Premier League history.",
+      "I won the Premier League Golden Boot in 2021-22.",
+      "I am the current captain of Tottenham Hotspur.",
+      "I won a Puskas Award for a solo goal against Burnley.",
+      "I am a massive superstar in South Korea."
+    ]
   }
 ];
 
