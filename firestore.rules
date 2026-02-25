@@ -2,10 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * FootyDuel Security Rules
-     */
-
     function isSignedIn() {
       return request.auth != null;
     }
@@ -14,68 +10,29 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return resource != null && isOwner(userId);
-    }
-
-    function isParticipant(data) {
-      return isSignedIn() && (data.player1Id == request.auth.uid || data.player2Id == request.auth.uid);
-    }
-
-    // --- Collection Rules ---
-
-    /**
-     * User Profiles: Any signed-in user can read profiles (to see opponents).
-     * Only the owner can write to their own profile.
-     */
     match /userProfiles/{userId} {
       allow get, list: if isSignedIn();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
     }
 
-    /**
-     * Footballers: Publicly readable game assets.
-     */
-    match /footballers/{footballerId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-
-      match /hints/{hintId} {
-        allow get, list: if true;
-        allow create, update, delete: if false;
-      }
-    }
-
-    /**
-     * Game Rooms: 
-     * - Any user can 'get' a room to check its status or join it.
-     * - Creators can create rooms.
-     * - Participants (or joining players) can update.
-     */
     match /gameRooms/{gameRoomId} {
       allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.player1Id == request.auth.uid;
+      allow create: if isSignedIn();
       
-      // Allow update if user is already a participant OR if they are joining an empty slot
+      // Allow update for participants OR someone joining an empty P2 slot
       allow update: if isSignedIn() && (
-        isParticipant(resource.data) || 
-        (resource.data.player2Id == null && request.resource.data.player2Id == request.auth.uid)
+        request.auth.uid == resource.data.player1Id || 
+        request.auth.uid == resource.data.player2Id ||
+        (resource.data.player2Id == null)
       );
       
-      allow delete: if isSignedIn() && isParticipant(resource.data);
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.player1Id;
 
       match /gameRounds/{roundId} {
-        // For simplicity in prototype, allow participants of the parent room to interact with rounds
-        allow get, list, create, update, delete: if isSignedIn(); 
+        allow get, list, create, update: if isSignedIn();
       }
-    }
-
-    match /emotes/{emoteId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
     }
   }
 }
