@@ -1,59 +1,119 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Trophy, Users, Plus, LogIn, Swords } from "lucide-react";
+import { Plus, Swords } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth, useUser, useFirestore } from "@/firebase";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
-  const [user, setUser] = useState<{ name: string; photo: string } | null>(null);
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleGoogleLogin = () => {
-    // Mocking Google Login for now
-    const mockUser = {
-      name: "Player " + Math.floor(Math.random() * 1000),
-      photo: "https://picsum.photos/seed/user/100/100"
-    };
-    setUser(mockUser);
-    localStorage.setItem("footy_user", JSON.stringify(mockUser));
-    toast({
-      title: "Logged in successfully",
-      description: `Welcome, ${mockUser.name}!`,
-    });
+  const handleGoogleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      // Save user profile
+      const userRef = doc(db, "userProfiles", user.uid);
+      await setDoc(userRef, {
+        id: user.uid,
+        googleAccountId: user.uid,
+        displayName: user.displayName || "Anonymous",
+        avatarUrl: user.photoURL || "",
+        totalGamesPlayed: 0,
+        totalWins: 0,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      }, { merge: true });
+
+      toast({
+        title: "Logged in successfully",
+        description: `Welcome, ${user.displayName}!`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login failed",
+        description: error.message,
+      });
+    }
   };
 
-  const handleCreateRoom = () => {
-    if (!user) {
-      toast({ variant: "destructive", title: "Login required", description: "Please login with Google first." });
-      return;
-    }
+  const handleCreateRoom = async () => {
+    if (!user) return;
+    
+    // Generate a clean room code
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    toast({ title: "Room Created", description: `Room ${code} is ready for players!` });
+    const roomRef = doc(db, "gameRooms", code);
+
+    setDocumentNonBlocking(roomRef, {
+      id: code,
+      creatorId: user.uid,
+      player1Id: user.uid,
+      status: 'Lobby',
+      healthOption: 100,
+      gameVersion: 'GTF 1',
+      player1CurrentHealth: 100,
+      player2CurrentHealth: 100,
+      currentRoundNumber: 1,
+      createdAt: new Date().toISOString(),
+    }, { merge: true });
+
+    toast({ title: "Room Created", description: `Room ${code} is ready!` });
     router.push(`/lobby/${code}?isLeader=true`);
   };
 
-  const handleJoinRoom = () => {
-    if (!user) {
-      toast({ variant: "destructive", title: "Login required", description: "Please login with Google first." });
-      return;
-    }
+  const handleJoinRoom = async () => {
+    if (!user) return;
     if (!roomCode || roomCode.length < 4) {
       toast({ variant: "destructive", title: "Invalid Code", description: "Enter a valid room code." });
       return;
     }
-    router.push(`/lobby/${roomCode.toUpperCase()}`);
+
+    const cleanCode = roomCode.toUpperCase();
+    const roomRef = doc(db, "gameRooms", cleanCode);
+    const roomSnap = await getDoc(roomRef);
+
+    if (!roomSnap.exists()) {
+      toast({ variant: "destructive", title: "Not Found", description: "Room does not exist." });
+      return;
+    }
+
+    const roomData = roomSnap.data();
+    if (roomData.player2Id && roomData.player2Id !== user.uid) {
+      toast({ variant: "destructive", title: "Full", description: "Room is already full." });
+      return;
+    }
+
+    // Join room
+    await setDoc(roomRef, {
+      player2Id: user.uid,
+      player2CurrentHealth: roomData.healthOption || 100
+    }, { merge: true });
+
+    router.push(`/lobby/${cleanCode}`);
   };
 
-  useEffect(() => {
-    const saved = localStorage.getItem("footy_user");
-    if (saved) setUser(JSON.parse(saved));
-  }, []);
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Swords className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1508098682722-e99c43a406b2?q=80&w=2070')] bg-cover bg-center">
@@ -92,9 +152,9 @@ export default function LandingPage() {
               <div className="p-1 bg-gradient-to-r from-primary to-secondary" />
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4 mb-6 text-left">
-                  <img src={user.photo} alt={user.name} className="w-12 h-12 rounded-full border-2 border-primary" />
+                  <img src={user.photoURL || ""} alt={user.displayName || ""} className="w-12 h-12 rounded-full border-2 border-primary" />
                   <div>
-                    <h2 className="font-bold text-xl">{user.name}</h2>
+                    <h2 className="font-bold text-xl">{user.displayName}</h2>
                     <p className="text-xs text-muted-foreground uppercase tracking-widest font-headline">Ready for Match</p>
                   </div>
                 </div>

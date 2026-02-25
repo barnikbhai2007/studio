@@ -5,55 +5,88 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords } from "lucide-react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 
 export default function LobbyPage() {
   const { roomId } = useParams();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const { toast } = useToast();
-  const isLeader = searchParams.get("isLeader") === "true";
+  const { user } = useUser();
+  const db = useFirestore();
 
-  const [health, setHealth] = useState("100");
-  const [version, setVersion] = useState("DEMO");
-  const [opponent, setOpponent] = useState<{ name: string; photo: string } | null>(null);
-  const [user, setUser] = useState<{ name: string; photo: string } | null>(null);
+  const roomRef = useMemoFirebase(() => doc(db, "gameRooms", roomId as string), [db, roomId]);
+  const { data: room, isLoading } = useDoc(roomRef);
+
+  const [p1Profile, setP1Profile] = useState<any>(null);
+  const [p2Profile, setP2Profile] = useState<any>(null);
+
+  const isLeader = room?.player1Id === user?.uid;
 
   useEffect(() => {
-    const saved = localStorage.getItem("footy_user");
-    if (saved) setUser(JSON.parse(saved));
+    if (!room) return;
 
-    // Simulate opponent joining after 5 seconds if we are leader
-    if (isLeader) {
-      const timer = setTimeout(() => {
-        const mockOpponent = {
-          name: "Challenger_" + Math.floor(Math.random() * 99),
-          photo: "https://picsum.photos/seed/opp/100/100"
-        };
-        setOpponent(mockOpponent);
-        toast({ title: "Player Joined", description: `${mockOpponent.name} has entered the room!` });
-      }, 5000);
-      return () => clearTimeout(timer);
+    // Fetch Player 1 Profile
+    const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), (snap) => {
+      setP1Profile(snap.data());
+    });
+
+    // Fetch Player 2 Profile
+    let p2Unsub = () => {};
+    if (room.player2Id) {
+      p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), (snap) => {
+        setP2Profile(snap.data());
+      });
     } else {
-      // Simulate leader already there
-      setOpponent({ name: "Host_Pro", photo: "https://picsum.photos/seed/host/100/100" });
+      setP2Profile(null);
     }
-  }, [isLeader]);
+
+    // Redirect if game starts
+    if (room.status === 'InProgress') {
+      router.push(`/game/${roomId}?health=${room.healthOption}&isLeader=${isLeader}`);
+    }
+
+    return () => {
+      p1Unsub();
+      p2Unsub();
+    };
+  }, [room, db, roomId, router, isLeader]);
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomId as string);
     toast({ title: "Copied!", description: "Room code copied to clipboard." });
   };
 
-  const startGame = () => {
-    if (!opponent) {
+  const updateHealth = async (val: string) => {
+    if (!isLeader) return;
+    await updateDoc(roomRef, { 
+      healthOption: parseInt(val),
+      player1CurrentHealth: parseInt(val),
+      player2CurrentHealth: parseInt(val)
+    });
+  };
+
+  const startGame = async () => {
+    if (!room?.player2Id) {
       toast({ variant: "destructive", title: "Wait!", description: "Waiting for an opponent to join." });
       return;
     }
-    router.push(`/game/${roomId}?health=${health}&isLeader=${isLeader}`);
+    await updateDoc(roomRef, { 
+      status: 'InProgress',
+      startedAt: new Date().toISOString()
+    });
   };
+
+  if (isLoading || !room) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Swords className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center">
@@ -75,16 +108,15 @@ export default function LobbyPage() {
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-primary/20 relative">
-                {isLeader && <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />}
-                <img src={user?.photo} className="w-16 h-16 rounded-full mb-2 border-2 border-primary" alt="You" />
-                <span className="font-bold text-sm truncate w-full text-center">{user?.name} (YOU)</span>
+                <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />
+                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-primary" alt="P1" />
+                <span className="font-bold text-sm truncate w-full text-center">{p1Profile?.displayName || "Player 1"}</span>
               </div>
               <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/30">
-                {opponent ? (
+                {room.player2Id ? (
                   <>
-                    {!isLeader && <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />}
-                    <img src={opponent.photo} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary" alt="Opponent" />
-                    <span className="font-bold text-sm truncate w-full text-center">{opponent.name}</span>
+                    <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary" alt="P2" />
+                    <span className="font-bold text-sm truncate w-full text-center">{p2Profile?.displayName || "Player 2"}</span>
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full animate-pulse">
@@ -101,7 +133,7 @@ export default function LobbyPage() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase">Game Health</label>
                 {isLeader ? (
-                  <Select value={health} onValueChange={setHealth}>
+                  <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
                     <SelectTrigger className="bg-muted border-none h-12">
                       <SelectValue placeholder="Select Health" />
                     </SelectTrigger>
@@ -113,24 +145,7 @@ export default function LobbyPage() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="h-12 bg-muted rounded-md flex items-center px-3 font-bold">{health} HP</div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase">Game Version</label>
-                {isLeader ? (
-                  <Select value={version} onValueChange={setVersion}>
-                    <SelectTrigger className="bg-muted border-none h-12">
-                      <SelectValue placeholder="Select Version" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DEMO">DEMO v1.0</SelectItem>
-                      <SelectItem value="GTF1">GTF 1 (Classic)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="h-12 bg-muted rounded-md flex items-center px-3 font-bold">{version}</div>
+                  <div className="h-12 bg-muted rounded-md flex items-center px-3 font-bold">{room.healthOption} HP</div>
                 )}
               </div>
             </div>
