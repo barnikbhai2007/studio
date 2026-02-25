@@ -1,19 +1,19 @@
-
 "use client";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Swords, LogIn } from "lucide-react";
+import { Plus, Swords, LogIn, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
+  const [isActionLoading, setIsActionLoading] = useState(false);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -54,55 +54,74 @@ export default function LandingPage() {
 
   const handleCreateRoom = async () => {
     if (!user) return;
+    setIsActionLoading(true);
     
-    // Generate a clean 6-character alphanumeric code
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const roomRef = doc(db, "gameRooms", code);
+    try {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const roomRef = doc(db, "gameRooms", code);
 
-    await setDoc(roomRef, {
-      id: code,
-      creatorId: user.uid,
-      player1Id: user.uid,
-      status: 'Lobby',
-      healthOption: 100,
-      player1CurrentHealth: 100,
-      player2CurrentHealth: 100,
-      currentRoundNumber: 1,
-      createdAt: new Date().toISOString(),
-    });
+      await setDoc(roomRef, {
+        id: code,
+        creatorId: user.uid,
+        player1Id: user.uid,
+        status: 'Lobby',
+        healthOption: 100,
+        player1CurrentHealth: 100,
+        player2CurrentHealth: 100,
+        currentRoundNumber: 1,
+        createdAt: new Date().toISOString(),
+      });
 
-    router.push(`/lobby/${code}`);
+      router.push(`/lobby/${code}`);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error", description: "Failed to create room." });
+      setIsActionLoading(false);
+    }
   };
 
   const handleJoinRoom = async () => {
     if (!user || !roomCode) return;
+    setIsActionLoading(true);
 
     const cleanCode = roomCode.toUpperCase().trim();
-    const roomRef = doc(db, "gameRooms", cleanCode);
-    const roomSnap = await getDoc(roomRef);
+    
+    try {
+      const roomRef = doc(db, "gameRooms", cleanCode);
+      const roomSnap = await getDoc(roomRef);
 
-    if (!roomSnap.exists()) {
-      toast({ variant: "destructive", title: "Room Not Found", description: "Check your code and try again." });
-      return;
-    }
+      if (!roomSnap.exists()) {
+        toast({ variant: "destructive", title: "Room Not Found", description: "Check your code and try again." });
+        setIsActionLoading(false);
+        return;
+      }
 
-    const roomData = roomSnap.data();
-    if (roomData.player2Id && roomData.player2Id !== user.uid) {
-      toast({ variant: "destructive", title: "Room Full", description: "This game is already 1v1." });
-      return;
-    }
+      const roomData = roomSnap.data();
+      
+      // Check if already in room
+      if (roomData.player1Id === user.uid || roomData.player2Id === user.uid) {
+        router.push(`/lobby/${cleanCode}`);
+        return;
+      }
 
-    if (roomData.player1Id === user.uid) {
+      // Check if room is full
+      if (roomData.player2Id) {
+        toast({ variant: "destructive", title: "Room Full", description: "This game already has two players." });
+        setIsActionLoading(false);
+        return;
+      }
+
+      // Join room
+      await updateDoc(roomRef, {
+        player2Id: user.uid,
+        player2CurrentHealth: roomData.healthOption
+      });
+
       router.push(`/lobby/${cleanCode}`);
-      return;
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: "Could not join room. " + error.message });
+      setIsActionLoading(false);
     }
-
-    await setDoc(roomRef, {
-      player2Id: user.uid,
-      player2CurrentHealth: roomData.healthOption
-    }, { merge: true });
-
-    router.push(`/lobby/${cleanCode}`);
   };
 
   if (isUserLoading) {
@@ -114,7 +133,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 relative overflow-hidden text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
       
       <div className="relative z-10 w-full max-w-md space-y-12">
@@ -122,7 +141,7 @@ export default function LandingPage() {
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary shadow-inner mb-2">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white font-headline">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black tracking-tighter font-headline">FOOTY DUEL</h1>
           <p className="text-slate-400 font-medium tracking-wide">MASTER THE TRIVIA. WIN THE DUEL.</p>
         </div>
 
@@ -145,14 +164,19 @@ export default function LandingPage() {
             <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/5">
               <img src={user.photoURL || ""} className="w-12 h-12 rounded-full ring-2 ring-primary" alt="Profile" />
               <div>
-                <h3 className="font-bold text-white">{user.displayName}</h3>
+                <h3 className="font-bold">{user.displayName}</h3>
                 <p className="text-xs text-primary font-black uppercase tracking-tighter">Ready for kick-off</p>
               </div>
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-16 text-lg font-black bg-primary hover:bg-primary/90 gap-2 shadow-lg rounded-2xl">
-                <Plus className="w-6 h-6" /> CREATE NEW DUEL
+              <Button 
+                onClick={handleCreateRoom} 
+                disabled={isActionLoading}
+                className="w-full h-16 text-lg font-black bg-primary hover:bg-primary/90 gap-2 shadow-lg rounded-2xl"
+              >
+                {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-6 h-6" />} 
+                CREATE NEW DUEL
               </Button>
               
               <div className="relative flex items-center py-2">
@@ -164,12 +188,18 @@ export default function LandingPage() {
               <div className="flex gap-2">
                 <Input 
                   placeholder="ROOM CODE" 
-                  className="h-16 bg-slate-900 border-white/10 text-center font-black tracking-[0.5em] text-xl focus-visible:ring-primary rounded-2xl text-white"
+                  className="h-16 bg-slate-900 border-white/10 text-center font-black tracking-[0.5em] text-xl focus-visible:ring-primary rounded-2xl text-white uppercase"
                   value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  onChange={(e) => setRoomCode(e.target.value)}
+                  maxLength={6}
                 />
-                <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-2xl">
-                  JOIN
+                <Button 
+                  onClick={handleJoinRoom} 
+                  disabled={isActionLoading || !roomCode}
+                  variant="secondary" 
+                  className="h-16 px-8 font-black rounded-2xl"
+                >
+                  {isActionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "JOIN"}
                 </Button>
               </div>
             </div>
