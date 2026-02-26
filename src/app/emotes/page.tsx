@@ -37,28 +37,33 @@ export default function EmotesPage() {
   }, [user, isUserLoading, router]);
 
   const toggleEmote = (emoteId: string) => {
-    const isUnlocked = UNLOCKED_EMOTE_IDS.includes(emoteId);
+    const isCurrentlyEquipped = equippedIds.includes(emoteId);
     
-    if (!isUnlocked) {
-      toast({
-        variant: "destructive",
-        title: "RESTRICTED",
-        description: "COMPLETE QUESTS TO UNLOCK THIS EMOTE."
-      });
-      return;
-    }
-
-    setEquippedIds(prev => {
-      if (prev.includes(emoteId)) {
-        return prev.filter(id => id !== emoteId);
+    // Check unlock status only when adding
+    if (!isCurrentlyEquipped) {
+      const isUnlocked = UNLOCKED_EMOTE_IDS.includes(emoteId);
+      if (!isUnlocked) {
+        toast({
+          variant: "destructive",
+          title: "RESTRICTED",
+          description: "COMPLETE QUESTS TO UNLOCK THIS EMOTE."
+        });
+        return;
       }
-      if (prev.length >= 6) {
+
+      if (equippedIds.length >= 6) {
         toast({
           variant: "destructive",
           title: "LOCKDOWN",
           description: "MAXIMUM 6 EMOTES ALLOWED IN DUEL LOADOUT."
         });
-        return prev;
+        return;
+      }
+    }
+
+    setEquippedIds(prev => {
+      if (prev.includes(emoteId)) {
+        return prev.filter(id => id !== emoteId);
       }
       return [...prev, emoteId];
     });
