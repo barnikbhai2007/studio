@@ -31,6 +31,7 @@ export default function GamePage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const revealTriggered = useRef(false);
+  const isInitializingRound = useRef(false);
 
   const roomRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -129,46 +130,60 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
-  const startNewRoundLocally = useCallback(() => {
+  const startNewRoundLocally = useCallback(async () => {
+    if (isInitializingRound.current) return;
+    isInitializingRound.current = true;
+
     setGameState('countdown');
     setRevealStep('none');
     setCountdown(5);
     setGuessInput("");
     setRoundTimer(null);
     setVisibleHints(1);
+    setTargetPlayer(null);
     revealTriggered.current = false;
     setCurrentRarity(getRandomRarity());
 
     if (isPlayer1 && room && roundRef) {
-      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
-      setDoc(roundRef, {
-        id: currentRoundId,
-        gameRoomId: roomId,
-        roundNumber: room.currentRoundNumber,
-        footballerId: player.id,
-        creatorId: room.player1Id,
-        opponentId: room.player2Id,
-        hintsRevealedCount: 1,
-        player1Guess: "",
-        player2Guess: "",
-        player1GuessedCorrectly: false,
-        player2GuessedCorrectly: false,
-        player1ScoreChange: 0,
-        player2ScoreChange: 0,
-        roundEndedAt: null,
-        timerStartedAt: null,
-      }, { merge: true });
-      if (roomRef) {
-        updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
+      try {
+        const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
+        await setDoc(roundRef, {
+          id: currentRoundId,
+          gameRoomId: roomId,
+          roundNumber: room.currentRoundNumber,
+          footballerId: player.id,
+          creatorId: room.player1Id,
+          opponentId: room.player2Id,
+          hintsRevealedCount: 1,
+          player1Guess: "",
+          player2Guess: "",
+          player1GuessedCorrectly: false,
+          player2GuessedCorrectly: false,
+          player1ScoreChange: 0,
+          player2ScoreChange: 0,
+          roundEndedAt: null,
+          timerStartedAt: null,
+        }, { merge: true });
+        
+        if (roomRef) {
+          await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
+        }
+      } catch (err) {
+        console.error("Failed to initialize round:", err);
+      } finally {
+        isInitializingRound.current = false;
       }
+    } else {
+      isInitializingRound.current = false;
     }
   }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
 
+  // Handle round initialization for the host
   useEffect(() => {
-    if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5 && room.status === 'InProgress') {
+    if (isPlayer1 && room?.status === 'InProgress' && !roundData && !isRoundLoading && !isInitializingRound.current) {
       startNewRoundLocally();
     }
-  }, [isPlayer1, room, roundData, isRoundLoading, gameState, countdown, startNewRoundLocally]);
+  }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
     if (roundData) {
