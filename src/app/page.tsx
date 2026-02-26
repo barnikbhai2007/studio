@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
   LogOut, Target, Heart, Info,
-  BarChart3, Smile, Sparkles
+  BarChart3, Smile, Sparkles, ScrollText
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +16,7 @@ import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc, collection } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { isToday } from "date-fns";
 
 export default function LandingPage() {
@@ -63,7 +64,7 @@ export default function LandingPage() {
     setIsSyncing(true);
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 15;
+      progress += Math.random() * 8;
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
@@ -159,35 +160,50 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       {isSyncing && (
-        <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-8 backdrop-blur-2xl animate-in fade-in duration-500">
-          <div className="w-full max-w-sm space-y-10 text-center">
-            <div className="relative inline-block">
-              <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
-              <Download className="w-20 h-20 text-primary mx-auto relative z-10 animate-bounce" />
+        <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
+          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center">
+            <div className="relative inline-block shrink-0">
+              <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full animate-pulse" />
+              <Download className="w-12 h-12 text-primary mx-auto relative z-10 animate-bounce" />
             </div>
             
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-black uppercase tracking-tighter">Welcome to FootyDuel!</h2>
-                <p className="text-slate-400 text-xs font-bold leading-relaxed px-4">
-                  FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
-                </p>
-              </div>
+            <div className="w-full space-y-4">
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">🎮 Welcome to FootyDuel!</h2>
+              
+              <ScrollArea className="h-[40vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
+                <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
+                  <p className="text-white text-sm">
+                    FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-primary flex items-center gap-2">
+                      <ScrollText className="w-4 h-4" /> How It Works:
+                    </h3>
+                    <ul className="space-y-2 list-none">
+                      <li>1. Create a room or join one using a room code.</li>
+                      <li>2. Wait in the lobby until both players are ready.</li>
+                      <li>3. Each round, a footballer will be revealed.</li>
+                      <li>4. Correct guess = +10 points.<br/>Wrong guess = –10 points.<br/>Skip = 0 points.</li>
+                      <li>5. If both players score the same, health remains unchanged.<br/>If one gets +10 and the other –10, the second player loses 20 health.</li>
+                      <li>6. Forfeiting the match or dropping to 0 health results in defeat.</li>
+                    </ul>
+                  </div>
 
-              <div className="bg-white/5 p-5 rounded-3xl border border-white/10 text-left space-y-3">
-                <h3 className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
-                  <Sparkles className="w-3 h-3" /> How It Works
-                </h3>
-                <p className="text-[10px] font-bold text-slate-300 leading-normal uppercase">
-                  1. Create or join a room using a 6-digit code.<br/>
-                  2. Identify footballers through increasingly specific hints.<br/>
-                  3. Type fast! Correct guesses deal damage to your rival.
-                </p>
-              </div>
+                  <p className="text-primary/80 border-t border-white/10 pt-4">
+                    🔥 Stay fast. Stay sharp. Prove your football knowledge.
+                  </p>
+                  
+                  <div className="pt-2">
+                    <p className="text-white">Good luck and have fun!</p>
+                    <p className="text-[10px] text-slate-500">~ Barnik (brokenAqua)</p>
+                  </div>
+                </div>
+              </ScrollArea>
 
-              <div className="space-y-2">
+              <div className="w-full space-y-2 px-4">
                 <Progress value={syncProgress} className="h-2 bg-white/5" />
-                <p className="text-primary text-[10px] font-black uppercase tracking-widest animate-pulse">
+                <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
                   {syncProgress < 100 ? `Syncing Intelligence... ${Math.round(syncProgress)}%` : "Ready for Kickoff!"}
                 </p>
               </div>
