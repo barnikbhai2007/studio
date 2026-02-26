@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
@@ -15,6 +16,15 @@ import { FOOTBALLERS, Footballer } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
+
+const EMOTES = [
+  { id: 'laugh', emoji: '😂', url: 'https://picsum.photos/seed/laugh/100/100' },
+  { id: 'cry', emoji: '😭', url: 'https://picsum.photos/seed/cry/100/100' },
+  { id: 'fire', emoji: '🔥', url: 'https://picsum.photos/seed/fire/100/100' },
+  { id: 'goal', emoji: '⚽', url: 'https://picsum.photos/seed/goal/100/100' },
+  { id: 'shock', emoji: '😲', url: 'https://picsum.photos/seed/shock/100/100' },
+  { id: 'flex', emoji: '💪', url: 'https://picsum.photos/seed/flex/100/100' },
+];
 
 export default function GamePage() {
   const { roomId } = useParams();
@@ -42,6 +52,7 @@ export default function GamePage() {
   const [visibleHints, setVisibleHints] = useState<number>(1);
   const [guessInput, setGuessInput] = useState("");
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
+  const [floatingEmotes, setFloatingEmotes] = useState<{id: string, url: string, x: number}[]>([]);
   
   const isPlayer1 = room?.player1Id === user?.uid;
   const currentRoundId = `round_${room?.currentRoundNumber || 1}`;
@@ -58,6 +69,28 @@ export default function GamePage() {
       router.push('/');
     }
   }, [user, isUserLoading, router]);
+
+  // Handle incoming emotes
+  useEffect(() => {
+    if (!room?.lastEmote || !user) return;
+    
+    const { userId, emoteId, timestamp } = room.lastEmote;
+    const now = Date.now();
+    const emoteTime = new Date(timestamp).getTime();
+    
+    // Only show if it happened in the last 2 seconds
+    if (now - emoteTime < 2000) {
+      const emoteObj = EMOTES.find(e => e.id === emoteId);
+      if (emoteObj) {
+        const id = Math.random().toString();
+        const x = Math.random() * 60 + 20; // Random horizontal position
+        setFloatingEmotes(prev => [...prev, { id, url: emoteObj.url, x }]);
+        setTimeout(() => {
+          setFloatingEmotes(prev => prev.filter(e => e.id !== id));
+        }, 2000);
+      }
+    }
+  }, [room?.lastEmote, user]);
 
   const startNewRoundLocally = useCallback(() => {
     setGameState('countdown');
@@ -86,7 +119,6 @@ export default function GamePage() {
     }
   }, [isPlayer1, room, roomId, currentRoundId, roundRef]);
 
-  // Effect to initialize the first round if it doesn't exist (Player 1's job)
   useEffect(() => {
     if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5) {
       startNewRoundLocally();
@@ -110,7 +142,6 @@ export default function GamePage() {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
 
-      // Alert when opponent guesses
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
       
@@ -165,10 +196,20 @@ export default function GamePage() {
     await updateDoc(roundRef, update);
     toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
     
-    // If I'm the first to guess, start a local timer for the opponent (UI only, logic driven by Firestore)
     if (!roundData.player1Guess && !roundData.player2Guess) {
       setRoundTimer(15);
     }
+  };
+
+  const sendEmote = async (emoteId: string) => {
+    if (!roomRef || !user) return;
+    await updateDoc(roomRef, {
+      lastEmote: {
+        userId: user.uid,
+        emoteId,
+        timestamp: new Date().toISOString()
+      }
+    });
   };
 
   const handleReveal = () => {
@@ -179,7 +220,6 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Precise cinematic timing as requested
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -201,7 +241,7 @@ export default function GamePage() {
         } else {
           router.push('/');
         }
-      }, 8000);
+      }, 10000);
     }, 11000);
   };
 
@@ -295,6 +335,19 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Floating Emotes Layer */}
+      <div className="fixed inset-0 pointer-events-none z-50">
+        {floatingEmotes.map(emote => (
+          <div 
+            key={emote.id} 
+            className="absolute bottom-0 emote-float"
+            style={{ left: `${emote.x}%` }}
+          >
+            <img src={emote.url} className="w-16 h-16 rounded-full border-4 border-white shadow-2xl" alt="emote" />
+          </div>
+        ))}
+      </div>
+
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2">
@@ -343,7 +396,7 @@ export default function GamePage() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-40">
+      <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-48">
         {gameState === 'countdown' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-8">
              <div className="text-[12rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_50px_rgba(255,123,0,0.5)]">{countdown}</div>
@@ -381,54 +434,95 @@ export default function GamePage() {
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/40 backdrop-blur-3xl border-t border-white/10 space-y-4 z-40">
-        <div className="max-w-lg mx-auto w-full">
-          {iHaveGuessed && gameState === 'playing' && (
-            <div className="flex flex-col items-center justify-center gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30">
+        <div className="max-w-lg mx-auto w-full flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+             {iHaveGuessed && gameState === 'playing' ? (
+              <div className="flex-1 flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30">
                 <CheckCircle2 className="w-5 h-5 text-green-500 animate-bounce" />
                 <p className="text-xs font-black text-green-400 uppercase tracking-[0.2em]">Decision Locked In</p>
               </div>
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Awaiting Opponent's Decision...</p>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <Input 
-              placeholder={iHaveGuessed ? "GUESSED SUBMITTED" : "ENTER PLAYER NAME"} 
-              className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase"
-              value={guessInput}
-              onChange={(e) => setGuessInput(e.target.value)}
-              disabled={iHaveGuessed || gameState !== 'playing'}
-            />
-            <Button 
-              onClick={handleGuess} 
-              disabled={iHaveGuessed || gameState !== 'playing'}
-              className="h-16 w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"
-            >
-              <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            </Button>
+            ) : (
+              <div className="flex gap-2 flex-1">
+                <Input 
+                  placeholder="ENTER PLAYER NAME" 
+                  className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase"
+                  value={guessInput}
+                  onChange={(e) => setGuessInput(e.target.value)}
+                  disabled={iHaveGuessed || gameState !== 'playing'}
+                />
+                <Button 
+                  onClick={handleGuess} 
+                  disabled={iHaveGuessed || gameState !== 'playing'}
+                  className="h-16 w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"
+                >
+                  <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                </Button>
+              </div>
+            )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="secondary" className="h-16 w-16 rounded-2xl border border-white/10 shadow-xl">
+                  <SmilePlus className="w-6 h-6" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 bg-black/90 backdrop-blur-xl border-white/10" side="top" align="end">
+                <div className="grid grid-cols-3 gap-2">
+                  {EMOTES.map(emote => (
+                    <button 
+                      key={emote.id}
+                      onClick={() => sendEmote(emote.id)}
+                      className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"
+                    >
+                      <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </footer>
 
       {gameState === 'result' && (
-        <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in backdrop-blur-3xl">
-           <Trophy className="w-20 h-20 text-secondary animate-bounce drop-shadow-[0_0_30px_rgba(255,165,0,0.5)]" />
-           <h2 className="text-4xl font-black tracking-tighter text-white">ROUND SUMMARY</h2>
-           <div className="w-full max-w-md grid grid-cols-2 gap-6">
-              <div className="bg-white/5 p-6 rounded-3xl text-center space-y-3 border-b-4 border-primary shadow-2xl">
-                <p className="text-[10px] text-primary font-black tracking-widest uppercase">P1 GUESS</p>
-                <p className="font-black text-sm text-white truncate px-2">{roundData?.player1Guess || "NO GUESS"}</p>
-                <div className={`text-3xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
+        <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-8 space-y-8 animate-in fade-in backdrop-blur-3xl overflow-y-auto">
+           <Trophy className="w-16 h-16 text-secondary animate-bounce drop-shadow-[0_0_30px_rgba(255,165,0,0.5)]" />
+           
+           <div className="flex flex-col items-center gap-4 animate-in zoom-in duration-700">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
+                <img 
+                  src={`https://picsum.photos/seed/${targetPlayer?.id}/400/400`} 
+                  className="w-48 h-48 rounded-3xl object-cover border-4 border-primary shadow-[0_0_50px_rgba(255,123,0,0.5)] relative z-10" 
+                  alt="correct-player" 
+                />
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
+                   <Badge className="bg-primary text-black font-black text-xl px-6 py-2 shadow-2xl skew-x-[-12deg]">
+                      {targetPlayer?.name}
+                   </Badge>
+                </div>
+              </div>
+           </div>
+
+           <div className="w-full max-w-md grid grid-cols-2 gap-4 mt-8">
+              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl">
+                <p className="text-[10px] text-primary font-black tracking-widest uppercase opacity-50">P1 GUESS</p>
+                <p className="font-black text-xs text-white truncate px-2">{roundData?.player1Guess || "NO GUESS"}</p>
+                <div className={`text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
                   {roundData?.player1GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
-              <div className="bg-white/5 p-6 rounded-3xl text-center space-y-3 border-b-4 border-secondary shadow-2xl">
-                <p className="text-[10px] text-secondary font-black tracking-widest uppercase">P2 GUESS</p>
-                <p className="font-black text-sm text-white truncate px-2">{roundData?.player2Guess || "NO GUESS"}</p>
-                <div className={`text-3xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
+              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl">
+                <p className="text-[10px] text-secondary font-black tracking-widest uppercase opacity-50">P2 GUESS</p>
+                <p className="font-black text-xs text-white truncate px-2">{roundData?.player2Guess || "NO GUESS"}</p>
+                <div className={`text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
                    {roundData?.player2GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
+           </div>
+
+           <div className="text-center">
+              <p className="text-xs font-black text-white/30 uppercase tracking-[0.5em] animate-pulse">Next Round Loading...</p>
            </div>
         </div>
       )}
