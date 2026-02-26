@@ -81,11 +81,12 @@ export default function GamePage() {
       const emoteObj = EMOTES.find(e => e.id === emoteId);
       if (emoteObj) {
         const id = Math.random().toString();
-        const x = Math.random() * 60 + 20;
+        // Shift emotes to the right side (65% to 95%)
+        const x = Math.random() * 30 + 65;
         setFloatingEmotes(prev => [...prev, { id, url: emoteObj.url, x }]);
         setTimeout(() => {
           setFloatingEmotes(prev => prev.filter(e => e.id !== id));
-        }, 2000);
+        }, 2500);
       }
     }
   }, [room?.lastEmote, user]);
@@ -143,8 +144,8 @@ export default function GamePage() {
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
       
-      const opponentGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
       const iGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+      const opponentGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
       if (opponentGuessed && !iGuessed && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
@@ -194,6 +195,7 @@ export default function GamePage() {
     await updateDoc(roundRef, update);
     toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
     
+    // Check if we need to start the 15s timer for the opponent
     if (!roundData.player1Guess && !roundData.player2Guess) {
       setRoundTimer(15);
     }
@@ -218,22 +220,22 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Exact User-Specified Timing:
+    // User Specified Timing:
     // 2.2s country in
     // 3.1s country out
     // 3.8s position in
     // 4.7s position out
     // 4.9s rarity in
-    // 5.4s rarity out
-    // 6.2s card reveal
+    // 5.8s rarity out
+    // 6.7s card reveal
     
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
     setTimeout(() => setRevealStep('none'), 4700);
     setTimeout(() => setRevealStep('rarity'), 4900);
-    setTimeout(() => setRevealStep('none'), 5400);
-    setTimeout(() => setRevealStep('full-card'), 6200);
+    setTimeout(() => setRevealStep('none'), 5800);
+    setTimeout(() => setRevealStep('full-card'), 6700);
 
     setTimeout(() => {
       setGameState('result');
@@ -249,7 +251,7 @@ export default function GamePage() {
           router.push('/');
         }
       }, 10000);
-    }, 13000); // Wait a bit longer to let them see the full card
+    }, 14000);
   };
 
   const calculateRoundResults = async () => {
@@ -349,7 +351,7 @@ export default function GamePage() {
             className="absolute bottom-0 emote-float"
             style={{ left: `${emote.x}%` }}
           >
-            <img src={emote.url} className="w-16 h-16 rounded-full border-4 border-white shadow-2xl" alt="emote" />
+            <img src={emote.url} className="w-20 h-20 object-contain shadow-2xl" alt="emote" />
           </div>
         ))}
       </div>
@@ -357,8 +359,8 @@ export default function GamePage() {
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2">
-            <div className="relative shrink-0">
-              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 min-w-[40px] rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
+            <div className="relative shrink-0 w-10 h-10">
+              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
               {hasP1Guessed && (
                 <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
@@ -366,8 +368,8 @@ export default function GamePage() {
               )}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
-              {hasP1Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
+              <span className="text-[10px] md:text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
+              {hasP1Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -377,17 +379,17 @@ export default function GamePage() {
         </div>
         
         <div className="flex flex-col items-center">
-          <Badge className="bg-primary text-black font-black px-4 py-1.5 text-xs shadow-lg transform -skew-x-12">ROUND {room.currentRoundNumber}</Badge>
+          <Badge className="bg-primary text-black font-black px-4 py-1.5 text-[10px] md:text-xs shadow-lg transform -skew-x-12 whitespace-nowrap">ROUND {room.currentRoundNumber}</Badge>
         </div>
 
         <div className="flex flex-col gap-2 items-end min-w-0">
           <div className="flex items-center gap-2 w-full justify-end">
             <div className="flex flex-col items-end min-w-0">
-              <span className="text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
-              {hasP2Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
+              <span className="text-[10px] md:text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
+              {hasP2Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
-            <div className="relative shrink-0">
-              <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 min-w-[40px] rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
+            <div className="relative shrink-0 w-10 h-10">
+              <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
               {hasP2Guessed && (
                 <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
@@ -404,9 +406,15 @@ export default function GamePage() {
 
       <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-48">
         {gameState === 'countdown' ? (
-          <div className="flex-1 flex flex-col items-center justify-center space-y-8">
-             <div className="text-[12rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_50px_rgba(255,123,0,0.5)]">{countdown}</div>
-             <p className="text-2xl font-bold uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Prepare to Duel</p>
+          <div className="flex-1 flex flex-col items-center justify-center space-y-8 p-6 text-center">
+             <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
+                <div className="text-[10rem] md:text-[12rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
+             </div>
+             <div className="flex flex-col items-center gap-3">
+               <p className="text-2xl md:text-3xl font-black uppercase tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
+               <div className="h-1.5 w-32 bg-primary rounded-full" />
+             </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -443,9 +451,9 @@ export default function GamePage() {
         <div className="max-w-lg mx-auto w-full flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
              {iHaveGuessed && gameState === 'playing' ? (
-              <div className="flex-1 flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30">
+              <div className="flex-1 flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30 h-16">
                 <CheckCircle2 className="w-5 h-5 text-green-500 animate-bounce" />
-                <p className="text-xs font-black text-green-400 uppercase tracking-[0.2em]">Decision Locked In</p>
+                <p className="text-xs font-black text-green-400 uppercase tracking-[0.2em]">Decision Locked In. Waiting...</p>
               </div>
             ) : (
               <div className="flex gap-2 flex-1">
@@ -503,7 +511,7 @@ export default function GamePage() {
                   alt="correct-player" 
                 />
                 <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                   <Badge className="bg-primary text-black font-black text-xl px-6 py-2 shadow-2xl skew-x-[-12deg]">
+                   <Badge className="bg-primary text-black font-black text-xl px-6 py-2 shadow-2xl skew-x-[-12deg] whitespace-nowrap">
                       {targetPlayer?.name}
                    </Badge>
                 </div>
@@ -511,23 +519,27 @@ export default function GamePage() {
            </div>
 
            <div className="w-full max-w-md grid grid-cols-2 gap-4 mt-8">
-              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl">
-                <p className="text-[10px] text-primary font-black tracking-widest uppercase opacity-50">P1 GUESS</p>
-                <p className="font-black text-xs text-white truncate px-2">{roundData?.player1Guess || "NO GUESS"}</p>
+              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center">
+                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-12 h-12 rounded-full border-2 border-primary" alt="p1" />
+                <span className="text-[10px] font-black truncate text-white uppercase opacity-70">{p1Profile?.displayName || "Player 1"}</span>
+                <p className="text-[8px] text-primary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
+                <p className="font-black text-xs text-white truncate px-2 max-w-full italic">"{roundData?.player1Guess || "NO GUESS"}"</p>
                 <div className={`text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
                   {roundData?.player1GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
-              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl">
-                <p className="text-[10px] text-secondary font-black tracking-widest uppercase opacity-50">P2 GUESS</p>
-                <p className="font-black text-xs text-white truncate px-2">{roundData?.player2Guess || "NO GUESS"}</p>
+              <div className="bg-white/5 p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center">
+                <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-12 h-12 rounded-full border-2 border-secondary" alt="p2" />
+                <span className="text-[10px] font-black truncate text-white uppercase opacity-70">{p2Profile?.displayName || "Player 2"}</span>
+                <p className="text-[8px] text-secondary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
+                <p className="font-black text-xs text-white truncate px-2 max-w-full italic">"{roundData?.player2Guess || "NO GUESS"}"</p>
                 <div className={`text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
                    {roundData?.player2GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
            </div>
 
-           <div className="text-center">
+           <div className="text-center pt-4">
               <p className="text-xs font-black text-white/30 uppercase tracking-[0.5em] animate-pulse">Next Round Loading...</p>
            </div>
         </div>
