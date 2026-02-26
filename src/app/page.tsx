@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo } from "react";
@@ -55,7 +54,7 @@ export default function LandingPage() {
         startAssetSync(user.uid, user.displayName, user.photoURL);
       } else {
         await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
-        toast({ title: "Welcome back!", description: `Logged in as ${user.displayName}` });
+        toast({ title: "Welcome back!", description: `LOGGED IN AS ${user.displayName?.toUpperCase()}` });
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: "Google authentication error." });
@@ -107,6 +106,7 @@ export default function LandingPage() {
         player2CurrentHealth: 100,
         currentRoundNumber: 1,
         usedFootballerIds: [],
+        gameVersion: 'DEMO',
         createdAt: new Date().toISOString(),
       });
       router.push(`/lobby/${code}`);
@@ -184,7 +184,7 @@ export default function LandingPage() {
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl overflow-hidden">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-black text-white uppercase">WELCOME DUELIST</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Sign in to start your career</CardDescription>
+              <CardDescription className="text-[10px] uppercase font-bold tracking-widest">SIGN IN TO START YOUR CAREER</CardDescription>
             </CardHeader>
             <CardContent>
               <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black hover:bg-slate-200 font-black text-lg gap-3 rounded-2xl">
@@ -227,21 +227,21 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <Target className="w-5 h-5 text-primary" /> Quests
+                <Target className="w-5 h-5 text-primary" /> QUESTS
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <BarChart3 className="w-5 h-5 text-yellow-500" /> Leaderboard
+                <BarChart3 className="w-5 h-5 text-yellow-500" /> LEADERBOARD
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <Info className="w-5 h-5 text-secondary" /> Info
+                <Info className="w-5 h-5 text-secondary" /> INFO
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <Smile className="w-5 h-5 text-green-400" /> Emotes
+                <Smile className="w-5 h-5 text-green-400" /> EMOTES
               </Button>
             </div>
 
             <Button variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] tracking-[0.3em] hover:text-primary">
-              <Heart className="w-3 h-3 mr-2" /> Support FootyDuel
+              <Heart className="w-3 h-3 mr-2" /> SUPPORT FOOTYDUEL
             </Button>
           </div>
         )}
@@ -249,12 +249,12 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 gap-4">
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
               <Trophy className="text-secondary w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Duels Today</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span>
               <span className="text-2xl font-black">{roomsToday.toLocaleString()}</span>
            </div>
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
               <Users className="text-primary w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Total Duelists</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL DUELISTS</span>
               <span className="text-2xl font-black">{playerCount.toLocaleString()}</span>
            </div>
         </div>

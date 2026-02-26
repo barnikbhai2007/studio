@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -143,7 +142,7 @@ export default function ResultPage() {
       {battleHistory && (
         <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
           <div className="text-center">
-            <h3 className="text-xs font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
+            <h3 className="text-[10px] font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
               <History className="w-4 h-4" /> HEAD-TO-HEAD BATTLES
             </h3>
             <span className="text-[10px] font-bold text-white/30 uppercase">TOTAL DUELS: {battleHistory.totalMatches}</span>

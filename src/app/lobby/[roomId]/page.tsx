@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -77,6 +77,11 @@ export default function LobbyPage() {
     });
   };
 
+  const updateVersion = async (val: string) => {
+    if (!isLeader || !roomRef) return;
+    await updateDoc(roomRef, { gameVersion: val });
+  };
+
   const startGame = async () => {
     if (!room?.player2Id || !roomRef) {
       toast({ variant: "destructive", title: "Wait!", description: "Waiting for an opponent to join." });
@@ -106,24 +111,24 @@ export default function LobbyPage() {
 
         <Card className="bg-card border-none shadow-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
+            <CardTitle className="text-lg font-black flex items-center gap-2">
               <Users className="w-5 h-5 text-secondary" /> LOBBY STATUS
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1">
-              <Copy className="w-3 h-3" /> Copy Code
+            <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1 font-bold">
+              <Copy className="w-3 h-3" /> COPY CODE
             </Button>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-primary/20 relative">
                 <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />
-                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-primary" alt="P1" />
+                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-primary object-cover" alt="P1" />
                 <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p1Profile?.displayName || "Player 1"}</span>
               </div>
               <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/30 min-h-[140px] justify-center">
                 {room.player2Id ? (
                   <>
-                    <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary" alt="P2" />
+                    <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary object-cover" alt="P2" />
                     <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p2Profile?.displayName || "Player 2"}</span>
                   </>
                 ) : (
@@ -135,24 +140,47 @@ export default function LobbyPage() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">Game Health</label>
-                {isLeader ? (
-                  <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
-                    <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
-                      <SelectValue placeholder="Select Health" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="50">50 HP (Fast Match)</SelectItem>
-                      <SelectItem value="100">100 HP (Normal)</SelectItem>
-                      <SelectItem value="150">150 HP (Endurance)</SelectItem>
-                      <SelectItem value="200">200 HP (Epic)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
-                )}
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <Settings2 className="w-4 h-4 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Match Settings</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Match Health</label>
+                  {isLeader ? (
+                    <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
+                        <SelectValue placeholder="Select Health" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="50">50 HP (Fast)</SelectItem>
+                        <SelectItem value="100">100 HP (Normal)</SelectItem>
+                        <SelectItem value="150">150 HP (Pro)</SelectItem>
+                        <SelectItem value="200">200 HP (Endurance)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Question Pack</label>
+                  {isLeader ? (
+                    <Select value={room.gameVersion || 'DEMO'} onValueChange={updateVersion}>
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
+                        <SelectValue placeholder="Select Pack" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DEMO">DEMO (Starter Pack)</SelectItem>
+                        <SelectItem value="FDv0.1">FDv0.1 (Season 1)</SelectItem>
+                        <SelectItem value="All">ALL PACKS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.gameVersion || 'DEMO'}</div>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>

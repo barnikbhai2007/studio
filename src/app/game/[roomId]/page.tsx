@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -76,9 +75,6 @@ export default function GamePage() {
   useEffect(() => {
     if (room?.status === 'Completed') {
        if (room.winnerId !== user?.uid && room.loserId !== user?.uid) return;
-       if (room.loserId && room.loserId !== user?.uid) {
-         toast({ title: "VICTORY!", description: "Opponent has surrendered!" });
-       }
        router.push(`/result/${roomId}`);
     }
   }, [room?.status, roomId, router, user]);
@@ -119,7 +115,7 @@ export default function GamePage() {
     setCurrentRarity(getRandomRarity());
 
     if (isPlayer1 && room && roundRef) {
-      const player = getRandomFootballer(room.usedFootballerIds || []);
+      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
       setDoc(roundRef, {
         id: currentRoundId,
         gameRoomId: roomId,
@@ -193,7 +189,7 @@ export default function GamePage() {
     }
     
     await updateDoc(roundRef, update);
-    toast({ title: "DECISION LOCKED", description: `You guessed: ${guessInput.toUpperCase()}` });
+    toast({ title: "DECISION LOCKED", description: `GUESS: ${guessInput.toUpperCase()}` });
   };
 
   const handleSkip = async () => {
@@ -442,7 +438,7 @@ export default function GamePage() {
               ) : (
                 targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (
                   <div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2">
-                    <p className="text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
+                    <p className="text-sm font-bold text-white/90 leading-relaxed">"{hint}"</p>
                   </div>
                 ))
               )}
@@ -522,7 +518,7 @@ export default function GamePage() {
            <div className="w-full max-w-md grid grid-cols-2 gap-4">
               <div className="bg-white/5 p-4 rounded-3xl text-center space-y-3 border border-white/5">
                 <span className="text-[10px] font-black text-slate-500 uppercase">{p1Profile?.displayName || "PLAYER 1"}</span>
-                <p className="font-black text-xs text-white truncate italic">"{roundData?.player1Guess || "SKIP"}"</p>
+                <p className="font-black text-xs text-white truncate">"{roundData?.player1Guess || "SKIP"}"</p>
                 <div className={`text-3xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
                    {(() => {
                      const pts = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? -10 : 0);
@@ -532,7 +528,7 @@ export default function GamePage() {
               </div>
               <div className="bg-white/5 p-4 rounded-3xl text-center space-y-3 border border-white/5">
                 <span className="text-[10px] font-black text-slate-500 uppercase">{p2Profile?.displayName || "PLAYER 2"}</span>
-                <p className="font-black text-xs text-white truncate italic">"{roundData?.player2Guess || "SKIP"}"</p>
+                <p className="font-black text-xs text-white truncate">"{roundData?.player2Guess || "SKIP"}"</p>
                 <div className={`text-3xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
                    {(() => {
                      const pts = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? -10 : 0);
