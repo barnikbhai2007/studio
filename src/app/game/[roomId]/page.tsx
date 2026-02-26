@@ -74,14 +74,12 @@ export default function GamePage() {
     }
   }, [user, isUserLoading, router]);
 
-  // Handle Game Completion / Redirect to results
   useEffect(() => {
     if (room?.status === 'Completed') {
        router.push(`/result/${roomId}`);
     }
   }, [room?.status, roomId, router]);
 
-  // Sync profiles
   useEffect(() => {
     if (!room || !user) return;
     const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
@@ -89,7 +87,6 @@ export default function GamePage() {
     return () => { p1Unsub(); p2Unsub(); };
   }, [room, db, user]);
 
-  // Sync Emotes
   useEffect(() => {
     if (!room?.lastEmote || !user) return;
     const { userId, emoteId, timestamp } = room.lastEmote;
@@ -195,7 +192,6 @@ export default function GamePage() {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
-    
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
     
@@ -220,7 +216,6 @@ export default function GamePage() {
     const battleHistoryId = [winnerId, loserId].sort().join('_');
     const bhRef = doc(db, "battleHistories", battleHistoryId);
     const bhSnap = await getDoc(bhRef);
-
     const player1Id = [winnerId, loserId].sort()[0];
     const player2Id = [winnerId, loserId].sort()[1];
 
@@ -250,14 +245,12 @@ export default function GamePage() {
     if (!roomRef || !user || !room) return;
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
-    
     await updateDoc(roomRef, { 
       status: 'Completed', 
       winnerId, 
       loserId,
       finishedAt: new Date().toISOString()
     });
-    
     await updateBattleHistory(winnerId, loserId);
     router.push(`/result/${roomId}`);
   };
@@ -298,10 +291,8 @@ export default function GamePage() {
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
-    
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess === "SKIPPED" || !roundData.player1Guess ? 0 : -10);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess === "SKIPPED" || !roundData.player2Guess ? 0 : -10);
-    
     const diff = s1 - s2;
     let p1NewHealth = room.player1CurrentHealth;
     let p2NewHealth = room.player2CurrentHealth;
@@ -358,24 +349,42 @@ export default function GamePage() {
           </div>
           {revealStep === 'full-card' && currentRarity && (
             <div className="relative fc-card-container">
-              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
-                <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center relative">
-                  <div className="absolute top-4 left-4 flex flex-col items-center gap-1">
-                     <span className="text-3xl md:text-5xl font-black text-white/40 leading-none tracking-tighter">{targetPlayer?.position}</span>
-                     <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-12 md:w-16 shadow-lg rounded-sm" alt="flag" />
+              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-[2.5rem] shadow-[0_0_150px_rgba(0,0,0,0.8)] flex flex-col border-[12px] md:border-[16px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
+                {/* Rarity top-left */}
+                <div className="absolute top-4 left-4 z-30">
+                  <Badge className="bg-black/60 backdrop-blur-md border-white/20 text-[10px] md:text-xs font-black px-4 py-1.5 uppercase tracking-tighter shadow-2xl">
+                    {currentRarity.type}
+                  </Badge>
+                </div>
+
+                <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center relative z-20">
+                  {/* Universal Question Mark Reveal Styling */}
+                  <div className="flex-1 flex items-center justify-center select-none">
+                    <div className="relative">
+                      <div className="absolute inset-0 blur-[60px] bg-white/20 rounded-full animate-pulse" />
+                      <span className="text-[10rem] md:text-[14rem] font-black text-white/10 drop-shadow-[0_0_40px_rgba(255,255,255,0.3)] leading-none">?</span>
+                    </div>
                   </div>
-                  <div className="mt-8 flex flex-col items-center gap-4 md:gap-6">
-                     <Flame className="w-24 h-24 md:w-32 md:h-32 text-white/10" />
-                  </div>
-                  <div className="mt-auto w-full space-y-4">
-                    <div className="bg-black/80 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-2xl">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest">{currentRarity.type}</span>
+
+                  {/* Name and Flag at Bottom */}
+                  <div className="mt-auto w-full space-y-4 pb-4">
+                    <div className="bg-black/80 backdrop-blur-3xl px-4 py-4 md:py-6 rounded-[2rem] w-full border border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+                      <h3 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter fc-text-glow leading-none mb-4">
+                        {targetPlayer?.name}
+                      </h3>
+                      <div className="flex justify-center">
+                        <img 
+                          src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} 
+                          className="w-16 md:w-24 shadow-[0_0_30px_rgba(255,255,255,0.2)] rounded-md border border-white/20" 
+                          alt="flag" 
+                        />
                       </div>
-                      <h3 className="text-xl md:text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
                   </div>
                 </div>
+
+                {/* Subtle overlay texture/pattern could go here */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)] pointer-events-none" />
               </div>
             </div>
           )}
