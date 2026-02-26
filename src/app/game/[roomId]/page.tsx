@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -15,8 +14,8 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where } from "firebase/firestore";
-import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@/lib/footballer-data";
+import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where, writeBatch } from "firebase/firestore";
+import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, Emote } from "@/lib/emote-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
@@ -142,7 +141,10 @@ export default function GamePage() {
     setVisibleHints(1);
     setTargetPlayer(null);
     revealTriggered.current = false;
-    setCurrentRarity(getRandomRarity());
+    
+    // Rarity is picked per round
+    const pickedRarity = getRandomRarity();
+    setCurrentRarity(pickedRarity);
 
     if (isPlayer1 && room && roundRef) {
       try {
@@ -152,6 +154,7 @@ export default function GamePage() {
           gameRoomId: roomId,
           roundNumber: room.currentRoundNumber,
           footballerId: player.id,
+          rarityType: pickedRarity.type, // Store rarity in round
           creatorId: room.player1Id,
           opponentId: room.player2Id,
           hintsRevealedCount: 1,
@@ -190,6 +193,12 @@ export default function GamePage() {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       
+      // Sync rarity for client
+      if (roundData.rarityType) {
+        const rarity = RARITIES.find(r => r.type === roundData.rarityType);
+        if (rarity) setCurrentRarity(rarity);
+      }
+
       const bothGuessed = !!roundData.player1Guess && !!roundData.player2Guess;
       if (bothGuessed && gameState === 'playing' && !revealTriggered.current) {
         handleRevealTrigger();
@@ -297,56 +306,55 @@ export default function GamePage() {
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
        
-       // Update Leaderboard Statistics
+       const batch = writeBatch(db);
+       
        const winnerRef = doc(db, "userProfiles", winnerId);
        const loserRef = doc(db, "userProfiles", loserId);
-       await updateDoc(winnerRef, { 
-         totalWins: increment(1), 
-         totalGamesPlayed: increment(1) 
-       });
-       await updateDoc(loserRef, { 
-         totalLosses: increment(1), 
-         totalGamesPlayed: increment(1) 
-       });
+       batch.update(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
+       batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
        const bhId = [winnerId, loserId].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
        if (!bhSnap.exists()) {
-         await setDoc(bhRef, { id: bhId, player1Id: [winnerId, loserId].sort()[0], player2Id: [winnerId, loserId].sort()[1], player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, totalMatches: 1 });
+         batch.set(bhRef, { id: bhId, player1Id: [winnerId, loserId].sort()[0], player2Id: [winnerId, loserId].sort()[1], player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, totalMatches: 1 });
        } else {
          const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-         await updateDoc(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+         batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
        }
+
+       batch.update(roomRef, updatePayload);
+       await batch.commit();
+    } else {
+      await updateDoc(roomRef, updatePayload);
     }
 
-    await updateDoc(roomRef, updatePayload);
     await updateDoc(roundRef, { player1ScoreChange: s1, player2ScoreChange: s2, roundEndedAt: new Date().toISOString() });
   };
 
   const handleForfeit = async () => {
-    if (!roomRef || !user || !room) return;
+    if (!roomRef || !user || !room || room.status !== 'InProgress') return;
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
 
     if (!winnerId) {
-      toast({ variant: "destructive", title: "ERROR", description: "OPPONENT NOT FOUND." });
+      toast({ variant: "destructive", title: "FORFEIT ERROR", description: "MATCH CANNOT BE CONCEDED IN LOBBY." });
       return;
     }
 
-    // Update Leaderboard Statistics on Forfeit
+    const batch = writeBatch(db);
     const winnerRef = doc(db, "userProfiles", winnerId);
     const loserRef = doc(db, "userProfiles", loserId);
     
     try {
-      await updateDoc(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
-      await updateDoc(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+      batch.update(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
+      batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
       const bhId = [winnerId, loserId].sort().join('_');
       const bhRef = doc(db, "battleHistories", bhId);
       const bhSnap = await getDoc(bhRef);
       if (!bhSnap.exists()) {
-        await setDoc(bhRef, { 
+        batch.set(bhRef, { 
           id: bhId, 
           player1Id: [winnerId, loserId].sort()[0], 
           player2Id: [winnerId, loserId].sort()[1], 
@@ -356,20 +364,21 @@ export default function GamePage() {
         });
       } else {
         const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-        await updateDoc(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+        batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
       }
 
-      await updateDoc(roomRef, { 
+      batch.update(roomRef, { 
         status: 'Completed', 
         winnerId, 
         loserId,
         finishedAt: new Date().toISOString()
       });
 
-      toast({ title: "DUEL FORFEITED", description: "YOU HAVE CONCEDED THE MATCH." });
+      await batch.commit();
+      toast({ title: "MATCH CONCEDED", description: "DUEL LOGGED AS DEFEAT." });
     } catch (error) {
       console.error("Forfeit error:", error);
-      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "COULD NOT SYNC WITH SERVER." });
+      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "SYNC ERROR." });
     }
   };
 
@@ -434,7 +443,6 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Floating Emotes Overlay */}
       <div className="fixed inset-0 pointer-events-none z-[60]">
         {activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
@@ -446,7 +454,6 @@ export default function GamePage() {
         })}
       </div>
 
-      {/* Match Over Popup */}
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
            <div className="relative">
