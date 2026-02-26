@@ -13,7 +13,6 @@ import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 
 export default function LobbyPage() {
-  const { roomId } = roomId_from_params;
   const { roomId: roomIdFromParams } = useParams();
   const roomIdStr = roomIdFromParams as string;
   const router = useRouter();
