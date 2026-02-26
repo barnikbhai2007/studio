@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle } from "lucide-react";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
@@ -51,7 +51,7 @@ export default function GamePage() {
     return doc(db, "gameRooms", roomId as string, "gameRounds", currentRoundId);
   }, [db, roomId, currentRoundId, user]);
   
-  const { data: roundData } = useDoc(roundRef);
+  const { data: roundData, isLoading: isRoundLoading } = useDoc(roundRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -85,6 +85,13 @@ export default function GamePage() {
       }, { merge: true });
     }
   }, [isPlayer1, room, roomId, currentRoundId, roundRef]);
+
+  // Effect to initialize the first round if it doesn't exist (Player 1's job)
+  useEffect(() => {
+    if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5) {
+      startNewRoundLocally();
+    }
+  }, [isPlayer1, room, roundData, isRoundLoading, gameState, countdown, startNewRoundLocally]);
 
   useEffect(() => {
     if (!room || !user) return;
@@ -356,11 +363,18 @@ export default function GamePage() {
             </div>
             
             <div className="space-y-3">
-              {targetPlayer?.hints.slice(0, visibleHints).map((hint, idx) => (
-                <div key={idx} className="bg-card/80 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
-                  <p className="text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
+              {!targetPlayer ? (
+                <div className="flex flex-col items-center justify-center p-12 space-y-4 opacity-50">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <p className="text-xs font-black uppercase tracking-widest">Awaiting Player Data...</p>
                 </div>
-              ))}
+              ) : (
+                targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (
+                  <div key={idx} className="bg-card/80 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
+                    <p className="text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
