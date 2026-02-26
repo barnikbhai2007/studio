@@ -14,6 +14,7 @@ import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
 import { FOOTBALLERS, Footballer } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'reveal' | 'result';
+type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
 
 export default function GamePage() {
   const { roomId } = useParams();
@@ -30,6 +31,7 @@ export default function GamePage() {
   const [p2Profile, setP2Profile] = useState<any>(null);
 
   const [gameState, setGameState] = useState<GameState>('countdown');
+  const [revealStep, setRevealStep] = useState<RevealStep>('none');
   const [countdown, setCountdown] = useState(5);
   const [targetPlayer, setTargetPlayer] = useState<Footballer | null>(null);
   const [visibleHints, setVisibleHints] = useState<number>(1);
@@ -43,6 +45,7 @@ export default function GamePage() {
 
   const startNewRoundLocally = useCallback(() => {
     setGameState('countdown');
+    setRevealStep('none');
     setCountdown(5);
     setGuessInput("");
     setRoundTimer(null);
@@ -136,15 +139,39 @@ export default function GamePage() {
 
   const handleReveal = () => {
     setGameState('reveal');
+    setRevealStep('none');
     
-    // The video tag is rendered conditionally, so we wait for the next tick to play it
+    // Ensure video plays immediately
     setTimeout(() => {
       if (videoRef.current) {
         videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(e => console.log("Video autoplay failed", e));
+        videoRef.current.play().catch(e => console.log("Video playback failed", e));
       }
-    }, 100);
+    }, 50);
 
+    // Precise Cinematic Timing
+    // 1.7s: Country In
+    setTimeout(() => setRevealStep('country'), 1700);
+    
+    // 2.6s: Country Out
+    setTimeout(() => setRevealStep('none'), 2600);
+    
+    // 2.9s: Position In
+    setTimeout(() => setRevealStep('position'), 2900);
+    
+    // 3.0s (Approx): Position Out (Tight window for rapid sequence)
+    setTimeout(() => setRevealStep('none'), 3050);
+    
+    // 3.1s: Rarity In
+    setTimeout(() => setRevealStep('rarity'), 3100);
+    
+    // 4.1s: Rarity Out
+    setTimeout(() => setRevealStep('none'), 4100);
+
+    // 4.5s: Final Card Pop Up
+    setTimeout(() => setRevealStep('full-card'), 4500);
+
+    // Transition to results screen
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
@@ -161,7 +188,7 @@ export default function GamePage() {
           router.push('/');
         }
       }, 8000);
-    }, 7000);
+    }, 11000); // Extended reveal time to accommodate the full sequence
   };
 
   const calculateRoundResults = async () => {
@@ -196,13 +223,12 @@ export default function GamePage() {
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        {/* Direct link for Google Drive video playback */}
         <video 
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
-          autoPlay 
-          muted 
           playsInline
+          muted
+          autoPlay
         >
           <source src="https://drive.google.com/uc?export=download&id=1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z" type="video/mp4" />
           Your browser does not support the video tag.
@@ -211,48 +237,64 @@ export default function GamePage() {
         <div className="absolute inset-0 bg-white/10 fc-flash-overlay pointer-events-none z-10" />
         
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
-          <div className="mb-8 text-center animate-in fade-in zoom-in duration-700">
-            <h2 className="text-2xl font-black text-secondary tracking-[0.6em] uppercase mb-4 drop-shadow-2xl">Identity Confirmed</h2>
-            <div className="h-1.5 w-64 bg-gradient-to-r from-transparent via-secondary to-transparent mx-auto shadow-[0_0_20px_rgba(255,255,255,0.5)]" />
-          </div>
-
-          <div className="relative fc-card-container">
-            <div className={`w-80 h-[500px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] overflow-hidden relative ${targetPlayer?.rarity === 'ICON' ? 'bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-800 border-yellow-200' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border-slate-600'}`}>
-              
-              <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/20 rounded-full -ml-24 -mb-24 blur-3xl" />
-              
-              <div className="p-10 flex flex-col h-full items-center text-center justify-center">
-                <div className="flex flex-col items-center gap-6">
-                   <span className="text-8xl font-black text-white/50 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
-                   <div className="text-[120px] filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125">{targetPlayer?.flag}</div>
-                </div>
-
-                <div className="mt-12 w-full space-y-4">
-                  <div className="bg-black/90 backdrop-blur-xl px-4 py-4 rounded-2xl w-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                    <h3 className="text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
-                  </div>
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="p-1.5 bg-secondary/20 rounded-lg">
-                      <Zap className="w-5 h-5 text-secondary fill-secondary" />
-                    </div>
-                    <span className="text-sm font-black uppercase tracking-[0.2em] text-white/80 drop-shadow-md">{targetPlayer?.club}</span>
-                  </div>
-                </div>
+          
+          {/* Sequential Elements Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {revealStep === 'country' && (
+              <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
+                <div className="text-[180px] filter drop-shadow-[0_0_50px_rgba(255,255,255,0.8)]">{targetPlayer?.flag}</div>
+                <div className="mt-4 h-1 w-64 bg-white/50 blur-sm animate-pulse" />
               </div>
-
-              <div className="absolute top-6 right-6">
-                <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-black text-yellow-500' : 'bg-primary text-black'} text-sm px-4 py-1 font-black italic border-2 border-white/20`}>
+            )}
+            {revealStep === 'position' && (
+              <div className="animate-in fade-in slide-in-from-bottom-10 duration-300">
+                <span className="text-[160px] font-black text-white/90 italic tracking-tighter drop-shadow-[0_0_80px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span>
+              </div>
+            )}
+            {revealStep === 'rarity' && (
+              <div className="animate-in fade-in zoom-in duration-400">
+                <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-yellow-500 text-black' : 'bg-primary text-black'} text-4xl px-12 py-4 font-black italic border-4 border-white/40 shadow-[0_0_100px_rgba(255,255,255,0.6)] uppercase tracking-[0.2em]`}>
                   {targetPlayer?.rarity}
                 </Badge>
               </div>
-            </div>
+            )}
           </div>
 
-          <div className="mt-16 flex flex-col items-center gap-4 animate-bounce">
-             <Trophy className="w-10 h-10 text-secondary drop-shadow-[0_0_15px_rgba(255,165,0,0.8)]" />
-             <span className="text-xs font-black text-white tracking-[0.5em] uppercase opacity-70">Transfer Success</span>
-          </div>
+          {/* Full Card Reveal (Step 7) */}
+          {revealStep === 'full-card' && (
+            <div className="relative fc-card-container">
+              <div className={`w-80 h-[500px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] overflow-hidden relative ${targetPlayer?.rarity === 'ICON' ? 'bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-800 border-yellow-200' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border-slate-600'}`}>
+                
+                <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/20 rounded-full -ml-24 -mb-24 blur-3xl" />
+                
+                <div className="p-10 flex flex-col h-full items-center text-center justify-center">
+                  <div className="flex flex-col items-center gap-6">
+                     <span className="text-8xl font-black text-white/50 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
+                     <div className="text-[120px] filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125">{targetPlayer?.flag}</div>
+                  </div>
+
+                  <div className="mt-12 w-full space-y-4">
+                    <div className="bg-black/90 backdrop-blur-xl px-4 py-4 rounded-2xl w-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                      <h3 className="text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
+                    </div>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="p-1.5 bg-secondary/20 rounded-lg">
+                        <Zap className="w-5 h-5 text-secondary fill-secondary" />
+                      </div>
+                      <span className="text-sm font-black uppercase tracking-[0.2em] text-white/80 drop-shadow-md">{targetPlayer?.club}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="absolute top-6 right-6">
+                  <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-black text-yellow-500' : 'bg-primary text-black'} text-sm px-4 py-1 font-black italic border-2 border-white/20`}>
+                    {targetPlayer?.rarity}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
