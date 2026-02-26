@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -18,6 +17,7 @@ import { doc, setDoc, getDoc, updateDoc, collection } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isToday } from "date-fns";
+import { DEFAULT_EQUIPPED_IDS } from "@/lib/emote-data";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -55,7 +55,6 @@ export default function LandingPage() {
       const userRef = doc(db, "userProfiles", loggedUser.uid);
       const userSnap = await getDoc(userRef);
 
-      // Trigger sync for every login
       startAssetSync(loggedUser.uid, loggedUser.displayName, loggedUser.photoURL, !userSnap.exists());
       
     } catch (error: any) {
@@ -82,6 +81,7 @@ export default function LandingPage() {
               avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
               totalGamesPlayed: 0,
               totalWins: 0,
+              equippedEmoteIds: DEFAULT_EQUIPPED_IDS,
               createdAt: new Date().toISOString(),
               lastLoginAt: new Date().toISOString()
             }, { merge: true });
@@ -387,7 +387,11 @@ export default function LandingPage() {
               >
                 <Info className="w-5 h-5 text-secondary" /> INFO
               </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
+              <Button 
+                onClick={() => router.push('/emotes')}
+                variant="outline" 
+                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
+              >
                 <Smile className="w-5 h-5 text-green-400" /> EMOTES
               </Button>
             </div>

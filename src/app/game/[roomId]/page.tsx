@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,18 +16,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@/lib/footballer-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, Emote } from "@/lib/emote-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
-
-const EMOTES = [
-  { id: 'laugh', emoji: '😂', url: 'https://picsum.photos/seed/laugh/100/100' },
-  { id: 'cry', emoji: '😭', url: 'https://picsum.photos/seed/cry/100/100' },
-  { id: 'fire', emoji: '🔥', url: 'https://picsum.photos/seed/fire/100/100' },
-  { id: 'goal', emoji: '⚽', url: 'https://picsum.photos/seed/goal/100/100' },
-  { id: 'shock', emoji: '😲', url: 'https://picsum.photos/seed/shock/100/100' },
-  { id: 'flex', emoji: '💪', url: 'https://picsum.photos/seed/flex/100/100' },
-];
 
 const REVEAL_CARD_IMG = "https://res.cloudinary.com/speed-searches/image/upload/v1772119870/photo_2026-02-26_20-32-22_cutwwy.jpg";
 
@@ -46,6 +37,12 @@ export default function GamePage() {
   }, [db, roomId, user]);
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
+  const { data: profile } = useDoc(useMemoFirebase(() => user ? doc(db, "userProfiles", user.uid) : null, [db, user]));
+
+  const equippedEmotes = useMemo(() => {
+    const ids = profile?.equippedEmoteIds || DEFAULT_EQUIPPED_IDS;
+    return ALL_EMOTES.filter(e => ids.includes(e.id));
+  }, [profile]);
 
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
@@ -97,7 +94,6 @@ export default function GamePage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
-  // Handle Game End Popup
   useEffect(() => {
     if (room?.status === 'Completed' && !showGameOverPopup) {
        setShowGameOverPopup(true);
@@ -394,7 +390,7 @@ export default function GamePage() {
       {/* Floating Emotes Overlay */}
       <div className="fixed inset-0 pointer-events-none z-[60]">
         {activeEmotes.map((e) => {
-          const emoteData = EMOTES.find(em => em.id === e.emoteId);
+          const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
           return (
             <div key={e.id} className="absolute bottom-24 right-8 emote-float">
               <img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" />
@@ -526,9 +522,9 @@ export default function GamePage() {
           </PopoverTrigger>
           <PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end">
             <div className="grid grid-cols-3 gap-2">
-              {EMOTES.map(emote => (
+              {equippedEmotes.map(emote => (
                 <button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
-                  <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
+                  <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.name} />
                 </button>
               ))}
             </div>
