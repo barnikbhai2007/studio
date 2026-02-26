@@ -12,15 +12,15 @@ export interface Footballer {
 }
 
 export const RARITIES: { type: RarityType; bg: string }[] = [
-  { type: 'IRON', bg: 'from-slate-400 to-slate-700' },
-  { type: 'BRONZE', bg: 'from-orange-600 to-orange-900' },
-  { type: 'SILVER', bg: 'from-slate-200 to-slate-400' },
-  { type: 'GOLD', bg: 'from-yellow-400 via-yellow-500 to-yellow-600' },
-  { type: 'PLATINUM', bg: 'from-cyan-300 to-cyan-600' },
-  { type: 'DIAMOND', bg: 'from-blue-500 to-blue-800' },
-  { type: 'MASTER', bg: 'from-purple-600 to-purple-900' },
-  { type: 'GRANDMASTER', bg: 'from-red-500 to-red-800' },
-  { type: 'LEGENDARY', bg: 'from-yellow-400 via-amber-400 to-yellow-500' }
+  { type: 'IRON', bg: 'from-slate-500 to-slate-800' },
+  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950' },
+  { type: 'SILVER', bg: 'from-slate-300 to-slate-500' },
+  { type: 'GOLD', bg: 'from-yellow-400 via-amber-500 to-yellow-600' },
+  { type: 'PLATINUM', bg: 'from-cyan-400 to-blue-600' },
+  { type: 'DIAMOND', bg: 'from-blue-400 via-indigo-500 to-purple-600' },
+  { type: 'MASTER', bg: 'from-purple-600 to-fuchsia-900' },
+  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-950' },
+  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-orange-500' }
 ];
 
 export const getRandomRarity = () => RARITIES[Math.floor(Math.random() * RARITIES.length)];
@@ -52,13 +52,13 @@ export function getRandomFootballer(excludeIds: string[] = []): Footballer {
   const available = FOOTBALLERS.filter(f => !excludeIds.includes(f.id));
   const pool = available.length > 0 ? available : FOOTBALLERS;
   
-  // Weighted selection: Lower rating players are much more likely to spawn
-  // Probability is inversely proportional to rating
-  const totalWeight = pool.reduce((sum, f) => sum + (1001 - f.rating), 0);
+  // Weighted selection: Lower rating players (Common) are much more likely to spawn.
+  // We use a power factor to make the difference between common and legendary even steeper.
+  const totalWeight = pool.reduce((sum, f) => sum + Math.pow(1001 - f.rating, 2), 0);
   let random = Math.random() * totalWeight;
   
   for (const f of pool) {
-    const weight = 1001 - f.rating;
+    const weight = Math.pow(1001 - f.rating, 2);
     if (random < weight) return f;
     random -= weight;
   }

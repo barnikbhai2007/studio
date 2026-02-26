@@ -81,7 +81,7 @@ export default function GamePage() {
       if (emoteObj) {
         const id = Math.random().toString();
         const x = Math.random() * 30 + 65;
-        setFloatingEmotes(prev => [...prev, { id, url: emoteObj.url, x }]);
+        setFloatingEmotes(prev => [...prev, { id: id, url: emoteObj.url, x }]);
         setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2500);
       }
     }
@@ -176,7 +176,6 @@ export default function GamePage() {
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
-    // Correct if guess matches full name or any part of the name (e.g. 'Lionel' or 'Messi' matches 'Lionel Messi')
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
     
@@ -206,7 +205,6 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Updated Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
@@ -225,18 +223,18 @@ export default function GamePage() {
         } else {
           router.push('/');
         }
-      }, 10000);
+      }, 5000);
     }, 11900);
   };
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
     
-    // Score Mapping: Correct (+10), Wrong (-10), Skip (0)
+    // Tug of War logic: MyHealth = MyHealth + (MyScore - OpponentScore)
+    // Correct (+10), Wrong (-10), Skip (0)
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
     
-    // Tug of War: p1HP + (s1 - s2), p2HP + (s2 - s1)
     const p1Change = s1 - s2;
     const p2Change = s2 - s1;
     
