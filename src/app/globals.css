@@ -79,9 +79,9 @@
   100% { opacity: 0; }
 }
 
-/* Emote Floating Animation */
+/* Emote Floating Animation - Slowed down to 6s for better visibility */
 .emote-float {
-  animation: float-up-right 2.5s ease-out forwards;
+  animation: float-up-right 6s ease-out forwards;
 }
 
 @keyframes float-up-right {
@@ -89,7 +89,7 @@
     transform: translateY(0) translateX(0) scale(0.5) rotate(0deg); 
     opacity: 0; 
   }
-  15% { 
+  10% { 
     opacity: 1; 
     transform: translateY(-50px) translateX(0) scale(1.3) rotate(-5deg); 
   }
