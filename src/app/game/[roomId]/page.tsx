@@ -137,10 +137,13 @@ export default function GamePage() {
   const handleReveal = () => {
     setGameState('reveal');
     
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(e => console.log("Video autoplay failed", e));
-    }
+    // The video tag is rendered conditionally, so we wait for the next tick to play it
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(e => console.log("Video autoplay failed", e));
+      }
+    }, 100);
 
     setTimeout(() => {
       setGameState('result');
@@ -193,19 +196,19 @@ export default function GamePage() {
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        {/* REPLACE THE SRC BELOW WITH YOUR OWN VIDEO LINK */}
+        {/* Direct link for Google Drive video playback */}
         <video 
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover opacity-80"
+          className="absolute inset-0 w-full h-full object-cover"
           autoPlay 
           muted 
           playsInline
         >
-          <source src="https://drive.google.com/file/d/1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z/view?usp=sharing" type="video/mp4" />
+          <source src="https://drive.google.com/uc?export=download&id=1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
         
-        <div className="absolute inset-0 bg-white/20 fc-flash-overlay pointer-events-none z-10" />
+        <div className="absolute inset-0 bg-white/10 fc-flash-overlay pointer-events-none z-10" />
         
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="mb-8 text-center animate-in fade-in zoom-in duration-700">
@@ -219,13 +222,13 @@ export default function GamePage() {
               <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/20 rounded-full -ml-24 -mb-24 blur-3xl" />
               
-              <div className="p-10 flex flex-col h-full items-center text-center">
-                <div className="flex flex-col items-center gap-2">
-                   <span className="text-7xl font-black text-black/50 leading-none tracking-tighter">{targetPlayer?.position}</span>
-                   <div className="text-8xl my-4 filter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] transform scale-125">{targetPlayer?.flag}</div>
+              <div className="p-10 flex flex-col h-full items-center text-center justify-center">
+                <div className="flex flex-col items-center gap-6">
+                   <span className="text-8xl font-black text-white/50 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
+                   <div className="text-[120px] filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125">{targetPlayer?.flag}</div>
                 </div>
 
-                <div className="mt-auto w-full space-y-4">
+                <div className="mt-12 w-full space-y-4">
                   <div className="bg-black/90 backdrop-blur-xl px-4 py-4 rounded-2xl w-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                     <h3 className="text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                   </div>
