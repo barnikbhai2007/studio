@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Clock, Send, User, Star, Swords, Zap } from "lucide-react";
+import { Trophy, Clock, Send, User, Star, Swords, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
@@ -156,7 +156,6 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
-    // Explicit timing based on user requirements
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -165,7 +164,6 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('none'), 4100);
     setTimeout(() => setRevealStep('full-card'), 4500);
 
-    // After animation, show result and then loop
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
@@ -217,7 +215,6 @@ export default function GamePage() {
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        {/* Added muted, autoPlay, playsInline to ensure playback works */}
         <video 
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
@@ -273,13 +270,27 @@ export default function GamePage() {
     );
   }
 
+  const hasP1Guessed = !!roundData?.player1Guess;
+  const hasP2Guessed = !!roundData?.player2Guess;
+  const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 rounded-full border-2 border-primary shadow-lg" alt="P1" />
-            <span className="text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
+            <div className="relative">
+              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 rounded-full border-2 border-primary shadow-lg" alt="P1" />
+              {hasP1Guessed && (
+                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
+              {hasP1Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none">GUESSED</span>}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2.5 bg-muted/30" />
@@ -293,9 +304,19 @@ export default function GamePage() {
 
         <div className="flex flex-col gap-2 items-end">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
-            <div className="w-10 h-10 rounded-full bg-secondary border-2 border-secondary overflow-hidden shadow-lg">
-               <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full object-cover" />
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
+              {hasP2Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none">GUESSED</span>}
+            </div>
+            <div className="relative">
+              <div className="w-10 h-10 rounded-full bg-secondary border-2 border-secondary overflow-hidden shadow-lg">
+                 <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full object-cover" />
+              </div>
+              {hasP2Guessed && (
+                <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 w-full justify-end">
@@ -338,21 +359,29 @@ export default function GamePage() {
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/40 backdrop-blur-3xl border-t border-white/10 space-y-4 z-40">
-        <div className="flex gap-3 max-w-lg mx-auto">
-          <Input 
-            placeholder="ENTER PLAYER NAME" 
-            className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase"
-            value={guessInput}
-            onChange={(e) => setGuessInput(e.target.value)}
-            disabled={(isPlayer1 ? !!roundData?.player1Guess : !!roundData?.player2Guess) || gameState !== 'playing'}
-          />
-          <Button 
-            onClick={handleGuess} 
-            disabled={(isPlayer1 ? !!roundData?.player1Guess : !!roundData?.player2Guess) || gameState !== 'playing'}
-            className="h-16 w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"
-          >
-            <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </Button>
+        <div className="max-w-lg mx-auto w-full">
+          {iHaveGuessed && gameState === 'playing' && (
+            <div className="flex items-center justify-center gap-2 mb-4 animate-bounce">
+              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <p className="text-xs font-black text-white uppercase tracking-widest">Awaiting Opponent's Decision...</p>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <Input 
+              placeholder={iHaveGuessed ? "GUESSED SUBMITTED" : "ENTER PLAYER NAME"} 
+              className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase"
+              value={guessInput}
+              onChange={(e) => setGuessInput(e.target.value)}
+              disabled={iHaveGuessed || gameState !== 'playing'}
+            />
+            <Button 
+              onClick={handleGuess} 
+              disabled={iHaveGuessed || gameState !== 'playing'}
+              className="h-16 w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"
+            >
+              <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            </Button>
+          </div>
         </div>
       </footer>
 
