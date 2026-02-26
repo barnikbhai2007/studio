@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Swords, LogIn, Loader2, Trophy, Users, Download, CheckCircle2 } from "lucide-react";
+import { Plus, Swords, LogIn, Loader2, Trophy, Users, Download, CheckCircle2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore } from "@/firebase";
@@ -151,7 +151,7 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       {isSyncing && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 backdrop-blur-xl">
-          <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-500">
+          <div className="w-full max-sm space-y-8 animate-in fade-in zoom-in duration-500">
             <div className="flex flex-col items-center gap-6 text-center">
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
@@ -203,12 +203,23 @@ export default function LandingPage() {
           </Card>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/5">
-              <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
-              <div>
-                <h3 className="font-bold">{user.displayName}</h3>
-                <p className="text-xs text-primary font-black uppercase tracking-tighter">Profile Connected</p>
+            <div className="flex items-center justify-between bg-white/5 p-4 rounded-3xl border border-white/5">
+              <div className="flex items-center gap-4">
+                <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
+                <div>
+                  <h3 className="font-bold">{user.displayName}</h3>
+                  <p className="text-xs text-primary font-black uppercase tracking-tighter">Profile Connected</p>
+                </div>
               </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => auth.signOut()} 
+                className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                title="Sign Out"
+              >
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
 
             <div className="grid gap-3">
