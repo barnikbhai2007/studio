@@ -157,14 +157,17 @@ export default function GamePage() {
     } else if (gameState === 'countdown' && countdown === 0) {
       setGameState('playing');
     }
+
     const anyoneGuessed = !!roundData?.player1Guess || !!roundData?.player2Guess;
+    
+    // Hints logic: Stop revealing once someone guesses
     if (gameState === 'playing' && visibleHints < 5 && !anyoneGuessed) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
+
     if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
     } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
-      // Auto-skip if time runs out
       if (!guessInput && ! (isPlayer1 ? roundData?.player1Guess : roundData?.player2Guess)) {
         handleSkip();
       }
@@ -222,7 +225,7 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Exact Cinematic Timing:
+    // Precise Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200); 
     setTimeout(() => setRevealStep('none'), 3100);    
     setTimeout(() => setRevealStep('position'), 3800); 
@@ -252,13 +255,22 @@ export default function GamePage() {
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess === "SKIPPED" || !roundData.player1Guess ? 0 : -10);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess === "SKIPPED" || !roundData.player2Guess ? 0 : -10);
     
-    // Tug-of-War Relative Math
-    const p1Change = s1 - s2;
-    const p2Change = s2 - s1;
+    // Tug-of-War "Difference Maker" - Only depletion, no restoration
+    const diff = s1 - s2;
+    let p1NewHealth = room.player1CurrentHealth;
+    let p2NewHealth = room.player2CurrentHealth;
+
+    if (diff > 0) {
+      // P1 wins round, P2 loses health based on the difference
+      p2NewHealth = Math.max(0, p2NewHealth - diff);
+    } else if (diff < 0) {
+      // P2 wins round, P1 loses health based on the difference
+      p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
+    }
     
     await updateDoc(roomRef, {
-      player1CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player1CurrentHealth + p1Change)),
-      player2CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player2CurrentHealth + p2Change))
+      player1CurrentHealth: p1NewHealth,
+      player2CurrentHealth: p2NewHealth
     });
   };
 
@@ -326,7 +338,7 @@ export default function GamePage() {
               {hasP1Guessed && <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-[10px] md:text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
+              <span className="text-[10px] md:text-sm font-black truncate text-white uppercase">{p1Profile?.displayName || "Player 1"}</span>
               {hasP1Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
           </div>
@@ -342,7 +354,7 @@ export default function GamePage() {
         <div className="flex flex-col gap-1.5 md:gap-2 items-end min-w-0">
           <div className="flex items-center gap-2 w-full justify-end">
             <div className="flex flex-col items-end min-w-0">
-              <span className="text-[10px] md:text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
+              <span className="text-[10px] md:text-sm font-black truncate text-white uppercase">{p2Profile?.displayName || "Opponent"}</span>
               {hasP2Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
             <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
@@ -359,13 +371,13 @@ export default function GamePage() {
 
       <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-48">
         {gameState === 'countdown' ? (
-          <div className="flex-1 flex flex-col items-center justify-center space-y-4 md:space-y-8 p-4 md:p-6 text-center">
+          <div className="flex-1 flex flex-col items-center justify-center space-y-4 p-4 text-center">
              <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-[60px] md:blur-[100px] rounded-full animate-pulse" />
-                <div className="text-8xl md:text-[10rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
+                <div className="text-7xl md:text-[10rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
              </div>
-             <div className="flex flex-col items-center gap-2 md:gap-3">
-               <p className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
+             <div className="flex flex-col items-center gap-2">
+               <p className="text-lg md:text-2xl font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
                <div className="h-1 w-16 md:h-1.5 md:w-24 bg-primary rounded-full" />
              </div>
           </div>
@@ -384,11 +396,15 @@ export default function GamePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-primary" /> Scouting Reports
               </h3>
-              {anyoneGuessed && <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 text-[10px] font-black flex items-center gap-1.5 uppercase tracking-widest"><Ban className="w-3 h-3" /> Scouting Suspended</Badge>}
+              {anyoneGuessed && (
+                <Badge className="bg-red-500 text-white border border-white/20 px-3 py-1.5 text-[9px] font-black flex items-center gap-1.5 uppercase tracking-[0.1em] animate-in zoom-in shadow-lg">
+                  <Ban className="w-3.5 h-3.5" /> Scouting Suspended
+                </Badge>
+              )}
               {roundTimer !== null && (
                 <Badge className="bg-red-600 animate-pulse text-white px-3 h-8 text-[10px] md:text-xs font-black border-2 border-white/40 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
                   <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> {roundTimer}s REMAINING
