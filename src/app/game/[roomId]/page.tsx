@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -13,8 +14,8 @@ import {
   ShieldAlert, Ban as ForbiddenIcon
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
@@ -57,6 +58,8 @@ export default function GamePage() {
   const [guessInput, setGuessInput] = useState("");
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [currentRarity, setCurrentRarity] = useState<any>(null);
+  const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, createdAt: number}[]>([]);
+  const [showGameOverPopup, setShowGameOverPopup] = useState(false);
   
   const isPlayer1 = room?.player1Id === user?.uid;
   const currentRoundId = `round_${room?.currentRoundNumber || 1}`;
@@ -68,16 +71,41 @@ export default function GamePage() {
   
   const { data: roundData, isLoading: isRoundLoading } = useDoc(roundRef);
 
+  // Emote Listener
+  const emotesQuery = useMemoFirebase(() => {
+    if (!roomId) return null;
+    return query(collection(db, "gameRooms", roomId as string, "emotes"), orderBy("createdAt", "desc"), limit(5));
+  }, [db, roomId]);
+  const { data: recentEmotes } = useCollection(emotesQuery);
+
+  useEffect(() => {
+    if (recentEmotes && recentEmotes.length > 0) {
+      const now = Date.now();
+      const newEmotes = recentEmotes
+        .filter(e => now - (e.createdAt?.seconds * 1000 || now) < 3000)
+        .map(e => ({ id: e.id, emoteId: e.emoteId, createdAt: e.createdAt?.seconds * 1000 }));
+      
+      setActiveEmotes(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const filtered = newEmotes.filter(n => !existingIds.has(n.id));
+        return [...prev, ...filtered].slice(-10);
+      });
+    }
+  }, [recentEmotes]);
+
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
+  // Handle Game End Popup
   useEffect(() => {
-    if (room?.status === 'Completed') {
-       if (room.winnerId !== user?.uid && room.loserId !== user?.uid) return;
-       router.push(`/result/${roomId}`);
+    if (room?.status === 'Completed' && !showGameOverPopup) {
+       setShowGameOverPopup(true);
+       setTimeout(() => {
+         router.push(`/result/${roomId}`);
+       }, 4000);
     }
-  }, [room?.status, roomId, router, user]);
+  }, [room?.status, roomId, router, showGameOverPopup]);
 
   useEffect(() => {
     if (!room || !user) return;
@@ -302,6 +330,15 @@ export default function GamePage() {
     });
   };
 
+  const sendEmote = async (emoteId: string) => {
+    if (!roomId || !user) return;
+    await addDoc(collection(db, "gameRooms", roomId as string, "emotes"), {
+      emoteId,
+      senderId: user.uid,
+      createdAt: serverTimestamp()
+    });
+  };
+
   if (isUserLoading || isRoomLoading || !room) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
 
   const hasP1Guessed = !!roundData?.player1Guess;
@@ -354,6 +391,39 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Floating Emotes Overlay */}
+      <div className="fixed inset-0 pointer-events-none z-[60]">
+        {activeEmotes.map((e) => {
+          const emoteData = EMOTES.find(em => em.id === e.emoteId);
+          return (
+            <div key={e.id} className="absolute bottom-24 right-8 emote-float">
+              <img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Match Over Popup */}
+      {showGameOverPopup && (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
+           <div className="relative">
+              <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
+              <div className="relative z-10 space-y-6">
+                 <h2 className="text-7xl font-black text-white uppercase tracking-tighter animate-bounce">
+                    {room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}
+                 </h2>
+                 <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/10">
+                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">MATCH RESULTS</p>
+                    <p className="text-lg font-black text-white uppercase">
+                       {room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON
+                    </p>
+                 </div>
+                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.5em] animate-pulse">PREPARING SUMMARY...</p>
+              </div>
+           </div>
+        </div>
+      )}
+
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="relative shrink-0 w-10 h-10">
@@ -457,7 +527,7 @@ export default function GamePage() {
           <PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end">
             <div className="grid grid-cols-3 gap-2">
               {EMOTES.map(emote => (
-                <button key={emote.id} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
+                <button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
                   <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
                 </button>
               ))}

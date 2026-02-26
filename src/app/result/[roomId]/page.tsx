@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -69,8 +70,15 @@ export default function ResultPage() {
     if (!roomRef || !roomId || !isPlayer1) return;
     try {
       const batch = writeBatch(db);
+      
+      // Clear rounds
       const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
       roundsSnap.docs.forEach(d => batch.delete(d.ref));
+      
+      // Clear emotes
+      const emotesSnap = await getDocs(collection(db, "gameRooms", roomId as string, "emotes"));
+      emotesSnap.docs.forEach(d => batch.delete(d.ref));
+
       batch.update(roomRef, {
         status: 'Lobby',
         player1CurrentHealth: room.healthOption,
@@ -94,6 +102,10 @@ export default function ResultPage() {
       </div>
     );
   }
+
+  // Map battle history wins correctly
+  const p1Wins = battleHistory?.player1Id === room.player1Id ? battleHistory?.player1Wins : battleHistory?.player2Wins;
+  const p2Wins = battleHistory?.player1Id === room.player2Id ? battleHistory?.player1Wins : battleHistory?.player2Wins;
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
@@ -150,14 +162,14 @@ export default function ResultPage() {
           <div className="flex items-center justify-between gap-4">
              <div className="flex-1 text-center">
                 <span className="text-[3rem] font-black text-primary leading-none">
-                  {battleHistory.player1Id === room.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                  {p1Wins}
                 </span>
                 <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
              </div>
              <div className="w-px h-12 bg-white/10" />
              <div className="flex-1 text-center">
                 <span className="text-[3rem] font-black text-secondary leading-none">
-                  {battleHistory.player1Id === room.player2Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                  {p2Wins}
                 </span>
                 <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "GUEST"} WINS</span>
              </div>
