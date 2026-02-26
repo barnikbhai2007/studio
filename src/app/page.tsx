@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Swords, LogIn, Loader2, Trophy, Users } from "lucide-react";
+import { Plus, Swords, LogIn, Loader2, Trophy, Users, Download, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { Progress } from "@/components/ui/progress";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -27,21 +30,46 @@ export default function LandingPage() {
       const user = result.user;
       
       const userRef = doc(db, "userProfiles", user.uid);
-      await setDoc(userRef, {
-        id: user.uid,
-        googleAccountId: user.uid,
-        displayName: user.displayName || "Player",
-        avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
-        totalGamesPlayed: 0,
-        totalWins: 0,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString()
-      }, { merge: true });
+      const userSnap = await getDoc(userRef);
 
-      toast({ title: "Welcome back!", description: `Logged in as ${user.displayName}` });
+      // If new user, trigger asset download simulation
+      if (!userSnap.exists()) {
+        startAssetSync(user.uid, user.displayName, user.photoURL);
+      } else {
+        await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
+        toast({ title: "Welcome back!", description: `Logged in as ${user.displayName}` });
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: "Please ensure Google Auth is enabled in Firebase Console." });
     }
+  };
+
+  const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null) => {
+    setIsSyncing(true);
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setTimeout(async () => {
+          const userRef = doc(db, "userProfiles", uid);
+          await setDoc(userRef, {
+            id: uid,
+            googleAccountId: uid,
+            displayName: displayName || "Player",
+            avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
+            totalGamesPlayed: 0,
+            totalWins: 0,
+            createdAt: new Date().toISOString(),
+            lastLoginAt: new Date().toISOString()
+          }, { merge: true });
+          setIsSyncing(false);
+          toast({ title: "Assets Synced!", description: "High-quality game resources are ready." });
+        }, 1000);
+      }
+      setSyncProgress(progress);
+    }, 400);
   };
 
   const handleCreateRoom = async () => {
@@ -49,7 +77,6 @@ export default function LandingPage() {
     setIsActionLoading(true);
     
     try {
-      // 6-digit numeric code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       const roomRef = doc(db, "gameRooms", code);
 
@@ -76,7 +103,6 @@ export default function LandingPage() {
   const handleJoinRoom = async () => {
     if (!user || !roomCode) return;
     setIsActionLoading(true);
-
     const cleanCode = roomCode.trim();
     
     try {
@@ -90,32 +116,25 @@ export default function LandingPage() {
       }
 
       const roomData = roomSnap.data();
-      
-      // Check if already in room
       if (roomData.player1Id === user.uid || roomData.player2Id === user.uid) {
         router.push(`/lobby/${cleanCode}`);
         return;
       }
 
-      // Check if room is full
       if (roomData.player2Id && roomData.player2Id !== user.uid) {
         toast({ variant: "destructive", title: "Room Full", description: "This game already has two players." });
         setIsActionLoading(false);
         return;
       }
 
-      // Join room
       await updateDoc(roomRef, {
         player2Id: user.uid,
         player2CurrentHealth: roomData.healthOption
       });
 
-      setTimeout(() => {
-        router.push(`/lobby/${cleanCode}`);
-      }, 100);
-
+      router.push(`/lobby/${cleanCode}`);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Join Failed", description: "Permissions or network error. Try again." });
+      toast({ variant: "destructive", title: "Join Failed", description: "Permissions or network error." });
       setIsActionLoading(false);
     }
   };
@@ -130,6 +149,34 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
+      {isSyncing && (
+        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 backdrop-blur-xl">
+          <div className="w-full max-w-sm space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                <Download className="w-16 h-16 text-primary animate-bounce relative z-10" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black tracking-tighter uppercase italic">Optimising Assets</h2>
+                <p className="text-slate-400 text-sm font-medium">Downloading video sequences and player data...</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between text-[10px] font-black tracking-widest text-primary uppercase">
+                <span>Synchronizing</span>
+                <span>{Math.round(syncProgress)}%</span>
+              </div>
+              <Progress value={syncProgress} className="h-2 bg-white/5" />
+            </div>
+            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+              <CheckCircle2 className={`w-3 h-3 ${syncProgress === 100 ? 'text-green-500' : 'text-slate-800'}`} />
+              Verification in progress
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
       
       <div className="relative z-10 w-full max-w-md space-y-12">
@@ -157,7 +204,7 @@ export default function LandingPage() {
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/5">
-              <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary" alt="Profile" />
+              <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
               <div>
                 <h3 className="font-bold">{user.displayName}</h3>
                 <p className="text-xs text-primary font-black uppercase tracking-tighter">Profile Connected</p>

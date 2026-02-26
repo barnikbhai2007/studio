@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles, Ban } from "lucide-react";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
@@ -71,6 +70,15 @@ export default function GamePage() {
     }
   }, [user, isUserLoading, router]);
 
+  // Sync profiles
+  useEffect(() => {
+    if (!room || !user) return;
+    const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
+    const p2Unsub = room.player2Id ? onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data())) : () => {};
+    return () => { p1Unsub(); p2Unsub(); };
+  }, [room, db, user]);
+
+  // Sync Emotes
   useEffect(() => {
     if (!room?.lastEmote || !user) return;
     const { userId, emoteId, timestamp } = room.lastEmote;
@@ -125,19 +133,13 @@ export default function GamePage() {
   }, [isPlayer1, room, roundData, isRoundLoading, gameState, countdown, startNewRoundLocally]);
 
   useEffect(() => {
-    if (!room || !user) return;
-    const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
-    const p2Unsub = room.player2Id ? onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data())) : () => {};
-    return () => { p1Unsub(); p2Unsub(); };
-  }, [room, db, user]);
-
-  useEffect(() => {
     if (roundData) {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
       const iGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+      
       if ((hasP1Guessed || hasP2Guessed) && !iGuessed && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
       }
@@ -162,6 +164,10 @@ export default function GamePage() {
     if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
     } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
+      // Auto-skip if time runs out
+      if (!guessInput && ! (isPlayer1 ? roundData?.player1Guess : roundData?.player2Guess)) {
+        handleSkip();
+      }
       setGameState('finalizing');
       setTimeout(() => handleReveal(), 3000);
     }
@@ -176,7 +182,6 @@ export default function GamePage() {
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
-    // Check for full match or first/last name matches
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
     
@@ -185,11 +190,22 @@ export default function GamePage() {
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
     
     await updateDoc(roundRef, update);
-    toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
-    
-    if (!roundData.player1Guess && !roundData.player2Guess) {
-      setRoundTimer(15);
-    }
+    toast({ title: "Guess Locked In", description: `Decision: ${guessInput}` });
+  };
+
+  const handleSkip = async () => {
+    if (!roundRef || gameState !== 'playing') return;
+    const update: any = isPlayer1 
+      ? { player1Guess: "SKIPPED", player1GuessedCorrectly: false }
+      : { player2Guess: "SKIPPED", player2GuessedCorrectly: false };
+    await updateDoc(roundRef, update);
+    toast({ title: "Round Skipped", description: "You forfeited your chance to guess." });
+  };
+
+  const handleForfeit = async () => {
+    if (!roomRef || !user) return;
+    await updateDoc(roomRef, { status: 'Completed', winnerId: isPlayer1 ? room.player2Id : room.player1Id });
+    router.push('/');
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -206,14 +222,14 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Updated Cinematic Reveal Timings
-    setTimeout(() => setRevealStep('country'), 2200); // 2.2s in
-    setTimeout(() => setRevealStep('none'), 3100);    // 3.1s out
-    setTimeout(() => setRevealStep('position'), 3800); // 3.8s in
-    setTimeout(() => setRevealStep('none'), 4700);    // 4.7s out
-    setTimeout(() => setRevealStep('rarity'), 5200);   // 5.2s in
-    setTimeout(() => setRevealStep('none'), 6100);    // 6.1s out
-    setTimeout(() => setRevealStep('full-card'), 6900); // 6.9s full card
+    // Exact Cinematic Timing:
+    setTimeout(() => setRevealStep('country'), 2200); 
+    setTimeout(() => setRevealStep('none'), 3100);    
+    setTimeout(() => setRevealStep('position'), 3800); 
+    setTimeout(() => setRevealStep('none'), 4700);    
+    setTimeout(() => setRevealStep('rarity'), 5200);   
+    setTimeout(() => setRevealStep('none'), 6100);    
+    setTimeout(() => setRevealStep('full-card'), 6900); 
     
     setTimeout(() => {
       setGameState('result');
@@ -225,18 +241,18 @@ export default function GamePage() {
         } else {
           router.push('/');
         }
-      }, 5000); // Show results for 5s before next round
-    }, 11900); // Total reveal time (6.9s + 5s card display)
+      }, 5000); 
+    }, 11900); 
   };
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
     
-    // Base scores: +10 correct, -10 wrong, 0 skip
-    let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
-    let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
+    // Explicit Points: +10, -10, 0
+    let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess === "SKIPPED" || !roundData.player1Guess ? 0 : -10);
+    let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess === "SKIPPED" || !roundData.player2Guess ? 0 : -10);
     
-    // Relative Tug-of-War Math
+    // Tug-of-War Relative Math
     const p1Change = s1 - s2;
     const p2Change = s2 - s1;
     
@@ -319,8 +335,9 @@ export default function GamePage() {
             <span className="text-[10px] md:text-xs font-black text-primary">{room.player1CurrentHealth}</span>
           </div>
         </div>
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center gap-1">
           <Badge className="bg-primary text-black font-black px-3 md:px-4 py-1 md:py-1.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap uppercase">ROUND {room.currentRoundNumber}</Badge>
+          <Button variant="ghost" size="sm" onClick={handleForfeit} className="h-6 text-[8px] text-red-500 font-black uppercase hover:bg-red-500/10">Forfeit</Button>
         </div>
         <div className="flex flex-col gap-1.5 md:gap-2 items-end min-w-0">
           <div className="flex items-center gap-2 w-full justify-end">
@@ -405,8 +422,11 @@ export default function GamePage() {
               </div>
             ) : (
               <div className="flex gap-2 flex-1">
-                <Input placeholder="ENTER PLAYER NAME" className="h-14 md:h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase text-sm md:text-base" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} />
-                <Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing'} className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"><Send className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /></Button>
+                <Input placeholder="ENTER PLAYER NAME" className="h-14 md:h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase text-sm md:text-base" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} onKeyDown={(e) => e.key === 'Enter' && handleGuess()} />
+                <div className="flex flex-col gap-1">
+                   <Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing'} className="h-10 w-14 md:h-12 md:w-16 rounded-xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"><Send className="w-4 h-4" /></Button>
+                   <Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="h-10 w-14 md:h-12 md:w-16 rounded-xl border-white/10 bg-white/5 text-[8px] font-black uppercase"><SkipForward className="w-4 h-4" /></Button>
+                </div>
               </div>
             )}
             <Popover><PopoverTrigger asChild><Button variant="secondary" className="h-14 w-14 md:h-16 md:w-16 rounded-2xl border border-white/10 shadow-xl"><SmilePlus className="w-5 h-5 md:w-6 md:h-6" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{EMOTES.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} /></button>))}</div></PopoverContent></Popover>
@@ -422,34 +442,34 @@ export default function GamePage() {
               <Badge className="bg-primary text-black font-black text-lg px-6 py-2 skew-x-[-12deg]">ROUND RESULT</Badge>
            </div>
            <div className="w-full max-w-md grid grid-cols-2 gap-3 md:gap-4 mt-6 md:mt-8">
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
+              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
                 <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-primary object-cover" alt="p1" />
                 <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p1Profile?.displayName || "Player 1"}</span>
                 <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player1Guess || "SKIPPED"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess ? 'text-red-500' : 'text-slate-500')}`}>
+                <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
                   {(() => {
-                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
-                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
-                    let diff = s1 - s2;
-                    // No relative health gain for skipping if other person failed
-                    if (s1 === 0 && diff > 0) diff = 0;
-                    return diff > 0 ? `+${diff}` : diff;
+                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? -10 : 0);
+                    return s1 > 0 ? `+${s1}` : s1;
                   })()}
                 </div>
+                <div className="w-full space-y-1">
+                   <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 bg-white/5" />
+                   <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">Health Post-Duel</span>
+                </div>
               </div>
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
+              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
                 <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-secondary object-cover" alt="p2" />
                 <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p2Profile?.displayName || "Player 2"}</span>
                 <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player2Guess || "SKIPPED"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess ? 'text-red-500' : 'text-slate-500')}`}>
+                <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
                    {(() => {
-                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
-                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
-                    let diff = s2 - s1;
-                    // No relative health gain for skipping if other person failed
-                    if (s2 === 0 && diff > 0) diff = 0;
-                    return diff > 0 ? `+${diff}` : diff;
+                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? -10 : 0);
+                    return s2 > 0 ? `+${s2}` : s2;
                   })()}
+                </div>
+                <div className="w-full space-y-1">
+                   <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 bg-white/5 rotate-180" />
+                   <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">Health Post-Duel</span>
                 </div>
               </div>
            </div>
