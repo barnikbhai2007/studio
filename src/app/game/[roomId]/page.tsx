@@ -201,7 +201,7 @@ export default function GamePage() {
           muted 
           playsInline
         >
-          <source src="https://player.vimeo.com/external/370331493.sd.mp4?s=29073739925e016142646b5d92825853240a5a51&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
+          <source src="https://drive.google.com/file/d/1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z/view?usp=sharing" type="video/mp4" />
           Your browser does not support the video tag.
         </video>
         
