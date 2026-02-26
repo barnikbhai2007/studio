@@ -2,40 +2,125 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * CORE PHILOSOPHY:
+     * This ruleset enforces a strict user-ownership and shared-participant model. 
+     * Access is granted primarily based on the authenticated user's UID matching 
+     * specific ID fields within the documents (e.g., creatorId, opponentId, or the path userId).
+     *
+     * DATA STRUCTURE:
+     * - /users/{userId}: Private user profiles, owned by the authenticated user.
+     * - /footballers/{footballerId}: Public read-only repository of game data.
+     * - /gameRooms/{gameRoomId}: Shared game instances accessible only by the two players involved.
+     * - /gameRooms/{gameRoomId}/rounds/{roundId}: Sub-collection of game rounds.
+     * - /battleHistories/{battleHistoryId}: Head-to-head statistics shared between two specific players.
+     *
+     * KEY SECURITY DECISIONS:
+     * 1. Denormalization: To achieve "Authorization Independence" and avoid costly get() calls, 
+     *    participant IDs (creatorId/opponentId) are denormalized into sub-collections (GameRounds).
+     * 2. Relational Integrity: On document creation, we enforce that the document's internal 
+     *    ownership/identity fields match the requester's UID or the resource path.
+     * 3. Prototyping Flexibility: We strictly enforce "who" can access data, but allow 
+     *    "what" data is written (flexible schema) to support rapid development.
+     * 4. State Management: Update and Delete operations require a check for the document's 
+     *    existence to prevent errors and ensure ownership is verified against actual data.
+     */
+
+    // --- Global Helper Functions ---
+
+    // Checks if the user is authenticated.
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Checks if the authenticated user's UID matches the provided userId.
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    match /userProfiles/{userId} {
-      // Allow public listing so the homepage can count total players
-      allow list: if true;
-      allow get: if isSignedIn();
-      allow create, update: if isOwner(userId);
-      allow delete: if false;
+    // Checks if the authenticated user is one of the two participants.
+    function isParticipant(p1, p2) {
+      return isSignedIn() && (request.auth.uid == p1 || request.auth.uid == p2);
     }
 
-    match /gameRooms/{gameRoomId} {
-      // Allow public listing so the homepage can count rooms created today
-      allow list: if true;
-      allow get: if isSignedIn();
-      allow create: if isSignedIn();
-      
-      // Allow update for participants OR someone joining an empty P2 slot
-      allow update: if isSignedIn() && (
-        request.auth.uid == resource.data.player1Id || 
-        request.auth.uid == resource.data.player2Id ||
-        (resource.data.player2Id == null)
-      );
-      
-      allow delete: if isSignedIn() && request.auth.uid == resource.data.player1Id;
+    // Combines ownership and existence check for updates/deletes.
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
 
-      match /gameRounds/{roundId} {
-        allow read, write: if isSignedIn();
+    // Combines participant and existence check for updates/deletes.
+    function isExistingParticipant(p1, p2) {
+      return resource != null && isParticipant(p1, p2);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Users can only manage their own profile.
+     * @path /users/{userId}
+     * @allow (get) If the request.auth.uid matches the {userId} in the path.
+     * @deny (create) If the internal 'id' field in the data does not match the {userId} in the path.
+     * @principle Enforces path-based ownership and validates relational integrity of the user ID.
+     */
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for static footballer data. Publicly readable, write-protected.
+     * @path /footballers/{footballerId}
+     * @allow (get, list) For all users, including unauthenticated users.
+     * @deny (write) For all users (restricted to admin via console/backend).
+     * @principle Global data repository with public read access.
+     */
+    match /footballers/{footballerId} {
+      allow get, list: if true;
+      allow create, update, delete: if false; // Admin only - No owner field in IR to delegate to users.
+    }
+
+    /**
+     * @description Rules for 1v1 game rooms. Restricted to the creator and the joined opponent.
+     * @path /gameRooms/{gameRoomId}
+     * @allow (create) If the creatorId matches the authenticated user.
+     * @deny (update) If the user is not the creator or the opponent stored in the document.
+     * @principle Shared access model using explicit UID fields within the document.
+     */
+    match /gameRooms/{gameRoomId} {
+      allow get, list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || resource.data.opponentId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isExistingParticipant(resource.data.creatorId, resource.data.opponentId) && request.resource.data.creatorId == resource.data.creatorId;
+      allow delete: if isExistingParticipant(resource.data.creatorId, resource.data.opponentId);
+
+      /**
+       * @description Rules for rounds within a game room.
+       * @path /gameRooms/{gameRoomId}/rounds/{roundId}
+       * @allow (create) If the denormalized creatorId or opponentId matches the user.
+       * @deny (get) If the user is not a participant listed in the round document.
+       * @principle Authorization Independence via denormalization of participant IDs.
+       */
+      match /rounds/{roundId} {
+        allow get, list: if isParticipant(resource.data.creatorId, resource.data.opponentId);
+        allow create: if isParticipant(request.resource.data.creatorId, request.resource.data.opponentId);
+        allow update: if isExistingParticipant(resource.data.creatorId, resource.data.opponentId) && request.resource.data.creatorId == resource.data.creatorId;
+        allow delete: if isExistingParticipant(resource.data.creatorId, resource.data.opponentId);
       }
+    }
+
+    /**
+     * @description Rules for head-to-head battle history between two players.
+     * @path /battleHistories/{battleHistoryId}
+     * @allow (get) If the user is either player1Id or player2Id.
+     * @deny (list) If the user is not a participant in the specific history record.
+     * @principle Multi-user collaborative access for shared statistics.
+     */
+    match /battleHistories/{battleHistoryId} {
+      allow get, list: if isParticipant(resource.data.player1Id, resource.data.player2Id);
+      allow create: if isParticipant(request.resource.data.player1Id, request.resource.data.player2Id);
+      allow update: if isExistingParticipant(resource.data.player1Id, resource.data.player2Id) && request.resource.data.player1Id == resource.data.player1Id && request.resource.data.player2Id == resource.data.player2Id;
+      allow delete: if isExistingParticipant(resource.data.player1Id, resource.data.player2Id);
     }
   }
 }
