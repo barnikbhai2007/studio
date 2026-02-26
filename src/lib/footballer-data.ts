@@ -10,19 +10,28 @@ export interface Footballer {
   hints: string[];
 }
 
-export const RARITIES: { type: RarityType; bg: string }[] = [
-  { type: 'IRON', bg: 'from-slate-500 to-slate-800' },
-  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950' },
-  { type: 'SILVER', bg: 'from-slate-300 to-slate-500' },
-  { type: 'GOLD', bg: 'from-yellow-400 via-amber-500 to-yellow-600' },
-  { type: 'PLATINUM', bg: 'from-cyan-400 to-blue-600' },
-  { type: 'DIAMOND', bg: 'from-blue-400 via-indigo-500 to-purple-600' },
-  { type: 'MASTER', bg: 'from-purple-600 to-fuchsia-900' },
-  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-950' },
-  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-orange-500' }
+export const RARITIES: { type: RarityType; bg: string; weight: number }[] = [
+  { type: 'IRON', bg: 'from-slate-500 to-slate-800', weight: 70 },
+  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950', weight: 55 },
+  { type: 'SILVER', bg: 'from-slate-300 to-slate-500', weight: 40 },
+  { type: 'GOLD', bg: 'from-yellow-400 via-amber-500 to-yellow-600', weight: 30 },
+  { type: 'PLATINUM', bg: 'from-cyan-400 to-blue-600', weight: 20 },
+  { type: 'DIAMOND', bg: 'from-blue-400 via-indigo-500 to-purple-600', weight: 10 },
+  { type: 'MASTER', bg: 'from-purple-600 to-fuchsia-900', weight: 5 },
+  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-950', weight: 3 },
+  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-orange-500', weight: 2 }
 ];
 
-export const getRandomRarity = () => RARITIES[Math.floor(Math.random() * RARITIES.length)];
+export const getRandomRarity = () => {
+  const totalWeight = RARITIES.reduce((sum, r) => sum + r.weight, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const rarity of RARITIES) {
+    if (random < rarity.weight) return rarity;
+    random -= rarity.weight;
+  }
+  return RARITIES[0];
+};
 
 export const FOOTBALLERS: Footballer[] = [
   { id: '1', name: 'Lionel Messi', countryCode: 'ar', position: 'RW', rating: 980, club: 'Inter Miami', hints: ["Record 8 Ballon d'Ors.", "Barcelona legend.", "2022 World Cup winner.", "'La Pulga'.", "Inter Miami star."] },
@@ -51,6 +60,8 @@ export function getRandomFootballer(excludeIds: string[] = []): Footballer {
   const available = FOOTBALLERS.filter(f => !excludeIds.includes(f.id));
   const pool = available.length > 0 ? available : FOOTBALLERS;
   
+  // Weighting logic: Higher rating = Lower chance
+  // (1001 - rating)^2 gives a strong bias towards common players
   const totalWeight = pool.reduce((sum, f) => sum + Math.pow(1001 - f.rating, 2), 0);
   let random = Math.random() * totalWeight;
   

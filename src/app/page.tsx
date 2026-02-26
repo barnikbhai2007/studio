@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Plus, Swords, LogIn, Loader2, Trophy, Users, Download, CheckCircle2, LogOut } from "lucide-react";
+import { Plus, Swords, LogIn, Loader2, Trophy, Users, Download, CheckCircle2, LogOut, Target, Sparkles, Heart, HelpCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useUser, useFirestore } from "@/firebase";
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
+import { isToday } from "date-fns";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -23,6 +24,19 @@ export default function LandingPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const roomsRef = useMemoFirebase(() => collection(db, "gameRooms"), [db]);
+  const playersRef = useMemoFirebase(() => collection(db, "userProfiles"), [db]);
+
+  const { data: allRooms } = useCollection(roomsRef);
+  const { data: allPlayers } = useCollection(playersRef);
+
+  const roomsToday = useMemo(() => {
+    if (!allRooms) return 0;
+    return allRooms.filter(r => r.createdAt && isToday(new Date(r.createdAt))).length;
+  }, [allRooms]);
+
+  const playerCount = allPlayers?.length || 0;
+
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -32,7 +46,6 @@ export default function LandingPage() {
       const userRef = doc(db, "userProfiles", user.uid);
       const userSnap = await getDoc(userRef);
 
-      // If new user, trigger asset download simulation
       if (!userSnap.exists()) {
         startAssetSync(user.uid, user.displayName, user.photoURL);
       } else {
@@ -179,7 +192,7 @@ export default function LandingPage() {
 
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
       
-      <div className="relative z-10 w-full max-w-md space-y-12">
+      <div className="relative z-10 w-full max-w-md space-y-8 py-8">
         <div className="text-center space-y-4">
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary shadow-inner mb-2 border border-primary/20">
             <Swords className="w-12 h-12" />
@@ -256,19 +269,36 @@ export default function LandingPage() {
                 </Button>
               </div>
             </div>
+
+            {/* NEW ACTION BUTTONS */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button variant="outline" className="h-12 border-white/5 bg-white/5 rounded-2xl font-bold uppercase tracking-tighter gap-2 hover:bg-white/10">
+                <Target className="w-4 h-4 text-primary" /> Quests
+              </Button>
+              <Button variant="outline" className="h-12 border-white/5 bg-white/5 rounded-2xl font-bold uppercase tracking-tighter gap-2 hover:bg-white/10">
+                <Sparkles className="w-4 h-4 text-secondary" /> Awards
+              </Button>
+              <Button variant="outline" className="h-12 border-white/5 bg-white/5 rounded-2xl font-bold uppercase tracking-tighter gap-2 hover:bg-white/10">
+                <Heart className="w-4 h-4 text-red-500" /> Donate
+              </Button>
+              <Button variant="outline" className="h-12 border-white/5 bg-white/5 rounded-2xl font-bold uppercase tracking-tighter gap-2 hover:bg-white/10">
+                <HelpCircle className="w-4 h-4 text-blue-400" /> Info
+              </Button>
+            </div>
           </div>
         )}
 
+        {/* UPDATED STATS */}
         <div className="grid grid-cols-2 gap-4">
            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex flex-col items-center text-center">
               <Trophy className="text-secondary w-6 h-6 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500">Live Games</span>
-              <span className="text-xl font-bold">1,248</span>
+              <span className="text-[10px] uppercase font-black text-slate-500">Rooms Created Today</span>
+              <span className="text-xl font-bold">{roomsToday.toLocaleString()}</span>
            </div>
            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex flex-col items-center text-center">
               <Users className="text-primary w-6 h-6 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500">Online Players</span>
-              <span className="text-xl font-bold">4,592</span>
+              <span className="text-[10px] uppercase font-black text-slate-500">Total Players Playing</span>
+              <span className="text-xl font-bold">{playerCount.toLocaleString()}</span>
            </div>
         </div>
       </div>
