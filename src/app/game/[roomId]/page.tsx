@@ -350,7 +350,6 @@ export default function GamePage() {
           {revealStep === 'full-card' && currentRarity && (
             <div className="relative fc-card-container">
               <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-[2.5rem] shadow-[0_0_150px_rgba(0,0,0,0.8)] flex flex-col border-[12px] md:border-[16px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
-                {/* Rarity top-left */}
                 <div className="absolute top-4 left-4 z-30">
                   <Badge className="bg-black/60 backdrop-blur-md border-white/20 text-[10px] md:text-xs font-black px-4 py-1.5 uppercase tracking-tighter shadow-2xl">
                     {currentRarity.type}
@@ -358,7 +357,6 @@ export default function GamePage() {
                 </div>
 
                 <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center relative z-20">
-                  {/* Universal Question Mark Reveal Styling */}
                   <div className="flex-1 flex items-center justify-center select-none">
                     <div className="relative">
                       <div className="absolute inset-0 blur-[60px] bg-white/20 rounded-full animate-pulse" />
@@ -366,7 +364,6 @@ export default function GamePage() {
                     </div>
                   </div>
 
-                  {/* Name and Flag at Bottom */}
                   <div className="mt-auto w-full space-y-4 pb-4">
                     <div className="bg-black/80 backdrop-blur-3xl px-4 py-4 md:py-6 rounded-[2rem] w-full border border-white/10 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
                       <h3 className="text-2xl md:text-4xl font-black uppercase text-white tracking-tighter fc-text-glow leading-none mb-4">
@@ -383,7 +380,6 @@ export default function GamePage() {
                   </div>
                 </div>
 
-                {/* Subtle overlay texture/pattern could go here */}
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)] pointer-events-none" />
               </div>
             </div>

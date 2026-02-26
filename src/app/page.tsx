@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
-  LogOut, Target, Heart, HelpCircle,
+  LogOut, Target, Heart, Info,
   BarChart3, Smile, Award
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -232,7 +232,7 @@ export default function LandingPage() {
                 <Award className="w-5 h-5 text-yellow-500" /> Achievements
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <BarChart3 className="w-5 h-5 text-secondary" /> Leaders
+                <Info className="w-5 h-5 text-secondary" /> Info
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <Smile className="w-5 h-5 text-green-400" /> Emotes

@@ -9,10 +9,10 @@ import { Progress } from "@/components/ui/progress";
 import { 
   Trophy, Swords, Target, History, Home, 
   User as UserIcon, CheckCircle2, XCircle, Sparkles,
-  Flame, ShieldAlert, Award, BarChart3
+  Flame, ShieldAlert, Award, BarChart3, RefreshCw
 } from "lucide-react";
 import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, onSnapshot, query, orderBy, getDoc } from "firebase/firestore";
+import { doc, collection, onSnapshot, query, orderBy, updateDoc, writeBatch, deleteDoc, getDocs } from "firebase/firestore";
 import { FOOTBALLERS } from "@/lib/footballer-data";
 
 export default function ResultPage() {
@@ -48,6 +48,12 @@ export default function ResultPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
+    if (room?.status === 'Lobby') {
+      router.push(`/lobby/${roomId}`);
+    }
+  }, [room?.status, roomId, router]);
+
+  useEffect(() => {
     if (!room || !user) return;
     onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
     if (room.player2Id) onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
@@ -58,12 +64,34 @@ export default function ResultPage() {
     return () => bhUnsub();
   }, [room, db, user]);
 
+  const handlePlayAgain = async () => {
+    if (!roomRef || !roomId || !isPlayer1) return;
+    
+    const batch = writeBatch(db);
+    
+    // Clear rounds
+    const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
+    roundsSnap.docs.forEach(d => batch.delete(d.ref));
+    
+    // Reset room
+    batch.update(roomRef, {
+      status: 'Lobby',
+      player1CurrentHealth: room.healthOption,
+      player2CurrentHealth: room.healthOption,
+      currentRoundNumber: 1,
+      usedFootballerIds: [],
+      winnerId: null,
+      loserId: null,
+      finishedAt: null,
+      lastEmote: null
+    });
+    
+    await batch.commit();
+  };
+
   if (isUserLoading || isRoomLoading || !room || !p1Profile) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
   }
-
-  const winnerProfile = room.winnerId === room.player1Id ? p1Profile : p2Profile;
-  const loserProfile = room.winnerId === room.player1Id ? p2Profile : p1Profile;
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
@@ -113,7 +141,7 @@ export default function ResultPage() {
 
       <section className="w-full max-w-2xl space-y-4">
         <h3 className="text-xs font-black text-white/40 tracking-[0.3em] uppercase flex items-center gap-2">
-          <History className="w-4 h-4" /> BATTLE LOG
+          <History className="w-4 h-4" /> ROUND LOG
         </h3>
         <div className="space-y-3">
           {rounds?.map((r: any) => {
@@ -121,7 +149,6 @@ export default function ResultPage() {
             return (
               <div key={r.id} className="bg-card/40 backdrop-blur-xl p-4 rounded-2xl border border-white/5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                 <div className="text-center">
-                  <span className="text-[8px] font-black text-white/30 uppercase block mb-1">P1 GUESS</span>
                   <p className={`text-[10px] font-black truncate ${r.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player1Guess || "SKIP"}</p>
                   <span className={`text-xs font-black ${r.player1ScoreChange > 0 ? 'text-green-400' : r.player1ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
                     {r.player1ScoreChange > 0 ? `+${r.player1ScoreChange}` : r.player1ScoreChange}
@@ -132,7 +159,6 @@ export default function ResultPage() {
                   <span className="text-[9px] font-black text-primary uppercase truncate max-w-[80px] text-center">{footballer?.name}</span>
                 </div>
                 <div className="text-center">
-                  <span className="text-[8px] font-black text-white/30 uppercase block mb-1">P2 GUESS</span>
                   <p className={`text-[10px] font-black truncate ${r.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player2Guess || "SKIP"}</p>
                   <span className={`text-xs font-black ${r.player2ScoreChange > 0 ? 'text-green-400' : r.player2ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
                     {r.player2ScoreChange > 0 ? `+${r.player2ScoreChange}` : r.player2ScoreChange}
@@ -166,13 +192,19 @@ export default function ResultPage() {
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-background/80 backdrop-blur-3xl border-t border-white/10 z-50">
         <div className="max-w-2xl mx-auto flex gap-3">
-          <Button onClick={() => router.push('/')} className="flex-1 h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl uppercase">
-            <Home className="w-6 h-6" /> Return Home
+          <Button onClick={() => router.push('/')} className="flex-1 h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl uppercase shadow-lg">
+            <Home className="w-6 h-6" /> Home
           </Button>
-          <Button variant="outline" onClick={() => router.push('/')} className="h-14 px-8 border-white/10 bg-white/5 font-black uppercase rounded-2xl">
-            <Swords className="w-6 h-6" /> Play Again
+          <Button 
+            variant="outline" 
+            disabled={!isPlayer1} 
+            onClick={handlePlayAgain} 
+            className="h-14 px-8 border-white/10 bg-white/5 font-black uppercase rounded-2xl shadow-xl gap-2"
+          >
+            <RefreshCw className="w-6 h-6" /> Play Again
           </Button>
         </div>
+        {!isPlayer1 && <p className="text-center text-[8px] text-slate-500 uppercase mt-2 font-black">Waiting for Party Leader to Rematch...</p>}
       </footer>
     </div>
   );

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -118,20 +118,18 @@ export default function LobbyPage() {
               <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-primary/20 relative">
                 <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />
                 <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-primary" alt="P1" />
-                <span className="font-bold text-sm truncate w-full text-center">{p1Profile?.displayName || "Player 1"}</span>
+                <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p1Profile?.displayName || "Player 1"}</span>
               </div>
-              <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/30">
+              <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/30 min-h-[140px] justify-center">
                 {room.player2Id ? (
                   <>
                     <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary" alt="P2" />
-                    <span className="font-bold text-sm truncate w-full text-center">{p2Profile?.displayName || "Player 2"}</span>
+                    <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p2Profile?.displayName || "Player 2"}</span>
                   </>
                 ) : (
-                  <div className="flex flex-col items-center justify-center h-full animate-pulse">
-                    <div className="w-16 h-16 rounded-full bg-muted mb-2 flex items-center justify-center">
-                       <Users className="text-muted-foreground" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">WAITING...</span>
+                  <div className="flex flex-col items-center justify-center animate-pulse">
+                    <UserX className="w-8 h-8 text-muted-foreground mb-2" />
+                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Awaiting Rival</span>
                   </div>
                 )}
               </div>
@@ -139,10 +137,10 @@ export default function LobbyPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-muted-foreground uppercase">Game Health</label>
+                <label className="text-xs font-black text-muted-foreground uppercase tracking-widest">Game Health</label>
                 {isLeader ? (
                   <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
-                    <SelectTrigger className="bg-muted border-none h-12">
+                    <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
                       <SelectValue placeholder="Select Health" />
                     </SelectTrigger>
                     <SelectContent>
@@ -153,7 +151,7 @@ export default function LobbyPage() {
                     </SelectContent>
                   </Select>
                 ) : (
-                  <div className="h-12 bg-muted rounded-md flex items-center px-3 font-bold">{room.healthOption} HP</div>
+                  <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
                 )}
               </div>
             </div>
@@ -161,13 +159,15 @@ export default function LobbyPage() {
         </Card>
 
         {isLeader ? (
-          <Button onClick={startGame} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl">
+          <Button onClick={startGame} disabled={!room.player2Id} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl">
             <Play className="w-6 h-6 mr-2" /> START MATCH
           </Button>
         ) : (
-          <div className="p-6 bg-muted rounded-2xl flex items-center gap-4 text-muted-foreground">
-            <ShieldAlert className="w-8 h-8" />
-            <p className="text-sm">Only the Party Leader can start the game. Waiting for kickoff...</p>
+          <div className="p-6 bg-muted/50 rounded-2xl flex items-center gap-4 text-muted-foreground border border-dashed border-white/5">
+            <ShieldAlert className="w-8 h-8 text-primary animate-pulse" />
+            <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
+              Waiting for the Party Leader to kickoff the duel...
+            </p>
           </div>
         )}
       </div>
