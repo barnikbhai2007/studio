@@ -70,7 +70,6 @@ export default function GamePage() {
     }
   }, [user, isUserLoading, router]);
 
-  // Handle incoming emotes
   useEffect(() => {
     if (!room?.lastEmote || !user) return;
     
@@ -78,12 +77,11 @@ export default function GamePage() {
     const now = Date.now();
     const emoteTime = new Date(timestamp).getTime();
     
-    // Only show if it happened in the last 2 seconds
     if (now - emoteTime < 2000) {
       const emoteObj = EMOTES.find(e => e.id === emoteId);
       if (emoteObj) {
         const id = Math.random().toString();
-        const x = Math.random() * 60 + 20; // Random horizontal position
+        const x = Math.random() * 60 + 20;
         setFloatingEmotes(prev => [...prev, { id, url: emoteObj.url, x }]);
         setTimeout(() => {
           setFloatingEmotes(prev => prev.filter(e => e.id !== id));
@@ -220,13 +218,22 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    setTimeout(() => setRevealStep('country'), 1700);
-    setTimeout(() => setRevealStep('none'), 2600);
-    setTimeout(() => setRevealStep('position'), 2900);
-    setTimeout(() => setRevealStep('none'), 3050);
-    setTimeout(() => setRevealStep('rarity'), 3100);
-    setTimeout(() => setRevealStep('none'), 4100);
-    setTimeout(() => setRevealStep('full-card'), 4500);
+    // Exact User-Specified Timing:
+    // 2.2s country in
+    // 3.1s country out
+    // 3.8s position in
+    // 4.7s position out
+    // 4.9s rarity in
+    // 5.4s rarity out
+    // 6.2s card reveal
+    
+    setTimeout(() => setRevealStep('country'), 2200);
+    setTimeout(() => setRevealStep('none'), 3100);
+    setTimeout(() => setRevealStep('position'), 3800);
+    setTimeout(() => setRevealStep('none'), 4700);
+    setTimeout(() => setRevealStep('rarity'), 4900);
+    setTimeout(() => setRevealStep('none'), 5400);
+    setTimeout(() => setRevealStep('full-card'), 6200);
 
     setTimeout(() => {
       setGameState('result');
@@ -242,7 +249,7 @@ export default function GamePage() {
           router.push('/');
         }
       }, 10000);
-    }, 11000);
+    }, 13000); // Wait a bit longer to let them see the full card
   };
 
   const calculateRoundResults = async () => {
@@ -335,7 +342,6 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
-      {/* Floating Emotes Layer */}
       <div className="fixed inset-0 pointer-events-none z-50">
         {floatingEmotes.map(emote => (
           <div 
