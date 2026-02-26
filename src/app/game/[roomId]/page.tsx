@@ -314,35 +314,48 @@ export default function GamePage() {
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
 
+    if (!winnerId) {
+      toast({ variant: "destructive", title: "ERROR", description: "OPPONENT NOT FOUND." });
+      return;
+    }
+
     // Update Leaderboard Statistics on Forfeit
     const winnerRef = doc(db, "userProfiles", winnerId);
     const loserRef = doc(db, "userProfiles", loserId);
-    await updateDoc(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
-    await updateDoc(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+    
+    try {
+      await updateDoc(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
+      await updateDoc(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
-    const bhId = [winnerId, loserId].sort().join('_');
-    const bhRef = doc(db, "battleHistories", bhId);
-    const bhSnap = await getDoc(bhRef);
-    if (!bhSnap.exists()) {
-      await setDoc(bhRef, { 
-        id: bhId, 
-        player1Id: [winnerId, loserId].sort()[0], 
-        player2Id: [winnerId, loserId].sort()[1], 
-        player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, 
-        player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, 
-        totalMatches: 1 
+      const bhId = [winnerId, loserId].sort().join('_');
+      const bhRef = doc(db, "battleHistories", bhId);
+      const bhSnap = await getDoc(bhRef);
+      if (!bhSnap.exists()) {
+        await setDoc(bhRef, { 
+          id: bhId, 
+          player1Id: [winnerId, loserId].sort()[0], 
+          player2Id: [winnerId, loserId].sort()[1], 
+          player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, 
+          player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, 
+          totalMatches: 1 
+        });
+      } else {
+        const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
+        await updateDoc(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+      }
+
+      await updateDoc(roomRef, { 
+        status: 'Completed', 
+        winnerId, 
+        loserId,
+        finishedAt: new Date().toISOString()
       });
-    } else {
-      const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-      await updateDoc(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
-    }
 
-    await updateDoc(roomRef, { 
-      status: 'Completed', 
-      winnerId, 
-      loserId,
-      finishedAt: new Date().toISOString()
-    });
+      toast({ title: "DUEL FORFEITED", description: "YOU HAVE CONCEDED THE MATCH." });
+    } catch (error) {
+      console.error("Forfeit error:", error);
+      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "COULD NOT SYNC WITH SERVER." });
+    }
   };
 
   const sendEmote = async (emoteId: string) => {
