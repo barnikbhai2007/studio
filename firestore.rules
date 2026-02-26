@@ -11,14 +11,16 @@ service cloud.firestore {
     }
 
     match /userProfiles/{userId} {
-      allow list: if true; // Allow anyone to see total player count for home page stats
+      // Allow public listing so the homepage can count total players
+      allow list: if true;
       allow get: if isSignedIn();
       allow create, update: if isOwner(userId);
       allow delete: if false;
     }
 
     match /gameRooms/{gameRoomId} {
-      allow list: if true; // Allow anyone to see rooms created today for home page stats
+      // Allow public listing so the homepage can count rooms created today
+      allow list: if true;
       allow get: if isSignedIn();
       allow create: if isSignedIn();
       
@@ -32,7 +34,7 @@ service cloud.firestore {
       allow delete: if isSignedIn() && request.auth.uid == resource.data.player1Id;
 
       match /gameRounds/{roundId} {
-        allow get, list, create, update: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
   }
