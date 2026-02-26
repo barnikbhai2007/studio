@@ -49,13 +49,13 @@ export default function LandingPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+      const loggedUser = result.user;
       
-      const userRef = doc(db, "userProfiles", user.uid);
+      const userRef = doc(db, "userProfiles", loggedUser.uid);
       const userSnap = await getDoc(userRef);
 
       // Trigger sync for every login
-      startAssetSync(user.uid, user.displayName, user.photoURL, !userSnap.exists());
+      startAssetSync(loggedUser.uid, loggedUser.displayName, loggedUser.photoURL, !userSnap.exists());
       
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: "Google authentication error." });
@@ -264,8 +264,8 @@ export default function LandingPage() {
               <div className="relative group">
                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-3xl group-hover:bg-primary/30 transition-all animate-pulse" />
                  <img 
-                    src="https://picsum.photos/seed/support_qr/400/400" 
-                    className="relative z-10 w-56 h-56 mx-auto rounded-3xl border-4 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white p-2" 
+                    src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" 
+                    className="relative z-10 w-56 h-56 mx-auto rounded-3xl border-4 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white p-2 object-contain" 
                     alt="Support QR Code"
                  />
               </div>
