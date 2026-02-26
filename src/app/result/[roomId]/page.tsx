@@ -35,6 +35,13 @@ export default function ResultPage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
+  // Sync back to lobby if game is reset
+  useEffect(() => {
+    if (room?.status === 'Lobby') {
+      router.push(`/lobby/${roomId}`);
+    }
+  }, [room?.status, roomId, router]);
+
   useEffect(() => {
     if (!room || !user) return;
 

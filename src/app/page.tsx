@@ -74,7 +74,7 @@ export default function LandingPage() {
           const userRef = doc(db, "userProfiles", uid);
           await setDoc(userRef, {
             id: uid,
-            googleAccountId: uid,
+            googleId: uid,
             displayName: displayName || "Player",
             avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
             totalGamesPlayed: 0,
@@ -213,7 +213,7 @@ export default function LandingPage() {
               </Button>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="ROOM CODE" 
+                  placeholder="ROOM" 
                   className="h-16 bg-[#161618] border-white/10 text-center font-black tracking-[0.3em] text-2xl rounded-2xl text-white uppercase"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
