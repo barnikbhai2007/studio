@@ -15,16 +15,18 @@ service cloud.firestore {
       return isSignedIn() && (request.auth.uid == p1 || request.auth.uid == p2);
     }
 
-    // Allow public listing of userProfiles and gameRooms for landing page stats
+    // User Profiles: Allow public reading, but restricted creation to owner.
+    // Update is allowed for signed-in users to permit game outcome stat increments (wins/losses).
     match /userProfiles/{userId} {
       allow get: if true;
       allow list: if true;
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isSignedIn();
     }
 
     match /gameRooms/{gameRoomId} {
       allow list: if true;
-      allow get: if true; // Required for results page
+      allow get: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       

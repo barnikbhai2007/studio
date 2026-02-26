@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -69,7 +70,6 @@ export default function GamePage() {
   
   const { data: roundData, isLoading: isRoundLoading } = useDoc(roundRef);
 
-  // Emote Listener
   const emotesQuery = useMemoFirebase(() => {
     if (!roomId) return null;
     return query(collection(db, "gameRooms", roomId as string, "emotes"), orderBy("createdAt", "desc"), limit(5));
@@ -142,7 +142,6 @@ export default function GamePage() {
     setTargetPlayer(null);
     revealTriggered.current = false;
     
-    // Rarity is picked per round
     const pickedRarity = getRandomRarity();
     setCurrentRarity(pickedRarity);
 
@@ -154,7 +153,7 @@ export default function GamePage() {
           gameRoomId: roomId,
           roundNumber: room.currentRoundNumber,
           footballerId: player.id,
-          rarityType: pickedRarity.type, // Store rarity in round
+          rarityType: pickedRarity.type,
           creatorId: room.player1Id,
           opponentId: room.player2Id,
           hintsRevealedCount: 1,
@@ -181,7 +180,6 @@ export default function GamePage() {
     }
   }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
 
-  // Handle round initialization for the host
   useEffect(() => {
     if (isPlayer1 && room?.status === 'InProgress' && !roundData && !isRoundLoading && !isInitializingRound.current) {
       startNewRoundLocally();
@@ -193,7 +191,6 @@ export default function GamePage() {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       
-      // Sync rarity for client
       if (roundData.rarityType) {
         const rarity = RARITIES.find(r => r.type === roundData.rarityType);
         if (rarity) setCurrentRarity(rarity);
@@ -376,9 +373,11 @@ export default function GamePage() {
 
       await batch.commit();
       toast({ title: "MATCH CONCEDED", description: "DUEL LOGGED AS DEFEAT." });
+      // Immediate redirect for the person who forfeited
+      router.push(`/result/${roomId}`);
     } catch (error) {
       console.error("Forfeit error:", error);
-      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "SYNC ERROR." });
+      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "SERVER NOT SYNCING." });
     }
   };
 
