@@ -8,13 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus } from "lucide-react";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRarityFromRating } from "@/lib/footballer-data";
 
-type GameState = 'countdown' | 'playing' | 'reveal' | 'result';
+type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
 
 const EMOTES = [
@@ -154,15 +154,13 @@ export default function GamePage() {
 
       if (opponentGuessed && !iGuessed && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
-        toast({
-          title: "Opponent Guessed!",
-          description: "15 seconds remaining to lock in your answer!",
-          variant: "destructive",
-        });
       }
 
       if (hasP1Guessed && hasP2Guessed && gameState === 'playing' && !revealTriggered.current) {
-        handleReveal();
+        setGameState('finalizing');
+        setTimeout(() => {
+           handleReveal();
+        }, 3000);
       }
     }
   }, [roundData, isPlayer1, gameState]);
@@ -183,16 +181,29 @@ export default function GamePage() {
     if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
     } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
-      handleReveal();
+      setGameState('finalizing');
+      setTimeout(() => {
+         handleReveal();
+      }, 3000);
     }
 
     return () => clearTimeout(timer);
   }, [gameState, countdown, visibleHints, roundTimer]);
 
+  const normalizeStr = (str: string) => 
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
     
-    const isCorrect = guessInput.toLowerCase().trim() === (targetPlayer?.name.toLowerCase().trim() || "");
+    const correctFull = normalizeStr(targetPlayer?.name || "");
+    const guessNormalized = normalizeStr(guessInput);
+    
+    // Partial matching: If guess is inside the full name or vice-versa
+    // OR if guess matches any single name part (e.g. "Messi" in "Lionel Messi")
+    const correctParts = correctFull.split(/\s+/);
+    const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull.includes(guessNormalized) || guessNormalized.includes(correctFull);
+
     const update: any = isPlayer1 
       ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect }
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
@@ -224,15 +235,6 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // User Specified Timing:
-    // 2.2s country in
-    // 3.1s country out
-    // 3.8s position in
-    // 4.7s position out
-    // 5.2s rarity in
-    // 6.1s rarity out
-    // 6.9s card reveal
-    
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
@@ -261,21 +263,22 @@ export default function GamePage() {
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
 
-    let p1Dmg = 0;
-    let p2Dmg = 0;
+    let p1Adjust = 0;
+    let p2Adjust = 0;
 
-    if (roundData.player1GuessedCorrectly && !roundData.player2GuessedCorrectly) {
-      p2Dmg = 20;
-    } else if (roundData.player2GuessedCorrectly && !roundData.player1GuessedCorrectly) {
-      p1Dmg = 20;
-    } else if (!roundData.player1GuessedCorrectly && !roundData.player2GuessedCorrectly) {
-      p1Dmg = 10;
-      p2Dmg = 10;
-    }
+    // P1 Adjustment
+    if (!roundData.player1Guess) p1Adjust = 0;
+    else if (roundData.player1GuessedCorrectly) p1Adjust = 10;
+    else p1Adjust = -10;
+
+    // P2 Adjustment
+    if (!roundData.player2Guess) p2Adjust = 0;
+    else if (roundData.player2GuessedCorrectly) p2Adjust = 10;
+    else p2Adjust = -10;
 
     await updateDoc(roomRef, {
-      player1CurrentHealth: Math.max(0, room.player1CurrentHealth - p1Dmg),
-      player2CurrentHealth: Math.max(0, room.player2CurrentHealth - p2Dmg)
+      player1CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player1CurrentHealth + p1Adjust)),
+      player2CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player2CurrentHealth + p2Adjust))
     });
   };
 
@@ -290,6 +293,7 @@ export default function GamePage() {
   const hasP1Guessed = !!roundData?.player1Guess;
   const hasP2Guessed = !!roundData?.player2Guess;
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+  const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
   const rarityInfo = targetPlayer ? getRarityFromRating(targetPlayer.rating) : null;
 
   if (gameState === 'reveal') {
@@ -336,7 +340,6 @@ export default function GamePage() {
                     <div className="bg-black/95 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
                       <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-black text-primary/80 uppercase tracking-tighter">{rarityInfo.type}</span>
-                        <span className="text-xs font-black text-white/80">{targetPlayer?.rating}</span>
                       </div>
                       <h3 className="text-xl md:text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
@@ -387,7 +390,7 @@ export default function GamePage() {
         </div>
         
         <div className="flex flex-col items-center">
-          <Badge className="bg-primary text-black font-black px-3 md:px-4 py-1 md:py-1.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap">ROUND {room.currentRoundNumber}</Badge>
+          <Badge className="bg-primary text-black font-black px-3 md:px-4 py-1 md:py-1.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap uppercase">ROUND {room.currentRoundNumber}</Badge>
         </div>
 
         <div className="flex flex-col gap-1.5 md:gap-2 items-end min-w-0">
@@ -417,12 +420,30 @@ export default function GamePage() {
           <div className="flex-1 flex flex-col items-center justify-center space-y-4 md:space-y-8 p-4 md:p-6 text-center">
              <div className="relative">
                 <div className="absolute inset-0 bg-primary/20 blur-[60px] md:blur-[100px] rounded-full animate-pulse" />
-                <div className="text-8xl md:text-[12rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
+                <div className="text-8xl md:text-[10rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
              </div>
              <div className="flex flex-col items-center gap-2 md:gap-3">
-               <p className="text-xl md:text-3xl font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
-               <div className="h-1 w-20 md:h-1.5 md:w-32 bg-primary rounded-full" />
+               <p className="text-xl md:text-2xl font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
+               <div className="h-1 w-16 md:h-1.5 md:w-24 bg-primary rounded-full" />
              </div>
+          </div>
+        ) : gameState === 'finalizing' ? (
+          <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center animate-in fade-in zoom-in duration-500">
+             <div className="relative">
+                <div className="absolute inset-0 bg-primary/30 blur-[80px] rounded-full animate-pulse" />
+                <Loader2 className="w-20 h-20 md:w-24 md:h-24 text-primary animate-spin relative z-10" />
+             </div>
+             <div className="space-y-2">
+               <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">Finalising Answer</h2>
+               <div className="flex items-center justify-center gap-2 text-primary font-bold uppercase text-[10px] tracking-widest animate-pulse">
+                  <Sparkles className="w-3 h-3" /> Both players locked in <Sparkles className="w-3 h-3" />
+               </div>
+             </div>
+             {oppHasGuessed && (
+               <Badge className="bg-green-500/20 text-green-400 border border-green-500/30 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
+                 Opponent has guessed!
+               </Badge>
+             )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -517,7 +538,7 @@ export default function GamePage() {
                    {targetPlayer?.name}
                 </h2>
                 <Badge className={`bg-gradient-to-r ${rarityInfo?.bg} text-white font-black text-lg px-6 py-2 skew-x-[-12deg]`}>
-                   {rarityInfo?.type} | {targetPlayer?.rating} RATING
+                   {rarityInfo?.type} | RESULT
                 </Badge>
               </div>
            </div>
@@ -529,7 +550,7 @@ export default function GamePage() {
                 <p className="text-[8px] text-primary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
                 <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player1Guess || "NO GUESS"}"</p>
                 <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
-                  {roundData?.player1GuessedCorrectly ? "+20" : "-10"}
+                  {roundData?.player1GuessedCorrectly ? "+10" : (roundData?.player1Guess ? "-10" : "0")}
                 </div>
               </div>
               <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 md:space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
@@ -538,7 +559,7 @@ export default function GamePage() {
                 <p className="text-[8px] text-secondary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
                 <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player2Guess || "NO GUESS"}"</p>
                 <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
-                   {roundData?.player2GuessedCorrectly ? "+20" : "-10"}
+                   {roundData?.player2GuessedCorrectly ? "+10" : (roundData?.player2Guess ? "-10" : "0")}
                 </div>
               </div>
            </div>
