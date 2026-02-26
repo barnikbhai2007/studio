@@ -25,6 +25,7 @@ export default function LandingPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -281,6 +282,41 @@ export default function LandingPage() {
         </div>
       )}
 
+      {/* Info / About Me Overlay */}
+      {showAbout && (
+        <div className="fixed inset-0 z-[120] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
+          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowAbout(false)} 
+              className="absolute -top-12 right-0 text-slate-500 hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            
+            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 text-left">
+              <h2 className="text-3xl font-black uppercase text-primary tracking-tighter text-center">About Me</h2>
+              <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
+                <p className="text-white text-base font-black">Hi, I’m Barnik 👋</p>
+                <p>I’m a passionate web developer from India who loves building interactive games and creative web projects. I enjoy creating real-time multiplayer experiences and learning new technologies every day.</p>
+                <p>For development and problem-solving, I take major guidance from Gemini, along with support from ChatGPT. For voice and song-related content, I use ElevenLabs, and for designing clean and attractive UI elements, I use Canva.</p>
+                <p className="text-primary/80 border-t border-white/10 pt-4">All ideas, planning, and final project decisions are mine — these tools simply help me work smarter and faster.</p>
+                <div className="pt-2 text-center">
+                  <p className="text-white font-black">Made with passion in India 🇮🇳</p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setShowAbout(false)} 
+                className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl"
+              >
+                BACK TO LOBBY
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
       
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
@@ -344,7 +380,11 @@ export default function LandingPage() {
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <BarChart3 className="w-5 h-5 text-yellow-500" /> LEADERBOARD
               </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
+              <Button 
+                onClick={() => setShowAbout(true)}
+                variant="outline" 
+                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
+              >
                 <Info className="w-5 h-5 text-secondary" /> INFO
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
