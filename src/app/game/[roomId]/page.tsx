@@ -156,6 +156,7 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
+    // Timing as per user requirements
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -212,6 +213,10 @@ export default function GamePage() {
     );
   }
 
+  const hasP1Guessed = !!roundData?.player1Guess;
+  const hasP2Guessed = !!roundData?.player2Guess;
+  const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
@@ -221,7 +226,7 @@ export default function GamePage() {
           playsInline
           muted
           autoPlay
-          src="https://drive.google.com/uc?export=download&id=1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z"
+          src="https://asset.cloudinary.com/speed-searches/6c731a23cc4289e939732fde7e3dc069"
         />
         
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
@@ -270,10 +275,6 @@ export default function GamePage() {
     );
   }
 
-  const hasP1Guessed = !!roundData?.player1Guess;
-  const hasP2Guessed = !!roundData?.player2Guess;
-  const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
-
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
@@ -282,14 +283,14 @@ export default function GamePage() {
             <div className="relative">
               <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 rounded-full border-2 border-primary shadow-lg" alt="P1" />
               {hasP1Guessed && (
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in">
+                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
                 </div>
               )}
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
-              {hasP1Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none">GUESSED</span>}
+              {hasP1Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -306,14 +307,14 @@ export default function GamePage() {
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-end">
               <span className="text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
-              {hasP2Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none">GUESSED</span>}
+              {hasP2Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-secondary border-2 border-secondary overflow-hidden shadow-lg">
                  <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full object-cover" />
               </div>
               {hasP2Guessed && (
-                <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in">
+                <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
                 </div>
               )}
@@ -361,9 +362,12 @@ export default function GamePage() {
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/40 backdrop-blur-3xl border-t border-white/10 space-y-4 z-40">
         <div className="max-w-lg mx-auto w-full">
           {iHaveGuessed && gameState === 'playing' && (
-            <div className="flex items-center justify-center gap-2 mb-4 animate-bounce">
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-              <p className="text-xs font-black text-white uppercase tracking-widest">Awaiting Opponent's Decision...</p>
+            <div className="flex flex-col items-center justify-center gap-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30">
+                <CheckCircle2 className="w-5 h-5 text-green-500 animate-bounce" />
+                <p className="text-xs font-black text-green-400 uppercase tracking-[0.2em]">Decision Locked In</p>
+              </div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Awaiting Opponent's Decision...</p>
             </div>
           )}
           <div className="flex gap-3">
