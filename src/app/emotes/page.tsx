@@ -9,7 +9,7 @@ import { Smile, ArrowLeft, Save, CheckCircle2, Lock, Sparkles, Trophy } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, Emote } from "@/lib/emote-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, Emote } from "@/lib/emote-data";
 
 export default function EmotesPage() {
   const router = useRouter();
@@ -37,6 +37,17 @@ export default function EmotesPage() {
   }, [user, isUserLoading, router]);
 
   const toggleEmote = (emoteId: string) => {
+    const isUnlocked = UNLOCKED_EMOTE_IDS.includes(emoteId);
+    
+    if (!isUnlocked) {
+      toast({
+        variant: "destructive",
+        title: "RESTRICTED",
+        description: "COMPLETE QUESTS TO UNLOCK THIS EMOTE."
+      });
+      return;
+    }
+
     setEquippedIds(prev => {
       if (prev.includes(emoteId)) {
         return prev.filter(id => id !== emoteId);
@@ -77,17 +88,17 @@ export default function EmotesPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white p-4 flex flex-col items-center">
       <div className="w-full max-w-2xl space-y-8 py-8">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-xl bg-white/5 hover:bg-white/10">
+        <header className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-xl bg-white/5 hover:bg-white/10 shrink-0">
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <div className="flex flex-col">
-              <h1 className="text-4xl font-black uppercase tracking-tighter">EMOTE LOADOUT</h1>
+              <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter">EMOTE LOADOUT</h1>
               <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase">CUSTOMIZE YOUR DUEL PERSONALITY</span>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={isSaving} className="bg-primary text-black font-black uppercase rounded-2xl h-12 px-6 gap-2">
+          <Button onClick={handleSave} disabled={isSaving} className="w-full md:w-auto bg-primary text-black font-black uppercase rounded-2xl h-12 px-6 gap-2">
             <Save className="w-5 h-5" /> {isSaving ? "SAVING..." : "SAVE LOADOUT"}
           </Button>
         </header>
@@ -138,16 +149,23 @@ export default function EmotesPage() {
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {ALL_EMOTES.map(emote => {
                 const isEquipped = equippedIds.includes(emote.id);
+                const isUnlocked = UNLOCKED_EMOTE_IDS.includes(emote.id);
+                
                 return (
                   <div 
                     key={emote.id} 
                     onClick={() => toggleEmote(emote.id)}
-                    className={`relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-105 ${isEquipped ? 'ring-4 ring-primary ring-offset-4 ring-offset-[#0a0a0b]' : 'bg-[#161618] border border-white/5'}`}
+                    className={`relative aspect-square rounded-2xl overflow-hidden cursor-pointer transition-all hover:scale-105 ${isEquipped ? 'ring-4 ring-primary ring-offset-4 ring-offset-[#0a0a0b]' : 'bg-[#161618] border border-white/5'} ${!isUnlocked ? 'grayscale opacity-40' : ''}`}
                   >
                     <img src={emote.url} className={`w-full h-full object-cover ${isEquipped ? 'opacity-50' : ''}`} alt={emote.name} />
                     {isEquipped && (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <CheckCircle2 className="w-10 h-10 text-primary drop-shadow-lg" />
+                      </div>
+                    )}
+                    {!isUnlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Lock className="w-8 h-8 text-white/60" />
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-md p-1.5">

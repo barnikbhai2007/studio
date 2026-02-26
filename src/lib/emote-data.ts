@@ -17,6 +17,12 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'clown', name: 'Clown', url: 'https://picsum.photos/seed/clown/200/200' },
   { id: 'skull', name: 'Dead', url: 'https://picsum.photos/seed/skull/200/200' },
   { id: 'star', name: 'Star', url: 'https://picsum.photos/seed/star/200/200' },
+  { id: 'diamond', name: 'Diamond', url: 'https://picsum.photos/seed/diamond/200/200' },
+  { id: 'trophy', name: 'Trophy', url: 'https://picsum.photos/seed/trophy/200/200' },
+  { id: 'lightning', name: 'Lightning', url: 'https://picsum.photos/seed/lightning/200/200' },
+  { id: 'magic', name: 'Magic', url: 'https://picsum.photos/seed/magic/200/200' },
 ];
+
+export const UNLOCKED_EMOTE_IDS = ['laugh', 'cry', 'fire', 'goal', 'shock', 'flex', 'angry', 'cool'];
 
 export const DEFAULT_EQUIPPED_IDS = ['laugh', 'cry', 'fire', 'goal', 'shock', 'flex'];
