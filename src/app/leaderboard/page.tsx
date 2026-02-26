@@ -27,14 +27,35 @@ export default function LeaderboardPage() {
 
   const { data: topPlayers, isLoading } = useCollection(leaderboardQuery);
 
-  // Simulated countdown for the 7-day refresh
-  const [timeLeft, setTimeLeft] = useState("6D 23H 59M");
+  // Dynamic countdown for the weekly refresh (Next Monday 00:00 IST)
+  const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Logic for refresh would typically be server-side, 
-      // here we just simulate the feeling of a live season.
-    }, 60000);
+    const calculateTime = () => {
+      const now = new Date();
+      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC
+      const target = new Date();
+      target.setUTCHours(18, 30, 0, 0);
+      
+      const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
+      const daysUntilSunday = (7 - day) % 7;
+      target.setUTCDate(now.getUTCDate() + daysUntilSunday);
+      
+      // If target is in the past (it's Sunday evening), move to next Sunday
+      if (target <= now) {
+        target.setUTCDate(target.getUTCDate() + 7);
+      }
+      
+      const diff = target.getTime() - now.getTime();
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setTimeLeft(`${d}D ${h}H ${m}M`);
+    };
+
+    calculateTime();
+    const timer = setInterval(calculateTime, 60000); // Refresh every minute
     return () => clearInterval(timer);
   }, []);
 
@@ -76,7 +97,7 @@ export default function LeaderboardPage() {
                 </CardDescription>
               </div>
               <Badge variant="outline" className="border-primary/50 text-primary font-black uppercase text-[10px] py-1 gap-2">
-                <Clock className="w-3 h-3" /> REFRESH IN: {timeLeft}
+                <Clock className="w-3 h-3" /> REFRESH IN: {timeLeft || "---"}
               </Badge>
             </CardHeader>
             <CardContent className="px-0">
