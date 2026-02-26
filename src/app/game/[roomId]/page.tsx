@@ -175,14 +175,21 @@ export default function GamePage() {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
+    
+    // Correct if guess matches full name or any part of the name (e.g. 'Lionel' or 'Messi' matches 'Lionel Messi')
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
+    
     const update: any = isPlayer1 
       ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect }
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
+    
     await updateDoc(roundRef, update);
     toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
-    if (!roundData.player1Guess && !roundData.player2Guess) setRoundTimer(15);
+    
+    if (!roundData.player1Guess && !roundData.player2Guess) {
+      setRoundTimer(15);
+    }
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -198,6 +205,8 @@ export default function GamePage() {
     setGameState('reveal');
     setRoundTimer(null);
     setRevealStep('none');
+    
+    // Updated Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
@@ -205,6 +214,7 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('rarity'), 5200);
     setTimeout(() => setRevealStep('none'), 6100);
     setTimeout(() => setRevealStep('full-card'), 6900);
+    
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
@@ -212,17 +222,24 @@ export default function GamePage() {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
           if (isPlayer1 && roomRef) await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
           startNewRoundLocally();
-        } else router.push('/');
+        } else {
+          router.push('/');
+        }
       }, 10000);
     }, 11900);
   };
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
+    
+    // Score Mapping: Correct (+10), Wrong (-10), Skip (0)
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
+    
+    // Tug of War: p1HP + (s1 - s2), p2HP + (s2 - s1)
     const p1Change = s1 - s2;
     const p2Change = s2 - s1;
+    
     await updateDoc(roomRef, {
       player1CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player1CurrentHealth + p1Change)),
       player2CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player2CurrentHealth + p2Change))
