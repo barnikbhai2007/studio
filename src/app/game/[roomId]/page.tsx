@@ -156,13 +156,7 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
-    setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(e => console.log("Video playback failed", e));
-      }
-    }, 50);
-
+    // Explicit timing based on user requirements
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -171,6 +165,7 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('none'), 4100);
     setTimeout(() => setRevealStep('full-card'), 4500);
 
+    // After animation, show result and then loop
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
@@ -222,34 +217,34 @@ export default function GamePage() {
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
+        {/* Added muted, autoPlay, playsInline to ensure playback works */}
         <video 
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover"
           playsInline
           muted
           autoPlay
-        >
-          <source src="https://drive.google.com/uc?export=download&id=1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z" type="video/mp4" />
-        </video>
+          src="https://drive.google.com/uc?export=download&id=1w-NjTjDTkJ2j5_JPUhJUc-LKF3NvhU4Z"
+        />
         
-        <div className="absolute inset-0 bg-white/10 fc-flash-overlay pointer-events-none z-10" />
+        <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && (
               <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
-                <div className="text-[180px] filter drop-shadow-[0_0_50px_rgba(255,255,255,0.8)]">{targetPlayer?.flag}</div>
-                <div className="mt-4 h-1 w-64 bg-white/50 blur-sm animate-pulse" />
+                <div className="text-[200px] filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]">{targetPlayer?.flag}</div>
+                <div className="mt-4 h-1.5 w-64 bg-white/50 blur-sm animate-pulse" />
               </div>
             )}
             {revealStep === 'position' && (
-              <div className="animate-in fade-in slide-in-from-bottom-10 duration-300">
-                <span className="text-[160px] font-black text-white/90 italic tracking-tighter drop-shadow-[0_0_80px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span>
+              <div className="animate-in fade-in slide-in-from-bottom-20 duration-300">
+                <span className="text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span>
               </div>
             )}
             {revealStep === 'rarity' && (
               <div className="animate-in fade-in zoom-in duration-400">
-                <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-yellow-500 text-black' : 'bg-primary text-black'} text-4xl px-12 py-4 font-black italic border-4 border-white/40 shadow-[0_0_100px_rgba(255,255,255,0.6)] uppercase tracking-[0.2em]`}>
+                <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-yellow-500 text-black' : 'bg-primary text-black'} text-5xl px-16 py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>
                   {targetPlayer?.rarity}
                 </Badge>
               </div>
@@ -258,14 +253,14 @@ export default function GamePage() {
 
           {revealStep === 'full-card' && (
             <div className="relative fc-card-container">
-              <div className={`w-80 h-[500px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] overflow-hidden relative ${targetPlayer?.rarity === 'ICON' ? 'bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-800 border-yellow-200' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border-slate-600'}`}>
+              <div className={`w-80 h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[10px] overflow-hidden relative ${targetPlayer?.rarity === 'ICON' ? 'bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-800 border-yellow-200' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border-slate-600'}`}>
                 <div className="p-10 flex flex-col h-full items-center text-center justify-center">
                   <div className="flex flex-col items-center gap-6">
-                     <span className="text-8xl font-black text-white/50 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
+                     <span className="text-8xl font-black text-white/40 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
                      <div className="text-[120px] filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125">{targetPlayer?.flag}</div>
                   </div>
                   <div className="mt-12 w-full space-y-4">
-                    <div className="bg-black/90 backdrop-blur-xl px-4 py-4 rounded-2xl w-full border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                    <div className="bg-black/95 backdrop-blur-2xl px-4 py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
                       <h3 className="text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
                   </div>
@@ -346,7 +341,7 @@ export default function GamePage() {
         <div className="flex gap-3 max-w-lg mx-auto">
           <Input 
             placeholder="ENTER PLAYER NAME" 
-            className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center"
+            className="h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase"
             value={guessInput}
             onChange={(e) => setGuessInput(e.target.value)}
             disabled={(isPlayer1 ? !!roundData?.player1Guess : !!roundData?.player2Guess) || gameState !== 'playing'}
