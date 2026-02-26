@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -55,21 +55,25 @@ export default function ResultPage() {
 
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1) return;
-    const batch = writeBatch(db);
-    const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
-    roundsSnap.docs.forEach(d => batch.delete(d.ref));
-    batch.update(roomRef, {
-      status: 'Lobby',
-      player1CurrentHealth: room.healthOption,
-      player2CurrentHealth: room.healthOption,
-      currentRoundNumber: 1,
-      usedFootballerIds: [],
-      winnerId: null,
-      loserId: null,
-      finishedAt: null,
-      lastEmote: null
-    });
-    await batch.commit();
+    try {
+      const batch = writeBatch(db);
+      const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
+      roundsSnap.docs.forEach(d => batch.delete(d.ref));
+      batch.update(roomRef, {
+        status: 'Lobby',
+        player1CurrentHealth: room.healthOption,
+        player2CurrentHealth: room.healthOption,
+        currentRoundNumber: 1,
+        usedFootballerIds: [],
+        winnerId: null,
+        loserId: null,
+        finishedAt: null,
+        timerStartedAt: null,
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Failed to reset game:", e);
+    }
   };
 
   if (isUserLoading || isRoomLoading || !room || !p1Profile) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
