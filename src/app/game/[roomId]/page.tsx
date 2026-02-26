@@ -11,8 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
-import { FOOTBALLERS, Footballer } from "@/lib/footballer-data";
+import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
+import { FOOTBALLERS, Footballer, getRandomFootballer, getRarityFromRating } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
@@ -100,7 +100,7 @@ export default function GamePage() {
     revealTriggered.current = false;
 
     if (isPlayer1 && room && roundRef) {
-      const player = FOOTBALLERS[Math.floor(Math.random() * FOOTBALLERS.length)];
+      const player = getRandomFootballer(room.usedFootballerIds || []);
       setDoc(roundRef, {
         id: currentRoundId,
         gameRoomId: roomId,
@@ -114,8 +114,14 @@ export default function GamePage() {
         player1GuessedCorrectly: false,
         player2GuessedCorrectly: false,
       }, { merge: true });
+      
+      if (roomRef) {
+        updateDoc(roomRef, {
+          usedFootballerIds: arrayUnion(player.id)
+        });
+      }
     }
-  }, [isPlayer1, room, roomId, currentRoundId, roundRef]);
+  }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
 
   useEffect(() => {
     if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5) {
@@ -223,17 +229,17 @@ export default function GamePage() {
     // 3.1s country out
     // 3.8s position in
     // 4.7s position out
-    // 4.9s rarity in
-    // 5.8s rarity out
-    // 6.7s card reveal
+    // 5.2s rarity in
+    // 6.1s rarity out
+    // 6.9s card reveal
     
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
     setTimeout(() => setRevealStep('none'), 4700);
-    setTimeout(() => setRevealStep('rarity'), 4900);
-    setTimeout(() => setRevealStep('none'), 5800);
-    setTimeout(() => setRevealStep('full-card'), 6700);
+    setTimeout(() => setRevealStep('rarity'), 5200);
+    setTimeout(() => setRevealStep('none'), 6100);
+    setTimeout(() => setRevealStep('full-card'), 6900);
 
     setTimeout(() => {
       setGameState('result');
@@ -284,6 +290,7 @@ export default function GamePage() {
   const hasP1Guessed = !!roundData?.player1Guess;
   const hasP2Guessed = !!roundData?.player2Guess;
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+  const rarityInfo = targetPlayer ? getRarityFromRating(targetPlayer.rating) : null;
 
   if (gameState === 'reveal') {
     return (
@@ -308,18 +315,18 @@ export default function GamePage() {
                 <span className="text-[100px] md:text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span>
               </div>
             )}
-            {revealStep === 'rarity' && (
+            {revealStep === 'rarity' && rarityInfo && (
               <div className="animate-in fade-in zoom-in duration-400">
-                <Badge className={`${targetPlayer?.rarity === 'ICON' ? 'bg-yellow-500 text-black' : 'bg-primary text-black'} text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>
-                  {targetPlayer?.rarity}
+                <Badge className={`bg-gradient-to-r ${rarityInfo.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>
+                  {rarityInfo.type}
                 </Badge>
               </div>
             )}
           </div>
 
-          {revealStep === 'full-card' && (
+          {revealStep === 'full-card' && rarityInfo && (
             <div className="relative fc-card-container">
-              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative ${targetPlayer?.rarity === 'ICON' ? 'bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-800 border-yellow-200' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-black border-slate-600'}`}>
+              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative bg-gradient-to-br ${rarityInfo.bg} border-white/20`}>
                 <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center">
                   <div className="flex flex-col items-center gap-4 md:gap-6">
                      <span className="text-6xl md:text-8xl font-black text-white/40 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
@@ -327,6 +334,10 @@ export default function GamePage() {
                   </div>
                   <div className="mt-8 md:mt-12 w-full space-y-4">
                     <div className="bg-black/95 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-black text-primary/80 uppercase tracking-tighter">{rarityInfo.type}</span>
+                        <span className="text-xs font-black text-white/80">{targetPlayer?.rating}</span>
+                      </div>
                       <h3 className="text-xl md:text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
                   </div>
@@ -500,18 +511,14 @@ export default function GamePage() {
            <Trophy className="w-12 h-12 md:w-16 md:h-16 text-secondary animate-bounce drop-shadow-[0_0_30px_rgba(255,165,0,0.5)]" />
            
            <div className="flex flex-col items-center gap-4 animate-in zoom-in duration-700">
-              <div className="relative">
+              <div className="relative text-center">
                 <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
-                <img 
-                  src={`https://picsum.photos/seed/${targetPlayer?.id}/400/400`} 
-                  className="w-40 h-40 md:w-48 md:h-48 rounded-3xl object-cover border-4 border-primary shadow-[0_0_50px_rgba(255,123,0,0.5)] relative z-10" 
-                  alt="correct-player" 
-                />
-                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-20">
-                   <Badge className="bg-primary text-black font-black text-lg md:text-xl px-4 md:px-6 py-1.5 md:py-2 shadow-2xl skew-x-[-12deg] whitespace-nowrap">
-                      {targetPlayer?.name}
-                   </Badge>
-                </div>
+                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl">
+                   {targetPlayer?.name}
+                </h2>
+                <Badge className={`bg-gradient-to-r ${rarityInfo?.bg} text-white font-black text-lg px-6 py-2 skew-x-[-12deg]`}>
+                   {rarityInfo?.type} | {targetPlayer?.rating} RATING
+                </Badge>
               </div>
            </div>
 

@@ -1,317 +1,62 @@
 
+export type RarityType = 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'MASTER' | 'GRANDMASTER' | 'LEGENDARY';
+
 export interface Footballer {
   id: string;
   name: string;
   flag: string;
   position: string;
-  rarity: 'GOLD' | 'SBC' | 'ICON' | 'HERO';
+  rating: number; // 1-1000
   club: string;
   hints: string[];
 }
 
+export const getRarityFromRating = (rating: number): { type: RarityType; color: string; bg: string } => {
+  if (rating <= 200) return { type: 'IRON', color: 'text-slate-400', bg: 'from-slate-500 to-slate-800' };
+  if (rating <= 300) return { type: 'BRONZE', color: 'text-orange-400', bg: 'from-orange-700 to-orange-950' };
+  if (rating <= 400) return { type: 'SILVER', color: 'text-slate-200', bg: 'from-slate-300 to-slate-500' };
+  if (rating <= 500) return { type: 'GOLD', color: 'text-yellow-400', bg: 'from-yellow-500 to-yellow-800' };
+  if (rating <= 600) return { type: 'PLATINUM', color: 'text-cyan-300', bg: 'from-cyan-400 to-cyan-700' };
+  if (rating <= 700) return { type: 'DIAMOND', color: 'text-blue-300', bg: 'from-blue-400 to-blue-600' };
+  if (rating <= 800) return { type: 'MASTER', color: 'text-purple-300', bg: 'from-purple-500 to-purple-800' };
+  if (rating <= 900) return { type: 'GRANDMASTER', color: 'text-red-400', bg: 'from-red-600 to-red-900' };
+  return { type: 'LEGENDARY', color: 'text-yellow-200', bg: 'from-yellow-300 via-yellow-500 to-yellow-600' };
+};
+
 export const FOOTBALLERS: Footballer[] = [
-  { 
-    id: '1', 
-    name: 'Lionel Messi', 
-    flag: '🇦🇷', 
-    position: 'RW', 
-    rarity: 'GOLD', 
-    club: 'Inter Miami',
-    hints: [
-      "I have won a record 8 Ballon d'Or awards.",
-      "I spent 21 years at FC Barcelona.",
-      "I captained Argentina to the 2022 World Cup trophy.",
-      "My nickname is 'La Pulga'.",
-      "I currently play in the MLS for Inter Miami."
-    ]
-  },
-  { 
-    id: '2', 
-    name: 'Cristiano Ronaldo', 
-    flag: '🇵🇹', 
-    position: 'ST', 
-    rarity: 'GOLD', 
-    club: 'Al Nassr',
-    hints: [
-      "I am the all-time leading goalscorer in international football.",
-      "I have won 5 UEFA Champions League titles.",
-      "I am a club legend for both Manchester United and Real Madrid.",
-      "I am famous for my 'Siu' celebration.",
-      "I play for Al Nassr in Saudi Arabia."
-    ]
-  },
-  { 
-    id: '3', 
-    name: 'Kylian Mbappé', 
-    flag: '🇫🇷', 
-    position: 'ST', 
-    rarity: 'GOLD', 
-    club: 'Real Madrid',
-    hints: [
-      "I scored a hat-trick in the 2022 World Cup Final.",
-      "I was the top scorer in the history of Paris Saint-Germain.",
-      "I won the World Cup in 2018 as a teenager.",
-      "I am widely considered the fastest player in world football.",
-      "I recently joined Real Madrid in a blockbuster move."
-    ]
-  },
-  { 
-    id: '4', 
-    name: 'Erling Haaland', 
-    flag: '🇳🇴', 
-    position: 'ST', 
-    rarity: 'GOLD', 
-    club: 'Manchester City',
-    hints: [
-      "I broke the record for most goals in a single Premier League season.",
-      "I am known for my incredible physical strength and 'Cyborg' style.",
-      "I previously played for Red Bull Salzburg and Borussia Dortmund.",
-      "My father, Alf-Inge, also played for my current club.",
-      "I lead the line for Manchester City and Norway."
-    ]
-  },
-  { 
-    id: '5', 
-    name: 'Zinedine Zidane', 
-    flag: '🇫🇷', 
-    position: 'CAM', 
-    rarity: 'ICON', 
-    club: 'Icon',
-    hints: [
-      "I am famous for a volley in the 2002 Champions League final.",
-      "I won the 1998 World Cup for France by scoring two headers in the final.",
-      "My playing career ended with a red card in the 2006 World Cup final.",
-      "I managed Real Madrid to three consecutive Champions League titles.",
-      "My nickname is 'Zizou'."
-    ]
-  },
-  { 
-    id: '6', 
-    name: 'Kevin De Bruyne', 
-    flag: '🇧🇪', 
-    position: 'CM', 
-    rarity: 'GOLD', 
-    club: 'Manchester City',
-    hints: [
-      "I am often called the best playmaker in the world.",
-      "I have the joint-most assists in a single Premier League season.",
-      "I played for Chelsea and Wolfsburg before my current club.",
-      "I am the heartbeat of the Belgian 'Golden Generation'.",
-      "I am known for my incredible crossing and vision."
-    ]
-  },
-  { 
-    id: '7', 
-    name: 'Robert Lewandowski', 
-    flag: '🇵🇱', 
-    position: 'ST', 
-    rarity: 'GOLD', 
-    club: 'Barcelona',
-    hints: [
-      "I once scored 5 goals in 9 minutes coming off the bench.",
-      "I broke Gerd Müller's record for most goals in a single Bundesliga season.",
-      "I spent 8 highly successful years at Bayern Munich.",
-      "I am Poland's all-time leading scorer.",
-      "I moved to FC Barcelona in 2022."
-    ]
-  },
-  { 
-    id: '8', 
-    name: 'Mohamed Salah', 
-    flag: '🇪🇬', 
-    position: 'RW', 
-    rarity: 'GOLD', 
-    club: 'Liverpool',
-    hints: [
-      "I am known as 'The Egyptian King'.",
-      "I helped Liverpool win their first Premier League title in 30 years.",
-      "I have won multiple Premier League Golden Boots.",
-      "I previously played for Basel, Chelsea, and Roma.",
-      "I am the highest-scoring African player in Premier League history."
-    ]
-  },
-  { 
-    id: '9', 
-    name: 'Luka Modrić', 
-    flag: '🇭🇷', 
-    position: 'CM', 
-    rarity: 'GOLD', 
-    club: 'Real Madrid',
-    hints: [
-      "I won the Ballon d'Or in 2018, breaking the Messi-Ronaldo dominance.",
-      "I led Croatia to the 2018 World Cup Final.",
-      "I am known for my 'Trivela' (outside of the foot) passes.",
-      "I have won 6 Champions League titles with Real Madrid.",
-      "I played for Tottenham Hotspur before moving to Spain."
-    ]
-  },
-  { 
-    id: '10', 
-    name: 'Vinícius Júnior', 
-    flag: '🇧🇷', 
-    position: 'LW', 
-    rarity: 'GOLD', 
-    club: 'Real Madrid',
-    hints: [
-      "I scored the winning goal in the 2022 Champions League Final.",
-      "I am a Brazilian winger famous for my dribbling and flair.",
-      "I wear the iconic number 7 at Real Madrid.",
-      "I was signed from Flamengo as a teenager.",
-      "I am a leading candidate for the 2024 Ballon d'Or."
-    ]
-  },
-  { 
-    id: '11', 
-    name: 'Harry Kane', 
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 
-    position: 'ST', 
-    rarity: 'GOLD', 
-    club: 'Bayern Munich',
-    hints: [
-      "I am England's all-time leading goalscorer.",
-      "I am the second-highest scorer in Premier League history.",
-      "I spent most of my career at Tottenham Hotspur without winning a trophy.",
-      "I moved to Bayern Munich in 2023.",
-      "I have won three Premier League Golden Boots."
-    ]
-  },
-  { 
-    id: '12', 
-    name: 'Thierry Henry', 
-    flag: '🇫🇷', 
-    position: 'ST', 
-    rarity: 'ICON', 
-    club: 'Icon',
-    hints: [
-      "I am the greatest player in Arsenal's history.",
-      "I was the main man in the 'Invincibles' season.",
-      "I won the World Cup, Euros, and Champions League during my career.",
-      "I have a statue outside the Emirates Stadium.",
-      "I am famous for my va-va-voom and clinical finishing."
-    ]
-  },
-  {
-    id: '13',
-    name: 'Neymar Jr',
-    flag: '🇧🇷',
-    position: 'LW',
-    rarity: 'GOLD',
-    club: 'Al Hilal',
-    hints: [
-      "I became the world's most expensive player in 2017.",
-      "I formed the legendary MSN trio at Barcelona.",
-      "I won Olympic Gold with Brazil in 2016.",
-      "I am famous for my incredible skill and 'Rainbow Flick'.",
-      "I currently play for Al Hilal in Saudi Arabia."
-    ]
-  },
-  {
-    id: '14',
-    name: 'Ronaldinho',
-    flag: '🇧🇷',
-    position: 'CAM',
-    rarity: 'ICON',
-    club: 'Icon',
-    hints: [
-      "I am famous for always playing with a smile on my face.",
-      "I received a standing ovation from Real Madrid fans at the Bernabéu.",
-      "I won the Ballon d'Or in 2005.",
-      "I was a key part of Brazil's 2002 World Cup winning team.",
-      "I am a legend for both Barcelona and AC Milan."
-    ]
-  },
-  {
-    id: '15',
-    name: 'Pelé',
-    flag: '🇧🇷',
-    position: 'ST',
-    rarity: 'ICON',
-    club: 'Icon',
-    hints: [
-      "I am the only player to win three FIFA World Cups.",
-      "I scored over 1,000 career goals.",
-      "I spent the vast majority of my career at Santos.",
-      "I was named the FIFA Player of the Century.",
-      "I am widely regarded as the 'King of Football'."
-    ]
-  },
-  {
-    id: '16',
-    name: 'Diego Maradona',
-    flag: '🇦🇷',
-    position: 'CAM',
-    rarity: 'ICON',
-    club: 'Icon',
-    hints: [
-      "I am famous for the 'Hand of God' goal.",
-      "I scored the 'Goal of the Century' against England in 1986.",
-      "I led Napoli to their first ever Serie A titles.",
-      "I single-handedly inspired Argentina to the 1986 World Cup.",
-      "I am a god-like figure in both Buenos Aires and Naples."
-    ]
-  },
-  {
-    id: '17',
-    name: 'Jude Bellingham',
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    position: 'CAM',
-    rarity: 'GOLD',
-    club: 'Real Madrid',
-    hints: [
-      "My former club Birmingham City retired my shirt number when I was 17.",
-      "I moved to Borussia Dortmund before joining Real Madrid.",
-      "I wear the number 5 at Real Madrid, previously worn by Zidane.",
-      "I am the youngest player ever to play for England in a major tournament.",
-      "I had an incredible debut season in Spain, winning La Liga and the UCL."
-    ]
-  },
-  {
-    id: '18',
-    name: 'Wayne Rooney',
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    position: 'ST',
-    rarity: 'ICON',
-    club: 'Icon',
-    hints: [
-      "I scored a hat-trick on my Manchester United debut at age 18.",
-      "I held the record for most goals for England and Manchester United.",
-      "I am famous for a spectacular bicycle kick against Manchester City.",
-      "I started my career as a child prodigy at Everton.",
-      "I was known for my incredible work rate, power, and aggression."
-    ]
-  },
-  {
-    id: '19',
-    name: 'David Beckham',
-    flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    position: 'RM',
-    rarity: 'ICON',
-    club: 'Icon',
-    hints: [
-      "I am famous for my incredible free-kick taking ability.",
-      "I was part of the 'Class of 92' at Manchester United.",
-      "I played for Real Madrid, LA Galaxy, AC Milan, and PSG.",
-      "I am a global fashion icon and former England captain.",
-      "I am one of the owners of Inter Miami."
-    ]
-  },
-  {
-    id: '20',
-    name: 'Son Heung-min',
-    flag: '🇰🇷',
-    position: 'LW',
-    rarity: 'GOLD',
-    club: 'Tottenham',
-    hints: [
-      "I am the all-time leading Asian goalscorer in Premier League history.",
-      "I won the Premier League Golden Boot in 2021-22.",
-      "I am the current captain of Tottenham Hotspur.",
-      "I won a Puskas Award for a solo goal against Burnley.",
-      "I am a massive superstar in South Korea."
-    ]
-  }
+  { id: '1', name: 'Lionel Messi', flag: '🇦🇷', position: 'RW', rating: 980, club: 'Inter Miami', hints: ["Record 8 Ballon d'Ors.", "Barcelona legend.", "2022 World Cup winner.", "'La Pulga'.", "Inter Miami star."] },
+  { id: '2', name: 'Cristiano Ronaldo', flag: '🇵🇹', position: 'ST', rating: 975, club: 'Al Nassr', hints: ["International top scorer.", "5 Champions Leagues.", "Man Utd & Real Madrid icon.", "'Siu' celebration.", "Plays for Al Nassr."] },
+  { id: '3', name: 'Kylian Mbappé', flag: '🇫🇷', position: 'ST', rating: 970, club: 'Real Madrid', hints: ["Hat-trick in 2022 Final.", "PSG top scorer.", "2018 World Cup winner.", "Fastest in the world.", "Real Madrid player."] },
+  { id: '4', name: 'Erling Haaland', flag: '🇳🇴', position: 'ST', rating: 965, club: 'Man City', hints: ["PL goal record breaker.", "The 'Cyborg'.", "Ex-Dortmund.", "Father played for City.", "Norway striker."] },
+  { id: '5', name: 'Son Heung-min', flag: '🇰🇷', position: 'LW', rating: 450, club: 'Tottenham', hints: ["Asian PL top scorer.", "Golden Boot 21-22.", "Spurs captain.", "Puskas winner.", "Korea's superstar."] },
+  { id: '6', name: 'Harry Kane', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', position: 'ST', rating: 480, club: 'Bayern', hints: ["England top scorer.", "Ex-Spurs hero.", "Moved to Germany.", "Elite finisher.", "Wears number 9."] },
+  { id: '7', name: 'Casemiro', flag: '🇧🇷', position: 'CDM', rating: 150, club: 'Man Utd', hints: ["Defensive wall.", "5 UCL titles with Real.", "Brazil hardman.", "Plays in midfield.", "Current Man Utd player."] },
+  { id: '8', name: 'Nicolas Jackson', flag: '🇸🇳', position: 'ST', rating: 120, club: 'Chelsea', hints: ["Senegal striker.", "Plays for Chelsea.", "Moved from Villarreal.", "Young talent.", "Speedy attacker."] },
+  { id: '9', name: 'Richarlison', flag: '🇧🇷', position: 'ST', rating: 180, club: 'Spurs', hints: ["The 'Pigeon'.", "Brazil number 9.", "Scored worldie in WC 2022.", "Spurs striker.", "Ex-Everton."] },
+  { id: '10', name: 'Luka Modric', flag: '🇭🇷', position: 'CM', rating: 940, club: 'Real Madrid', hints: ["2018 Ballon d'Or.", "Croatia captain.", "Midfield maestro.", "6 UCL titles.", "Trivela specialist."] },
+  { id: '11', name: 'Antony', flag: '🇧🇷', position: 'RW', rating: 50, club: 'Man Utd', hints: ["Spin move specialist.", "Ex-Ajax winger.", "Expensive transfer.", "Plays for United.", "Brazil winger."] },
+  { id: '12', name: 'Darwin Nunez', flag: '🇺🇾', position: 'ST', rating: 220, club: 'Liverpool', hints: ["Uruguay forward.", "Chaotic energy.", "Liverpool striker.", "Ex-Benfica.", "Highly athletic."] },
+  { id: '13', name: 'Bernardo Silva', flag: '🇵🇹', position: 'CM', rating: 350, club: 'Man City', hints: ["Workhorse.", "City playmaker.", "Portuguese star.", "Incredible dribbling.", "Left footed."] },
+  { id: '14', name: 'Zinedine Zidane', flag: '🇫🇷', position: 'CAM', rating: 995, club: 'Icon', hints: ["1998 WC winner.", "Madrid icon.", "Legendary volley.", "'Zizou'.", "Elite ball control."] },
+  { id: '15', name: 'Pele', flag: '🇧🇷', position: 'ST', rating: 1000, club: 'Icon', hints: ["3 World Cups.", "1000+ goals.", "Santos legend.", "FIFA player of century.", "The King."] },
+  { id: '16', name: 'Harry Maguire', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', position: 'CB', rating: 80, club: 'Man Utd', hints: ["Big head nickname.", "England CB.", "United defender.", "Dominant in air.", "Sheffield born."] },
+  { id: '17', name: 'Kai Havertz', flag: '🇩🇪', position: 'ST', rating: 280, club: 'Arsenal', hints: ["Chelsea UCL winner.", "German attacker.", "Plays for Arsenal.", "Versatile player.", "Ex-Leverkusen."] },
+  { id: '18', name: 'Declan Rice', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', position: 'CDM', rating: 390, club: 'Arsenal', hints: ["Ex-West Ham captain.", "Arsenal anchor.", "England midfielder.", "Elite ball recovery.", "High energy."] },
+  { id: '19', name: 'Neymar Jr', flag: '🇧🇷', position: 'LW', rating: 920, club: 'Al Hilal', hints: ["World record fee.", "Skill move king.", "Brazil's main man.", "Ex-Barca & PSG.", "Plays in Saudi."] },
+  { id: '20', name: 'Timo Werner', flag: '🇩🇪', position: 'LW', rating: 110, club: 'Spurs', hints: ["Fast runner.", "Ex-Chelsea & Leipzig.", "German forward.", "Plays for Spurs.", "Speedster."] }
 ];
 
-export function getRandomFootballer(): Footballer {
-  return FOOTBALLERS[Math.floor(Math.random() * FOOTBALLERS.length)];
+export function getRandomFootballer(excludeIds: string[] = []): Footballer {
+  const available = FOOTBALLERS.filter(f => !excludeIds.includes(f.id));
+  const pool = available.length > 0 ? available : FOOTBALLERS;
+
+  // Selection weighted by rarity: Iron/Bronze/Silver cards are 3x more likely to appear
+  // but if pool is small (no repeats), we just pick.
+  const weightedPool: Footballer[] = [];
+  pool.forEach(f => {
+    const weight = f.rating <= 300 ? 5 : (f.rating <= 600 ? 2 : 1);
+    for(let i=0; i<weight; i++) weightedPool.push(f);
+  });
+  
+  return weightedPool[Math.floor(Math.random() * weightedPool.length)];
 }
