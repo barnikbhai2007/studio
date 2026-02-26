@@ -21,7 +21,6 @@ import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
 
-// EMOTES SOURCES are defined here
 const EMOTES = [
   { id: 'laugh', emoji: '😂', url: 'https://picsum.photos/seed/laugh/100/100' },
   { id: 'cry', emoji: '😭', url: 'https://picsum.photos/seed/cry/100/100' },
@@ -190,7 +189,7 @@ export default function GamePage() {
   }, [gameState, countdown, visibleHints, roundTimer, roundData]);
 
   const normalizeStr = (str: string) => 
-    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    str.normalize("NFD").replace(/[\u0300(\u0300-\u036f]/g, "").toLowerCase().trim();
 
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
