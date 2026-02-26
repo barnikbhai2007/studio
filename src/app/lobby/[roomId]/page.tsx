@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,19 +7,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Copy, Users, Play, ShieldAlert, Crown, Swords } from "lucide-react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 
 export default function LobbyPage() {
-  const { roomId } = useParams();
+  const { roomId } = roomId_from_params;
+  const { roomId: roomIdFromParams } = useParams();
+  const roomIdStr = roomIdFromParams as string;
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const db = useFirestore();
 
-  const roomRef = useMemoFirebase(() => doc(db, "gameRooms", roomId as string), [db, roomId]);
+  const roomRef = useMemoFirebase(() => {
+    if (!user || !roomIdStr) return null;
+    return doc(db, "gameRooms", roomIdStr);
+  }, [db, roomIdStr, user]);
+  
   const { data: room, isLoading } = useDoc(roomRef);
 
   const [p1Profile, setP1Profile] = useState<any>(null);
@@ -27,14 +34,18 @@ export default function LobbyPage() {
   const isLeader = room?.player1Id === user?.uid;
 
   useEffect(() => {
-    if (!room) return;
+    if (!isUserLoading && !user) {
+      router.push('/');
+    }
+  }, [user, isUserLoading, router]);
 
-    // Fetch Player 1 Profile
+  useEffect(() => {
+    if (!room || !user) return;
+
     const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), (snap) => {
       setP1Profile(snap.data());
     });
 
-    // Fetch Player 2 Profile
     let p2Unsub = () => {};
     if (room.player2Id) {
       p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), (snap) => {
@@ -44,24 +55,23 @@ export default function LobbyPage() {
       setP2Profile(null);
     }
 
-    // Redirect if game starts
     if (room.status === 'InProgress') {
-      router.push(`/game/${roomId}?health=${room.healthOption}&isLeader=${isLeader}`);
+      router.push(`/game/${roomIdStr}`);
     }
 
     return () => {
       p1Unsub();
       p2Unsub();
     };
-  }, [room, db, roomId, router, isLeader]);
+  }, [room, db, roomIdStr, router, user]);
 
   const copyCode = () => {
-    navigator.clipboard.writeText(roomId as string);
+    navigator.clipboard.writeText(roomIdStr);
     toast({ title: "Copied!", description: "Room code copied to clipboard." });
   };
 
   const updateHealth = async (val: string) => {
-    if (!isLeader) return;
+    if (!isLeader || !roomRef) return;
     await updateDoc(roomRef, { 
       healthOption: parseInt(val),
       player1CurrentHealth: parseInt(val),
@@ -70,7 +80,7 @@ export default function LobbyPage() {
   };
 
   const startGame = async () => {
-    if (!room?.player2Id) {
+    if (!room?.player2Id || !roomRef) {
       toast({ variant: "destructive", title: "Wait!", description: "Waiting for an opponent to join." });
       return;
     }
@@ -80,7 +90,7 @@ export default function LobbyPage() {
     });
   };
 
-  if (isLoading || !room) {
+  if (isUserLoading || isLoading || !room) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Swords className="w-12 h-12 text-primary animate-spin" />
@@ -93,7 +103,7 @@ export default function LobbyPage() {
       <div className="w-full max-w-lg space-y-6">
         <header className="flex justify-between items-center py-4">
           <h1 className="text-2xl font-black font-headline text-primary">FOOTY DUEL</h1>
-          <Badge variant="outline" className="text-xs font-bold border-primary text-primary">ROOM: {roomId}</Badge>
+          <Badge variant="outline" className="text-xs font-bold border-primary text-primary">ROOM: {roomIdStr}</Badge>
         </header>
 
         <Card className="bg-card border-none shadow-xl">
