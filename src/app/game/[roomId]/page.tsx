@@ -156,7 +156,7 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
-    // Timing as per user requirements
+    // Exact cinematic timing requested
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -226,7 +226,7 @@ export default function GamePage() {
           playsInline
           muted
           autoPlay
-          src="https://asset.cloudinary.com/speed-searches/6c731a23cc4289e939732fde7e3dc069"
+          src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4"
         />
         
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
