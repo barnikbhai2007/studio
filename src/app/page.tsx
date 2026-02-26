@@ -24,6 +24,7 @@ export default function LandingPage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -62,6 +63,7 @@ export default function LandingPage() {
 
   const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
+    setShowManual(true); // Ensure manual overlay is shown during/after sync
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 8;
@@ -159,10 +161,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
+      {/* Manual Overlay */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
-            {showManual && (
+            {!isSyncing && showManual && (
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -187,7 +190,7 @@ export default function LandingPage() {
               
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
-                  <p className="text-white text-sm">
+                  <p className="text-white text-sm leading-tight">
                     FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
                   </p>
                   
@@ -231,6 +234,48 @@ export default function LandingPage() {
                   GOT IT, DUELIST
                 </Button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Support Overlay */}
+      {showSupport && (
+        <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
+          <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setShowSupport(false)} 
+              className="absolute -top-12 right-0 text-slate-500 hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            
+            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-8 flex flex-col items-center">
+              <div className="space-y-3">
+                 <h2 className="text-3xl font-black uppercase text-primary tracking-tighter leading-none">SUPPORT THE DEV</h2>
+                 <p className="text-[11px] font-bold text-slate-300 uppercase leading-relaxed tracking-tight">
+                    Buy the dev a coffee. Scan the QR code and help the project to run for more days.
+                 </p>
+              </div>
+              
+              <div className="relative group">
+                 <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-3xl group-hover:bg-primary/30 transition-all animate-pulse" />
+                 <img 
+                    src="https://picsum.photos/seed/support_qr/400/400" 
+                    className="relative z-10 w-56 h-56 mx-auto rounded-3xl border-4 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white p-2" 
+                    alt="Support QR Code"
+                    data-ai-hint="QR code"
+                 />
+              </div>
+
+              <Button 
+                onClick={() => setShowSupport(false)} 
+                className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl hover:scale-105 transition-transform"
+              >
+                BACK TO LOBBY
+              </Button>
             </div>
           </div>
         </div>
@@ -307,8 +352,12 @@ export default function LandingPage() {
               </Button>
             </div>
 
-            <Button variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] tracking-[0.3em] hover:text-primary">
-              <Heart className="w-3 h-3 mr-2" /> SUPPORT FOOTYDUEL
+            <Button 
+              onClick={() => setShowSupport(true)}
+              variant="link" 
+              className="w-full text-slate-500 font-black uppercase text-[10px] tracking-[0.3em] hover:text-primary"
+            >
+              <Heart className="w-3 h-3 mr-2" /> SUPPORT THE DEV
             </Button>
           </div>
         )}
