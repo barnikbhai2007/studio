@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -230,8 +229,6 @@ export default function GamePage() {
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
     
-    // Tug of War logic: MyHealth = MyHealth + (MyScore - OpponentScore)
-    // Correct (+10), Wrong (-10), Skip (0)
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
     
@@ -261,7 +258,7 @@ export default function GamePage() {
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><div className="text-[120px] md:text-[200px] filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]">{targetPlayer?.flag}</div></div>}
+            {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
             {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
             {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>{currentRarity.type}</Badge></div>}
           </div>
@@ -271,7 +268,7 @@ export default function GamePage() {
                 <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center">
                   <div className="flex flex-col items-center gap-4 md:gap-6">
                      <span className="text-6xl md:text-8xl font-black text-white/40 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
-                     <div className="text-[80px] md:text-[120px] filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125">{targetPlayer?.flag}</div>
+                     <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-32 md:w-48 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125" alt="flag" />
                   </div>
                   <div className="mt-8 md:mt-12 w-full space-y-4">
                     <div className="bg-black/95 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
