@@ -6,22 +6,24 @@ export interface Footballer {
   name: string;
   flag: string;
   position: string;
-  rating: number; // 1-1000
+  rating: number; // 1-1000 (hidden, used for variety)
   club: string;
   hints: string[];
 }
 
-export const getRarityFromRating = (rating: number): { type: RarityType; color: string; bg: string } => {
-  if (rating <= 200) return { type: 'IRON', color: 'text-slate-400', bg: 'from-slate-500 to-slate-800' };
-  if (rating <= 300) return { type: 'BRONZE', color: 'text-orange-400', bg: 'from-orange-700 to-orange-950' };
-  if (rating <= 400) return { type: 'SILVER', color: 'text-slate-200', bg: 'from-slate-300 to-slate-500' };
-  if (rating <= 500) return { type: 'GOLD', color: 'text-yellow-400', bg: 'from-yellow-500 to-yellow-800' };
-  if (rating <= 600) return { type: 'PLATINUM', color: 'text-cyan-300', bg: 'from-cyan-400 to-cyan-700' };
-  if (rating <= 700) return { type: 'DIAMOND', color: 'text-blue-300', bg: 'from-blue-400 to-blue-600' };
-  if (rating <= 800) return { type: 'MASTER', color: 'text-purple-300', bg: 'from-purple-500 to-purple-800' };
-  if (rating <= 900) return { type: 'GRANDMASTER', color: 'text-red-400', bg: 'from-red-600 to-red-900' };
-  return { type: 'LEGENDARY', color: 'text-yellow-200', bg: 'from-yellow-300 via-yellow-500 to-yellow-600' };
-};
+export const RARITIES: { type: RarityType; bg: string }[] = [
+  { type: 'IRON', bg: 'from-slate-500 to-slate-800' },
+  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950' },
+  { type: 'SILVER', bg: 'from-slate-300 to-slate-500' },
+  { type: 'GOLD', bg: 'from-yellow-500 to-yellow-800' },
+  { type: 'PLATINUM', bg: 'from-cyan-400 to-cyan-700' },
+  { type: 'DIAMOND', bg: 'from-blue-400 to-blue-600' },
+  { type: 'MASTER', bg: 'from-purple-500 to-purple-800' },
+  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-900' },
+  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-yellow-600' }
+];
+
+export const getRandomRarity = () => RARITIES[Math.floor(Math.random() * RARITIES.length)];
 
 export const FOOTBALLERS: Footballer[] = [
   { id: '1', name: 'Lionel Messi', flag: '🇦🇷', position: 'RW', rating: 980, club: 'Inter Miami', hints: ["Record 8 Ballon d'Ors.", "Barcelona legend.", "2022 World Cup winner.", "'La Pulga'.", "Inter Miami star."] },
@@ -49,14 +51,5 @@ export const FOOTBALLERS: Footballer[] = [
 export function getRandomFootballer(excludeIds: string[] = []): Footballer {
   const available = FOOTBALLERS.filter(f => !excludeIds.includes(f.id));
   const pool = available.length > 0 ? available : FOOTBALLERS;
-
-  // Selection weighted by rarity: Iron/Bronze/Silver cards are 3x more likely to appear
-  // but if pool is small (no repeats), we just pick.
-  const weightedPool: Footballer[] = [];
-  pool.forEach(f => {
-    const weight = f.rating <= 300 ? 5 : (f.rating <= 600 ? 2 : 1);
-    for(let i=0; i<weight; i++) weightedPool.push(f);
-  });
-  
-  return weightedPool[Math.floor(Math.random() * weightedPool.length)];
+  return pool[Math.floor(Math.random() * pool.length)];
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -7,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles } from "lucide-react";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles, Ban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
-import { FOOTBALLERS, Footballer, getRandomFootballer, getRarityFromRating } from "@/lib/footballer-data";
+import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
@@ -52,6 +53,7 @@ export default function GamePage() {
   const [guessInput, setGuessInput] = useState("");
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [floatingEmotes, setFloatingEmotes] = useState<{id: string, url: string, x: number}[]>([]);
+  const [currentRarity, setCurrentRarity] = useState<any>(null);
   
   const isPlayer1 = room?.player1Id === user?.uid;
   const currentRoundId = `round_${room?.currentRoundNumber || 1}`;
@@ -71,20 +73,16 @@ export default function GamePage() {
 
   useEffect(() => {
     if (!room?.lastEmote || !user) return;
-    
     const { userId, emoteId, timestamp } = room.lastEmote;
     const now = Date.now();
     const emoteTime = new Date(timestamp).getTime();
-    
     if (now - emoteTime < 2000) {
       const emoteObj = EMOTES.find(e => e.id === emoteId);
       if (emoteObj) {
         const id = Math.random().toString();
         const x = Math.random() * 30 + 65;
         setFloatingEmotes(prev => [...prev, { id, url: emoteObj.url, x }]);
-        setTimeout(() => {
-          setFloatingEmotes(prev => prev.filter(e => e.id !== id));
-        }, 2500);
+        setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2500);
       }
     }
   }, [room?.lastEmote, user]);
@@ -97,6 +95,7 @@ export default function GamePage() {
     setRoundTimer(null);
     setVisibleHints(1);
     revealTriggered.current = false;
+    setCurrentRarity(getRandomRarity());
 
     if (isPlayer1 && room && roundRef) {
       const player = getRandomFootballer(room.usedFootballerIds || []);
@@ -113,11 +112,8 @@ export default function GamePage() {
         player1GuessedCorrectly: false,
         player2GuessedCorrectly: false,
       }, { merge: true });
-      
       if (roomRef) {
-        updateDoc(roomRef, {
-          usedFootballerIds: arrayUnion(player.id)
-        });
+        updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
       }
     }
   }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
@@ -130,110 +126,78 @@ export default function GamePage() {
 
   useEffect(() => {
     if (!room || !user) return;
-    
     const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
     const p2Unsub = room.player2Id ? onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data())) : () => {};
-
-    return () => {
-      p1Unsub();
-      p2Unsub();
-    };
+    return () => { p1Unsub(); p2Unsub(); };
   }, [room, db, user]);
 
   useEffect(() => {
     if (roundData) {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
-
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
-      
       const iGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
-      const opponentGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
-
-      if (opponentGuessed && !iGuessed && roundTimer === null && gameState === 'playing') {
+      if ((hasP1Guessed || hasP2Guessed) && !iGuessed && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
       }
-
       if (hasP1Guessed && hasP2Guessed && gameState === 'playing' && !revealTriggered.current) {
         setGameState('finalizing');
-        setTimeout(() => {
-           handleReveal();
-        }, 3000);
+        setTimeout(() => handleReveal(), 3000);
       }
     }
   }, [roundData, isPlayer1, gameState]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    
     if (gameState === 'countdown' && countdown > 0) {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     } else if (gameState === 'countdown' && countdown === 0) {
       setGameState('playing');
     }
-
-    if (gameState === 'playing' && visibleHints < 5) {
+    const anyoneGuessed = !!roundData?.player1Guess || !!roundData?.player2Guess;
+    if (gameState === 'playing' && visibleHints < 5 && !anyoneGuessed) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
-
     if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
     } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
       setGameState('finalizing');
-      setTimeout(() => {
-         handleReveal();
-      }, 3000);
+      setTimeout(() => handleReveal(), 3000);
     }
-
     return () => clearTimeout(timer);
-  }, [gameState, countdown, visibleHints, roundTimer]);
+  }, [gameState, countdown, visibleHints, roundTimer, roundData]);
 
   const normalizeStr = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
-    
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
-    
-    // Improved matching: Split into parts and check if guess matches any part
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
-
     const update: any = isPlayer1 
       ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect }
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
-    
     await updateDoc(roundRef, update);
     toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
-    
-    if (!roundData.player1Guess && !roundData.player2Guess) {
-      setRoundTimer(15);
-    }
+    if (!roundData.player1Guess && !roundData.player2Guess) setRoundTimer(15);
   };
 
   const sendEmote = async (emoteId: string) => {
     if (!roomRef || !user) return;
     await updateDoc(roomRef, {
-      lastEmote: {
-        userId: user.uid,
-        emoteId,
-        timestamp: new Date().toISOString()
-      }
+      lastEmote: { userId: user.uid, emoteId, timestamp: new Date().toISOString() }
     });
   };
 
   const handleReveal = () => {
     if (revealTriggered.current) return;
     revealTriggered.current = true;
-
     setGameState('reveal');
     setRoundTimer(null);
     setRevealStep('none');
-    
-    // Precise Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
@@ -241,96 +205,54 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('rarity'), 5200);
     setTimeout(() => setRevealStep('none'), 6100);
     setTimeout(() => setRevealStep('full-card'), 6900);
-
-    // After 6.9s (card reveal) + 5s display = ~12s
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
-      
       setTimeout(async () => {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
-          if (isPlayer1 && roomRef) {
-            await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
-          }
+          if (isPlayer1 && roomRef) await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
           startNewRoundLocally();
-        } else {
-          router.push('/');
-        }
+        } else router.push('/');
       }, 10000);
     }, 11900);
   };
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
-
-    let p1Adjust = 0;
-    let p2Adjust = 0;
-
-    // P1 Adjustment (+10 correct, -10 wrong, 0 skip)
-    if (!roundData.player1Guess) p1Adjust = 0;
-    else if (roundData.player1GuessedCorrectly) p1Adjust = 10;
-    else p1Adjust = -10;
-
-    // P2 Adjustment (+10 correct, -10 wrong, 0 skip)
-    if (!roundData.player2Guess) p2Adjust = 0;
-    else if (roundData.player2GuessedCorrectly) p2Adjust = 10;
-    else p2Adjust = -10;
-
+    let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
+    let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
+    const p1Change = s1 - s2;
+    const p2Change = s2 - s1;
     await updateDoc(roomRef, {
-      player1CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player1CurrentHealth + p1Adjust)),
-      player2CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player2CurrentHealth + p2Adjust))
+      player1CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player1CurrentHealth + p1Change)),
+      player2CurrentHealth: Math.max(0, Math.min(room.healthOption, room.player2CurrentHealth + p2Change))
     });
   };
 
   if (isUserLoading || isRoomLoading || !room) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Swords className="w-12 h-12 text-primary animate-spin" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
   }
 
   const hasP1Guessed = !!roundData?.player1Guess;
   const hasP2Guessed = !!roundData?.player2Guess;
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
-  const rarityInfo = targetPlayer ? getRarityFromRating(targetPlayer.rating) : null;
+  const anyoneGuessed = hasP1Guessed || hasP2Guessed;
 
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        <video 
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          playsInline
-          autoPlay
-          src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4"
-        />
+        <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" playsInline autoPlay src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4" />
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {revealStep === 'country' && (
-              <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
-                <div className="text-[120px] md:text-[200px] filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]">{targetPlayer?.flag}</div>
-              </div>
-            )}
-            {revealStep === 'position' && (
-              <div className="animate-in fade-in slide-in-from-bottom-20 duration-300">
-                <span className="text-[100px] md:text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span>
-              </div>
-            )}
-            {revealStep === 'rarity' && rarityInfo && (
-              <div className="animate-in fade-in zoom-in duration-400">
-                <Badge className={`bg-gradient-to-r ${rarityInfo.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>
-                  {rarityInfo.type}
-                </Badge>
-              </div>
-            )}
+            {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><div className="text-[120px] md:text-[200px] filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]">{targetPlayer?.flag}</div></div>}
+            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
+            {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>{currentRarity.type}</Badge></div>}
           </div>
-
-          {revealStep === 'full-card' && rarityInfo && (
+          {revealStep === 'full-card' && currentRarity && (
             <div className="relative fc-card-container">
-              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative bg-gradient-to-br ${rarityInfo.bg} border-white/20`}>
+              <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
                 <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center">
                   <div className="flex flex-col items-center gap-4 md:gap-6">
                      <span className="text-6xl md:text-8xl font-black text-white/40 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
@@ -339,7 +261,7 @@ export default function GamePage() {
                   <div className="mt-8 md:mt-12 w-full space-y-4">
                     <div className="bg-black/95 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-black text-primary/80 uppercase tracking-tighter">{rarityInfo.type}</span>
+                        <span className="text-xs font-black text-primary/80 uppercase tracking-tighter">{currentRarity.type}</span>
                       </div>
                       <h3 className="text-xl md:text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
@@ -357,11 +279,7 @@ export default function GamePage() {
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none z-50">
         {floatingEmotes.map(emote => (
-          <div 
-            key={emote.id} 
-            className="absolute bottom-0 emote-float"
-            style={{ left: `${emote.x}%` }}
-          >
+          <div key={emote.id} className="absolute bottom-0 emote-float" style={{ left: `${emote.x}%` }}>
             <img src={emote.url} className="w-16 h-16 md:w-20 md:h-20 object-contain shadow-2xl" alt="emote" />
           </div>
         ))}
@@ -372,11 +290,7 @@ export default function GamePage() {
           <div className="flex items-center gap-2">
             <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
               <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-full h-full rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
-              {hasP1Guessed && (
-                <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white">
-                  <CheckCircle2 className="w-2.5 h-2.5 text-white" />
-                </div>
-              )}
+              {hasP1Guessed && <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-[10px] md:text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
@@ -388,11 +302,9 @@ export default function GamePage() {
             <span className="text-[10px] md:text-xs font-black text-primary">{room.player1CurrentHealth}</span>
           </div>
         </div>
-        
         <div className="flex flex-col items-center">
           <Badge className="bg-primary text-black font-black px-3 md:px-4 py-1 md:py-1.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap uppercase">ROUND {room.currentRoundNumber}</Badge>
         </div>
-
         <div className="flex flex-col gap-1.5 md:gap-2 items-end min-w-0">
           <div className="flex items-center gap-2 w-full justify-end">
             <div className="flex flex-col items-end min-w-0">
@@ -401,11 +313,7 @@ export default function GamePage() {
             </div>
             <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
               <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
-              {hasP2Guessed && (
-                <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white">
-                  <CheckCircle2 className="w-2.5 h-2.5 text-white" />
-                </div>
-              )}
+              {hasP2Guessed && <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
             </div>
           </div>
           <div className="flex items-center gap-2 w-full justify-end">
@@ -439,11 +347,6 @@ export default function GamePage() {
                   <Sparkles className="w-3 h-3" /> Both players locked in <Sparkles className="w-3 h-3" />
                </div>
              </div>
-             {oppHasGuessed && (
-               <Badge className="bg-green-500/20 text-green-400 border border-green-500/30 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
-                 Opponent has guessed!
-               </Badge>
-             )}
           </div>
         ) : (
           <div className="space-y-4">
@@ -451,18 +354,17 @@ export default function GamePage() {
               <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5 text-primary" /> Scouting Reports
               </h3>
+              {anyoneGuessed && <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 text-[10px] font-black flex items-center gap-1.5 uppercase tracking-widest"><Ban className="w-3 h-3" /> Scouting Suspended</Badge>}
               {roundTimer !== null && (
                 <Badge className="bg-red-600 animate-pulse text-white px-3 h-8 text-[10px] md:text-xs font-black border-2 border-white/40 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
                   <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> {roundTimer}s REMAINING
                 </Badge>
               )}
             </div>
-            
             <div className="space-y-3">
               {!targetPlayer ? (
                 <div className="flex flex-col items-center justify-center p-12 space-y-4 opacity-50">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Player Data...</p>
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest">Awaiting Player Data...</p>
                 </div>
               ) : (
                 targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (
@@ -482,88 +384,54 @@ export default function GamePage() {
              {iHaveGuessed && gameState === 'playing' ? (
               <div className="flex-1 flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30 h-14 md:h-16">
                 <CheckCircle2 className="w-4 h-4 text-green-500 animate-bounce" />
-                <p className="text-[10px] font-black text-green-400 uppercase tracking-[0.15em]">Decision Locked. Waiting...</p>
+                <p className="text-[10px] font-black text-green-400 uppercase tracking-[0.15em]">Decision Locked. {oppHasGuessed ? 'Waiting for reveal...' : 'Waiting for opponent...'}</p>
               </div>
             ) : (
               <div className="flex gap-2 flex-1">
-                <Input 
-                  placeholder="ENTER PLAYER NAME" 
-                  className="h-14 md:h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase text-sm md:text-base"
-                  value={guessInput}
-                  onChange={(e) => setGuessInput(e.target.value)}
-                  disabled={iHaveGuessed || gameState !== 'playing'}
-                />
-                <Button 
-                  onClick={handleGuess} 
-                  disabled={iHaveGuessed || gameState !== 'playing'}
-                  className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"
-                >
-                  <Send className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-                </Button>
+                <Input placeholder="ENTER PLAYER NAME" className="h-14 md:h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase text-sm md:text-base" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} />
+                <Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing'} className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"><Send className="w-5 h-5 md:w-6 md:h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" /></Button>
               </div>
             )}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="secondary" className="h-14 w-14 md:h-16 md:w-16 rounded-2xl border border-white/10 shadow-xl">
-                  <SmilePlus className="w-5 h-5 md:w-6 md:h-6" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end">
-                <div className="grid grid-cols-3 gap-2">
-                  {EMOTES.map(emote => (
-                    <button 
-                      key={emote.id}
-                      onClick={() => sendEmote(emote.id)}
-                      className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"
-                    >
-                      <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
-                    </button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Popover><PopoverTrigger asChild><Button variant="secondary" className="h-14 w-14 md:h-16 md:w-16 rounded-2xl border border-white/10 shadow-xl"><SmilePlus className="w-5 h-5 md:w-6 md:h-6" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{EMOTES.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} /></button>))}</div></PopoverContent></Popover>
           </div>
         </div>
       </footer>
 
       {gameState === 'result' && (
         <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-6 md:p-8 space-y-6 md:space-y-8 animate-in fade-in backdrop-blur-3xl overflow-y-auto">
-           <Trophy className="w-12 h-12 md:w-16 md:h-16 text-secondary animate-bounce drop-shadow-[0_0_30px_rgba(255,165,0,0.5)]" />
-           
-           <div className="flex flex-col items-center gap-4 animate-in zoom-in duration-700">
-              <div className="relative text-center">
-                <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
-                <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-2 drop-shadow-2xl">
-                   {targetPlayer?.name}
-                </h2>
-                <Badge className={`bg-gradient-to-r ${rarityInfo?.bg} text-white font-black text-lg px-6 py-2 skew-x-[-12deg]`}>
-                   {rarityInfo?.type} | RESULT
-                </Badge>
-              </div>
+           <Trophy className="w-12 h-12 md:w-16 md:h-16 text-secondary animate-bounce" />
+           <div className="flex flex-col items-center gap-4 text-center">
+              <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter drop-shadow-2xl">{targetPlayer?.name}</h2>
+              <Badge className="bg-primary text-black font-black text-lg px-6 py-2 skew-x-[-12deg]">ROUND RESULT</Badge>
            </div>
-
            <div className="w-full max-w-md grid grid-cols-2 gap-3 md:gap-4 mt-6 md:mt-8">
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 md:space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
+              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
                 <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-primary object-cover" alt="p1" />
-                <span className="text-[8px] md:text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p1Profile?.displayName || "Player 1"}</span>
-                <p className="text-[8px] text-primary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
-                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player1Guess || "NO GUESS"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
-                  {roundData?.player1GuessedCorrectly ? "+10" : (roundData?.player1Guess ? "-10" : "0")}
+                <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p1Profile?.displayName || "Player 1"}</span>
+                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player1Guess || "SKIPPED"}"</p>
+                <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess ? 'text-red-500' : 'text-slate-500')}`}>
+                  {(() => {
+                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
+                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
+                    const diff = s1 - s2;
+                    return diff > 0 ? `+${diff}` : diff;
+                  })()}
                 </div>
               </div>
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 md:space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
+              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-2 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
                 <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-secondary object-cover" alt="p2" />
-                <span className="text-[8px] md:text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p2Profile?.displayName || "Player 2"}</span>
-                <p className="text-[8px] text-secondary font-black tracking-widest uppercase opacity-50 leading-none">GUESS</p>
-                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player2Guess || "NO GUESS"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'} drop-shadow-lg`}>
-                   {roundData?.player2GuessedCorrectly ? "+10" : (roundData?.player2Guess ? "-10" : "0")}
+                <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p2Profile?.displayName || "Player 2"}</span>
+                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player2Guess || "SKIPPED"}"</p>
+                <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess ? 'text-red-500' : 'text-slate-500')}`}>
+                   {(() => {
+                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
+                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
+                    const diff = s2 - s1;
+                    return diff > 0 ? `+${diff}` : diff;
+                  })()}
                 </div>
               </div>
            </div>
-
            <div className="text-center pt-4">
               <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] animate-pulse">Next Round Loading...</p>
            </div>
