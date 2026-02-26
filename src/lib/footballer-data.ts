@@ -54,7 +54,12 @@ export const FOOTBALLERS: Footballer[] = [
   { id: '17', name: 'Kai Havertz', countryCode: 'de', position: 'ST', rating: 280, club: 'Arsenal', hints: ["Chelsea UCL winner.", "German attacker.", "Plays for Arsenal.", "Versatile player.", "Ex-Leverkusen."], version: 'DEMO' },
   { id: '18', name: 'Declan Rice', countryCode: 'gb-eng', position: 'CDM', rating: 390, club: 'Arsenal', hints: ["Ex-West Ham captain.", "Arsenal anchor.", "England midfielder.", "Elite ball recovery.", "High energy."], version: 'DEMO' },
   { id: '19', name: 'Neymar Jr', countryCode: 'br', position: 'LW', rating: 920, club: 'Al Hilal', hints: ["World record fee.", "Skill move king.", "Brazil's main man.", "Ex-Barca & PSG.", "Plays in Saudi."], version: 'DEMO' },
-  { id: '20', name: 'Timo Werner', countryCode: 'de', position: 'LW', rating: 110, club: 'Spurs', hints: ["Fast runner.", "Ex-Chelsea & Leipzig.", "German forward.", "Plays for Spurs.", "Speedster."], version: 'DEMO' }
+  { id: '20', name: 'Timo Werner', countryCode: 'de', position: 'LW', rating: 110, club: 'Spurs', hints: ["Fast runner.", "Ex-Chelsea & Leipzig.", "German forward.", "Plays for Spurs.", "Speedster."], version: 'DEMO' },
+  { id: '21', name: 'Ronaldinho', countryCode: 'br', position: 'LW', rating: 985, club: 'Icon', hints: ["Joga Bonito icon.", "Always smiling.", "Barca & Milan legend.", "The 'Elastico' king.", "2002 World Cup winner."], version: 'DEMO' },
+  { id: '22', name: 'Robert Lewandowski', countryCode: 'pl', position: 'ST', rating: 950, club: 'Barcelona', hints: ["Bayern Munich legend.", "Poland top scorer.", "Goal machine.", "The 'Body' nickname.", "Moved to Barcelona in 2022."], version: 'DEMO' },
+  { id: '23', name: 'Kevin De Bruyne', countryCode: 'be', position: 'CM', rating: 960, club: 'Man City', hints: ["Assist king.", "Belgian maestro.", "Man City captain.", "Visionary passing.", "Ex-Chelsea & Wolfsburg."], version: 'DEMO' },
+  { id: '24', name: 'Mohamed Salah', countryCode: 'eg', position: 'RW', rating: 945, club: 'Liverpool', hints: ["The Egyptian King.", "Liverpool goalscorer.", "Puskas winner.", "African legend.", "Ex-Chelsea & Roma."], version: 'DEMO' },
+  { id: '25', name: 'Karim Benzema', countryCode: 'fr', position: 'ST', rating: 935, club: 'Al Ittihad', hints: ["2022 Ballon d'Or.", "Real Madrid legend.", "French striker.", "9 seasons with CR7.", "Plays in Saudi Arabia."], version: 'DEMO' }
 ];
 
 export function getRandomFootballer(excludeIds: string[] = [], version: string = 'All'): Footballer {
