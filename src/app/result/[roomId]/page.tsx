@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -48,7 +49,9 @@ export default function ResultPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    if (room?.status === 'Lobby') {
+    if (room?.status === 'InProgress') {
+      router.push(`/game/${roomId}`);
+    } else if (room?.status === 'Lobby') {
       router.push(`/lobby/${roomId}`);
     }
   }, [room?.status, roomId, router]);
@@ -111,7 +114,7 @@ export default function ResultPage() {
           <Trophy className="w-24 h-24 text-secondary relative z-10 mx-auto animate-in zoom-in duration-700" />
         </div>
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-white animate-in slide-in-from-bottom-4">
-          {isWinner ? "VICTORY" : "DEFEAT"}
+          {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
         </h1>
         <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform -skew-x-12">
           {healthDiff} HP DIFFERENCE
@@ -122,7 +125,7 @@ export default function ResultPage() {
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10 shadow-[0_0_50px_rgba(255,123,0,0.2)]' : 'border-white/5 bg-white/5 opacity-60'} transition-all`}>
             <img src={p1Profile.avatarUrl} className="w-20 h-20 rounded-full border-4 border-primary shadow-2xl mb-3 object-cover" alt="p1" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName}</span>
-            <span className="text-[10px] font-bold text-primary tracking-widest uppercase mt-1">{room.winnerId === room.player1Id ? 'WINNER' : 'LOSER'}</span>
+            <span className="text-[10px] font-bold text-primary tracking-widest uppercase mt-1">{room.winnerId === room.player1Id ? 'WINNER' : (room.winnerId ? 'LOSER' : '')}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player1CurrentHealth}</span></div>
               <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
@@ -131,7 +134,7 @@ export default function ResultPage() {
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10 shadow-[0_0_50px_rgba(255,215,0,0.2)]' : 'border-white/5 bg-white/5 opacity-60'} transition-all`}>
             <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-20 h-20 rounded-full border-4 border-secondary shadow-2xl mb-3 object-cover" alt="p2" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "Guest"}</span>
-            <span className="text-[10px] font-bold text-secondary tracking-widest uppercase mt-1">{room.winnerId === room.player2Id ? 'WINNER' : 'LOSER'}</span>
+            <span className="text-[10px] font-bold text-secondary tracking-widest uppercase mt-1">{room.winnerId === room.player2Id ? 'WINNER' : (room.winnerId ? 'LOSER' : '')}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player2CurrentHealth}</span></div>
               <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
@@ -148,7 +151,7 @@ export default function ResultPage() {
             const footballer = FOOTBALLERS.find(f => f.id === r.footballerId);
             return (
               <div key={r.id} className="bg-card/40 backdrop-blur-xl p-4 rounded-2xl border border-white/5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                <div className="text-center">
+                <div className="text-center overflow-hidden">
                   <p className={`text-[10px] font-black truncate ${r.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player1Guess || "SKIP"}</p>
                   <span className={`text-xs font-black ${r.player1ScoreChange > 0 ? 'text-green-400' : r.player1ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
                     {r.player1ScoreChange > 0 ? `+${r.player1ScoreChange}` : r.player1ScoreChange}
@@ -158,7 +161,7 @@ export default function ResultPage() {
                   <Badge variant="outline" className="border-white/10 text-[8px] font-black uppercase py-0.5 mb-1">RD {r.roundNumber}</Badge>
                   <span className="text-[9px] font-black text-primary uppercase truncate max-w-[80px] text-center">{footballer?.name}</span>
                 </div>
-                <div className="text-center">
+                <div className="text-center overflow-hidden">
                   <p className={`text-[10px] font-black truncate ${r.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player2Guess || "SKIP"}</p>
                   <span className={`text-xs font-black ${r.player2ScoreChange > 0 ? 'text-green-400' : r.player2ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
                     {r.player2ScoreChange > 0 ? `+${r.player2ScoreChange}` : r.player2ScoreChange}

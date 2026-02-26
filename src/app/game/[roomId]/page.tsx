@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -20,6 +21,7 @@ import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
 
+// EMOTES SOURCES are defined here
 const EMOTES = [
   { id: 'laugh', emoji: '😂', url: 'https://picsum.photos/seed/laugh/100/100' },
   { id: 'cry', emoji: '😭', url: 'https://picsum.photos/seed/cry/100/100' },
@@ -28,6 +30,8 @@ const EMOTES = [
   { id: 'shock', emoji: '😲', url: 'https://picsum.photos/seed/shock/100/100' },
   { id: 'flex', emoji: '💪', url: 'https://picsum.photos/seed/flex/100/100' },
 ];
+
+const REVEAL_CARD_IMG = "https://res.cloudinary.com/speed-searches/image/upload/v1772119870/photo_2026-02-26_20-32-22_cutwwy.jpg";
 
 export default function GamePage() {
   const { roomId } = useParams();
@@ -357,10 +361,14 @@ export default function GamePage() {
                 </div>
 
                 <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center relative z-20">
-                  <div className="flex-1 flex items-center justify-center select-none">
-                    <div className="relative">
+                  <div className="flex-1 flex items-center justify-center select-none w-full">
+                    <div className="relative w-full aspect-square max-w-[200px] md:max-w-[240px]">
                       <div className="absolute inset-0 blur-[60px] bg-white/20 rounded-full animate-pulse" />
-                      <span className="text-[10rem] md:text-[14rem] font-black text-white/10 drop-shadow-[0_0_40px_rgba(255,255,255,0.3)] leading-none">?</span>
+                      <img 
+                        src={REVEAL_CARD_IMG} 
+                        className="w-full h-full object-cover rounded-full border-4 border-white/40 shadow-2xl relative z-10" 
+                        alt="reveal" 
+                      />
                     </div>
                   </div>
 
