@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2 } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -105,16 +105,16 @@ export default function LobbyPage() {
     <div className="min-h-screen bg-background p-4 flex flex-col items-center">
       <div className="w-full max-w-lg space-y-6">
         <header className="flex justify-between items-center py-4">
-          <h1 className="text-2xl font-black font-headline text-primary">FOOTY DUEL</h1>
+          <h1 className="text-2xl font-black font-headline text-primary uppercase">FOOTY DUEL</h1>
           <Badge variant="outline" className="text-xs font-bold border-primary text-primary">ROOM: {roomIdStr}</Badge>
         </header>
 
         <Card className="bg-card border-none shadow-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-black flex items-center gap-2">
+            <CardTitle className="text-lg font-black flex items-center gap-2 uppercase">
               <Users className="w-5 h-5 text-secondary" /> LOBBY STATUS
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1 font-bold">
+            <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1 font-bold uppercase">
               <Copy className="w-3 h-3" /> COPY CODE
             </Button>
           </CardHeader>
@@ -150,7 +150,7 @@ export default function LobbyPage() {
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Match Health</label>
                   {isLeader ? (
                     <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
-                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
                         <SelectValue placeholder="Select Health" />
                       </SelectTrigger>
                       <SelectContent>
@@ -168,7 +168,7 @@ export default function LobbyPage() {
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Question Pack</label>
                   {isLeader ? (
                     <Select value={room.gameVersion || 'DEMO'} onValueChange={updateVersion}>
-                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold">
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
                         <SelectValue placeholder="Select Pack" />
                       </SelectTrigger>
                       <SelectContent>
@@ -183,11 +183,18 @@ export default function LobbyPage() {
                 </div>
               </div>
             </div>
+
+            <div className="pt-4 mt-2 flex items-center gap-2 text-muted-foreground/60 border-t border-white/5">
+              <Info className="w-3 h-3 text-secondary shrink-0" />
+              <p className="text-[9px] font-bold uppercase tracking-tight leading-tight">
+                Note: Questions can repeat in this version. Pardon for that!
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {isLeader ? (
-          <Button onClick={startGame} disabled={!room.player2Id} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl">
+          <Button onClick={startGame} disabled={!room.player2Id} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl uppercase">
             <Play className="w-6 h-6 mr-2" /> START MATCH
           </Button>
         ) : (
