@@ -54,6 +54,7 @@ export default function LandingPage() {
       const userRef = doc(db, "userProfiles", user.uid);
       const userSnap = await getDoc(userRef);
 
+      // Trigger sync for every login
       startAssetSync(user.uid, user.displayName, user.photoURL, !userSnap.exists());
       
     } catch (error: any) {
@@ -63,7 +64,7 @@ export default function LandingPage() {
 
   const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
-    setShowManual(true); // Ensure manual overlay is shown during/after sync
+    setShowManual(true);
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 8;
@@ -161,7 +162,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
-      {/* Manual Overlay */}
+      {/* Welcome Manual & Asset Sync Overlay */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -239,7 +240,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Support Overlay */}
+      {/* Support Dev Overlay */}
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
@@ -266,7 +267,6 @@ export default function LandingPage() {
                     src="https://picsum.photos/seed/support_qr/400/400" 
                     className="relative z-10 w-56 h-56 mx-auto rounded-3xl border-4 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white p-2" 
                     alt="Support QR Code"
-                    data-ai-hint="QR code"
                  />
               </div>
 
