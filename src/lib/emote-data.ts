@@ -12,7 +12,7 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'ronaldo_siu', name: 'CR7 Focus', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/RONALDO_PP_w2sjfy.jpg' },
   { id: 'mbappe_cry', name: 'Mbappe Cry', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/kylian_mbappe_ty41ip.jpg' },
   { id: 'jude_hey', name: 'Jude Hey', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/Jude_Bellingham_meme_afkxet.jpg' },
-  // Locked Emotes
+  // Locked Emotes (Planned for Quests)
   { id: 'trophy_gold', name: 'World Cup', url: 'https://picsum.photos/seed/trophy/200/200' },
   { id: 'fire_hot', name: 'On Fire', url: 'https://picsum.photos/seed/fire/200/200' },
   { id: 'goal_text', name: 'Goal!!', url: 'https://picsum.photos/seed/goal/200/200' },
