@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
+import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity } from "@/lib/footballer-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
@@ -74,15 +74,12 @@ export default function GamePage() {
     }
   }, [user, isUserLoading, router]);
 
-  // Handle Forfeit detection
+  // Handle Game Completion / Redirect to results
   useEffect(() => {
-    if (room?.status === 'Completed' && room.winnerId) {
-       if (room.winnerId === user?.uid) {
-         toast({ title: "Victory!", description: "Opponent has forfeited the match." });
-       }
-       setTimeout(() => router.push('/'), 3000);
+    if (room?.status === 'Completed') {
+       router.push(`/result/${roomId}`);
     }
-  }, [room?.status, room?.winnerId, user, router]);
+  }, [room?.status, roomId, router]);
 
   // Sync profiles
   useEffect(() => {
@@ -102,7 +99,7 @@ export default function GamePage() {
       const emoteObj = EMOTES.find(e => e.id === emoteId);
       if (emoteObj) {
         const id = Math.random().toString();
-        const x = Math.random() * 30 + 35; // centered floating area
+        const x = Math.random() * 30 + 35; 
         setFloatingEmotes(prev => [...prev, { id: id, url: emoteObj.url, x }]);
         setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2500);
       }
@@ -126,13 +123,16 @@ export default function GamePage() {
         gameRoomId: roomId,
         roundNumber: room.currentRoundNumber,
         footballerId: player.id,
-        player1Id: room.player1Id,
-        player2Id: room.player2Id,
+        creatorId: room.player1Id,
+        opponentId: room.player2Id,
         hintsRevealedCount: 1,
         player1Guess: "",
         player2Guess: "",
         player1GuessedCorrectly: false,
         player2GuessedCorrectly: false,
+        player1ScoreChange: 0,
+        player2ScoreChange: 0,
+        roundEndedAt: null,
       }, { merge: true });
       if (roomRef) {
         updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
@@ -141,7 +141,7 @@ export default function GamePage() {
   }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
 
   useEffect(() => {
-    if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5) {
+    if (isPlayer1 && room && !roundData && !isRoundLoading && gameState === 'countdown' && countdown === 5 && room.status === 'InProgress') {
       startNewRoundLocally();
     }
   }, [isPlayer1, room, roundData, isRoundLoading, gameState, countdown, startNewRoundLocally]);
@@ -154,10 +154,8 @@ export default function GamePage() {
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
       
-      // 15s Timer starts for all players if either has guessed
       if ((hasP1Guessed || hasP2Guessed) && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
-        toast({ title: "Opponent Guessed!", description: "15 seconds remaining to lock your answer!" });
       }
 
       if (hasP1Guessed && hasP2Guessed && gameState === 'playing' && !revealTriggered.current) {
@@ -177,7 +175,6 @@ export default function GamePage() {
 
     const anyoneGuessed = !!roundData?.player1Guess || !!roundData?.player2Guess;
     
-    // Hints logic: Stop revealing once someone guesses
     if (gameState === 'playing' && visibleHints < 5 && !anyoneGuessed) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
@@ -216,14 +213,53 @@ export default function GamePage() {
       ? { player1Guess: "SKIPPED", player1GuessedCorrectly: false }
       : { player2Guess: "SKIPPED", player2GuessedCorrectly: false };
     await updateDoc(roundRef, update);
-    toast({ title: "Round Skipped", description: "You forfeited your chance to guess." });
+    toast({ title: "Round Skipped" });
+  };
+
+  const updateBattleHistory = async (winnerId: string, loserId: string) => {
+    const battleHistoryId = [winnerId, loserId].sort().join('_');
+    const bhRef = doc(db, "battleHistories", battleHistoryId);
+    const bhSnap = await getDoc(bhRef);
+
+    const player1Id = [winnerId, loserId].sort()[0];
+    const player2Id = [winnerId, loserId].sort()[1];
+
+    if (!bhSnap.exists()) {
+      await setDoc(bhRef, {
+        id: battleHistoryId,
+        player1Id,
+        player2Id,
+        player1Wins: player1Id === winnerId ? 1 : 0,
+        player2Wins: player2Id === winnerId ? 1 : 0,
+        totalMatches: 1,
+        lastPlayedGameRoomId: roomId,
+        lastPlayedAt: new Date().toISOString()
+      });
+    } else {
+      await updateDoc(bhRef, {
+        player1Wins: player1Id === winnerId ? increment(1) : increment(0),
+        player2Wins: player2Id === winnerId ? increment(1) : increment(0),
+        totalMatches: increment(1),
+        lastPlayedGameRoomId: roomId,
+        lastPlayedAt: new Date().toISOString()
+      });
+    }
   };
 
   const handleForfeit = async () => {
-    if (!roomRef || !user) return;
-    await updateDoc(roomRef, { status: 'Completed', winnerId: isPlayer1 ? room.player2Id : room.player1Id });
-    toast({ variant: "destructive", title: "Match Forfeited", description: "Returning to lobby..." });
-    router.push('/');
+    if (!roomRef || !user || !room) return;
+    const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
+    const loserId = user.uid;
+    
+    await updateDoc(roomRef, { 
+      status: 'Completed', 
+      winnerId, 
+      loserId,
+      finishedAt: new Date().toISOString()
+    });
+    
+    await updateBattleHistory(winnerId, loserId);
+    router.push(`/result/${roomId}`);
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -240,7 +276,6 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    // Precise Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200); 
     setTimeout(() => setRevealStep('none'), 3100);    
     setTimeout(() => setRevealStep('position'), 3800); 
@@ -256,8 +291,6 @@ export default function GamePage() {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
           if (isPlayer1 && roomRef) await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
           startNewRoundLocally();
-        } else {
-          router.push('/');
         }
       }, 5000); 
     }, 11900); 
@@ -279,9 +312,26 @@ export default function GamePage() {
       p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
     }
     
-    await updateDoc(roomRef, {
+    const updatePayload: any = {
       player1CurrentHealth: p1NewHealth,
       player2CurrentHealth: p2NewHealth
+    };
+
+    if (p1NewHealth <= 0 || p2NewHealth <= 0) {
+       const winnerId = p1NewHealth > 0 ? room.player1Id : room.player2Id;
+       const loserId = p1NewHealth <= 0 ? room.player1Id : room.player2Id;
+       updatePayload.status = 'Completed';
+       updatePayload.winnerId = winnerId;
+       updatePayload.loserId = loserId;
+       updatePayload.finishedAt = new Date().toISOString();
+       await updateBattleHistory(winnerId, loserId);
+    }
+
+    await updateDoc(roomRef, updatePayload);
+    await updateDoc(roundRef, {
+      player1ScoreChange: s1,
+      player2ScoreChange: s2,
+      roundEndedAt: new Date().toISOString()
     });
   };
 
@@ -437,7 +487,6 @@ export default function GamePage() {
         )}
       </main>
 
-      {/* Floating Emote Button */}
       <div className="fixed bottom-24 right-4 z-50">
         <Popover>
           <PopoverTrigger asChild>
