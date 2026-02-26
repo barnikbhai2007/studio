@@ -1,13 +1,14 @@
+
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
   LogOut, Target, Heart, Info,
-  BarChart3, Smile
+  BarChart3, Smile, Sparkles
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -50,43 +51,44 @@ export default function LandingPage() {
       const userRef = doc(db, "userProfiles", user.uid);
       const userSnap = await getDoc(userRef);
 
-      if (!userSnap.exists()) {
-        startAssetSync(user.uid, user.displayName, user.photoURL);
-      } else {
-        await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
-        toast({ title: "Welcome back!", description: `LOGGED IN AS ${user.displayName?.toUpperCase()}` });
-      }
+      // Always show sync on login as requested
+      startAssetSync(user.uid, user.displayName, user.photoURL, !userSnap.exists());
+      
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login failed", description: "Google authentication error." });
     }
   };
 
-  const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null) => {
+  const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 20;
+      progress += Math.random() * 15;
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
         setTimeout(async () => {
           const userRef = doc(db, "userProfiles", uid);
-          await setDoc(userRef, {
-            id: uid,
-            googleId: uid,
-            displayName: displayName || "Player",
-            avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
-            totalGamesPlayed: 0,
-            totalWins: 0,
-            createdAt: new Date().toISOString(),
-            lastLoginAt: new Date().toISOString()
-          }, { merge: true });
+          if (isNew) {
+            await setDoc(userRef, {
+              id: uid,
+              googleId: uid,
+              displayName: displayName || "Player",
+              avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
+              totalGamesPlayed: 0,
+              totalWins: 0,
+              createdAt: new Date().toISOString(),
+              lastLoginAt: new Date().toISOString()
+            }, { merge: true });
+          } else {
+            await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
+          }
           setIsSyncing(false);
-          toast({ title: "Assets Ready", description: "Game resources synchronized." });
+          toast({ title: "Duelist Ready", description: `LOGGED IN AS ${displayName?.toUpperCase()}` });
         }, 800);
       }
       setSyncProgress(progress);
-    }, 300);
+    }, 200);
   };
 
   const handleCreateRoom = async () => {
@@ -157,13 +159,38 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       {isSyncing && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-8 backdrop-blur-xl">
-          <div className="w-full max-w-sm space-y-8 text-center">
-            <Download className="w-16 h-16 text-primary mx-auto animate-bounce" />
-            <div className="space-y-2">
-              <h2 className="text-2xl font-black uppercase">Syncing Assets</h2>
-              <Progress value={syncProgress} className="h-2 bg-white/5" />
-              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{Math.round(syncProgress)}% Complete</p>
+        <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-8 backdrop-blur-2xl animate-in fade-in duration-500">
+          <div className="w-full max-w-sm space-y-10 text-center">
+            <div className="relative inline-block">
+              <div className="absolute inset-0 bg-primary/20 blur-[60px] rounded-full animate-pulse" />
+              <Download className="w-20 h-20 text-primary mx-auto relative z-10 animate-bounce" />
+            </div>
+            
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-3xl font-black uppercase tracking-tighter">Welcome to FootyDuel!</h2>
+                <p className="text-slate-400 text-xs font-bold leading-relaxed px-4">
+                  FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
+                </p>
+              </div>
+
+              <div className="bg-white/5 p-5 rounded-3xl border border-white/10 text-left space-y-3">
+                <h3 className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-2">
+                  <Sparkles className="w-3 h-3" /> How It Works
+                </h3>
+                <p className="text-[10px] font-bold text-slate-300 leading-normal uppercase">
+                  1. Create or join a room using a 6-digit code.<br/>
+                  2. Identify footballers through increasingly specific hints.<br/>
+                  3. Type fast! Correct guesses deal damage to your rival.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Progress value={syncProgress} className="h-2 bg-white/5" />
+                <p className="text-primary text-[10px] font-black uppercase tracking-widest animate-pulse">
+                  {syncProgress < 100 ? `Syncing Intelligence... ${Math.round(syncProgress)}%` : "Ready for Kickoff!"}
+                </p>
+              </div>
             </div>
           </div>
         </div>
