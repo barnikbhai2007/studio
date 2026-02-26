@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
-  CheckCircle2, LogOut, Target, Sparkles, Heart, HelpCircle,
-  BarChart3, Smile
+  LogOut, Target, Heart, HelpCircle,
+  BarChart3, Smile, Award
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -160,7 +160,7 @@ export default function LandingPage() {
           <div className="w-full max-w-sm space-y-8 text-center">
             <Download className="w-16 h-16 text-primary mx-auto animate-bounce" />
             <div className="space-y-2">
-              <h2 className="text-2xl font-black uppercase italic">Syncing Assets</h2>
+              <h2 className="text-2xl font-black uppercase">Syncing Assets</h2>
               <Progress value={syncProgress} className="h-2 bg-white/5" />
               <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">{Math.round(syncProgress)}% Complete</p>
             </div>
@@ -175,18 +175,18 @@ export default function LandingPage() {
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-tighter italic text-white leading-none">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black tracking-tighter text-white leading-none font-headline uppercase">FOOTY DUEL</h1>
           <p className="text-slate-400 font-bold tracking-[0.2em] uppercase text-[10px]">The Ultimate Football Trivia Combat</p>
         </div>
 
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl overflow-hidden">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-black text-white italic">WELCOME DUELIST</CardTitle>
+              <CardTitle className="text-2xl font-black text-white">WELCOME DUELIST</CardTitle>
               <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Sign in to start your career</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black hover:bg-slate-200 font-black italic text-lg gap-3 rounded-2xl">
+              <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black hover:bg-slate-200 font-black text-lg gap-3 rounded-2xl">
                 <LogIn className="w-5 h-5" /> SIGN IN WITH GOOGLE
               </Button>
             </CardContent>
@@ -197,8 +197,8 @@ export default function LandingPage() {
               <div className="flex items-center gap-4">
                 <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
                 <div className="flex flex-col">
-                  <span className="font-black italic text-sm">{user.displayName?.toUpperCase()}</span>
-                  <span className="text-[8px] text-primary font-black tracking-widest uppercase">Duelist Elite</span>
+                  <span className="font-black text-sm">{user.displayName?.toUpperCase()}</span>
+                  <span className="text-[8px] text-primary font-black tracking-widest uppercase">ACTIVE PLAYER</span>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl">
@@ -207,35 +207,35 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} disabled={isActionLoading} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 gap-3 shadow-lg rounded-2xl italic">
+              <Button onClick={handleCreateRoom} disabled={isActionLoading} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 gap-3 shadow-lg rounded-2xl">
                 {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-7 h-7" />} CREATE NEW DUEL
               </Button>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="6-DIGIT CODE" 
+                  placeholder="ENTER CODE" 
                   className="h-16 bg-[#161618] border-white/10 text-center font-black tracking-[0.3em] text-2xl rounded-2xl text-white uppercase"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
                   maxLength={6}
                 />
-                <Button onClick={handleJoinRoom} disabled={isActionLoading || !roomCode} variant="secondary" className="h-16 px-8 font-black rounded-2xl italic">
+                <Button onClick={handleJoinRoom} disabled={isActionLoading || !roomCode} variant="secondary" className="h-16 px-8 font-black rounded-2xl">
                   JOIN
                 </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase italic tracking-tighter gap-2 hover:bg-white/10">
+              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <Target className="w-5 h-5 text-primary" /> Quests
               </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase italic tracking-tighter gap-2 hover:bg-white/10">
+              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
+                <Award className="w-5 h-5 text-yellow-500" /> Achievements
+              </Button>
+              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <BarChart3 className="w-5 h-5 text-secondary" /> Leaders
               </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase italic tracking-tighter gap-2 hover:bg-white/10">
+              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <Smile className="w-5 h-5 text-green-400" /> Emotes
-              </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase italic tracking-tighter gap-2 hover:bg-white/10">
-                <HelpCircle className="w-5 h-5 text-blue-400" /> Info
               </Button>
             </div>
 
@@ -249,12 +249,12 @@ export default function LandingPage() {
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
               <Trophy className="text-secondary w-6 h-6 mb-1" />
               <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Duels Today</span>
-              <span className="text-2xl font-black italic">{roomsToday.toLocaleString()}</span>
+              <span className="text-2xl font-black">{roomsToday.toLocaleString()}</span>
            </div>
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
               <Users className="text-primary w-6 h-6 mb-1" />
               <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">Total Duelists</span>
-              <span className="text-2xl font-black italic">{playerCount.toLocaleString()}</span>
+              <span className="text-2xl font-black">{playerCount.toLocaleString()}</span>
            </div>
         </div>
       </div>

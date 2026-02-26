@@ -74,6 +74,16 @@ export default function GamePage() {
     }
   }, [user, isUserLoading, router]);
 
+  // Handle Forfeit detection
+  useEffect(() => {
+    if (room?.status === 'Completed' && room.winnerId) {
+       if (room.winnerId === user?.uid) {
+         toast({ title: "Victory!", description: "Opponent has forfeited the match." });
+       }
+       setTimeout(() => router.push('/'), 3000);
+    }
+  }, [room?.status, room?.winnerId, user, router]);
+
   // Sync profiles
   useEffect(() => {
     if (!room || !user) return;
@@ -293,8 +303,8 @@ export default function GamePage() {
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
-            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white/95 italic tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
-            {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black italic border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>{currentRarity.type}</Badge></div>}
+            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white/95 tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
+            {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black border-4 border-white/50 shadow-[0_0_120px_rgba(255,255,255,0.7)] uppercase tracking-[0.25em]`}>{currentRarity.type}</Badge></div>}
           </div>
           {revealStep === 'full-card' && currentRarity && (
             <div className="relative fc-card-container">
@@ -382,9 +392,14 @@ export default function GamePage() {
           <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center">
              <div className="relative">
                 <div className="absolute inset-0 bg-primary/30 blur-[80px] rounded-full animate-pulse" />
-                <Loader2 className="w-20 h-20 text-primary animate-spin relative z-10" />
+                <div className="relative z-10 space-y-4 animate-in zoom-in duration-500">
+                   <div className="flex items-center gap-2 bg-primary/20 px-6 py-3 rounded-full border border-primary/40">
+                      <Swords className="w-8 h-8 text-primary animate-bounce" />
+                      <span className="text-2xl md:text-3xl font-black text-white uppercase">DUEL LOCKDOWN</span>
+                   </div>
+                   <p className="text-xs font-black text-primary uppercase tracking-[0.3em]">FINALISING ANSWERS...</p>
+                </div>
              </div>
-             <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">FINALISING ANSWERS</h2>
           </div>
         ) : (
           <div className="space-y-4">
@@ -518,14 +533,14 @@ export default function GamePage() {
            <div className="w-full max-w-md space-y-4 px-4">
               <div className="space-y-1">
                 <div className="flex justify-between text-[10px] font-black text-primary uppercase">
-                   <span>{p1Profile?.displayName} Health</span>
+                   <span className="truncate max-w-[100px]">{p1Profile?.displayName} Health</span>
                    <span>{room.player1CurrentHealth} HP</span>
                 </div>
                 <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-3 bg-white/5" />
               </div>
               <div className="space-y-1">
                 <div className="flex justify-between text-[10px] font-black text-secondary uppercase">
-                   <span>{p2Profile?.displayName} Health</span>
+                   <span className="truncate max-w-[100px]">{p2Profile?.displayName} Health</span>
                    <span>{room.player2CurrentHealth} HP</span>
                 </div>
                 <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-3 bg-white/5 rotate-180" />

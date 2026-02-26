@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -162,13 +161,13 @@ export default function LobbyPage() {
         </Card>
 
         {isLeader ? (
-          <Button onClick={startGame} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl animate-pulse">
+          <Button onClick={startGame} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl">
             <Play className="w-6 h-6 mr-2" /> START MATCH
           </Button>
         ) : (
           <div className="p-6 bg-muted rounded-2xl flex items-center gap-4 text-muted-foreground">
             <ShieldAlert className="w-8 h-8" />
-            <p className="text-sm">Only the <b>Party Leader</b> can start the game. Waiting for kickoff...</p>
+            <p className="text-sm">Only the Party Leader can start the game. Waiting for kickoff...</p>
           </div>
         )}
       </div>
