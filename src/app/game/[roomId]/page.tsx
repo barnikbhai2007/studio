@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -175,6 +176,7 @@ export default function GamePage() {
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
+    // Check for full match or first/last name matches
     const correctParts = correctFull.split(/\s+/);
     const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
     
@@ -204,13 +206,14 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
-    setTimeout(() => setRevealStep('country'), 2200);
-    setTimeout(() => setRevealStep('none'), 3100);
-    setTimeout(() => setRevealStep('position'), 3800);
-    setTimeout(() => setRevealStep('none'), 4700);
-    setTimeout(() => setRevealStep('rarity'), 5200);
-    setTimeout(() => setRevealStep('none'), 6100);
-    setTimeout(() => setRevealStep('full-card'), 6900);
+    // Updated Cinematic Reveal Timings
+    setTimeout(() => setRevealStep('country'), 2200); // 2.2s in
+    setTimeout(() => setRevealStep('none'), 3100);    // 3.1s out
+    setTimeout(() => setRevealStep('position'), 3800); // 3.8s in
+    setTimeout(() => setRevealStep('none'), 4700);    // 4.7s out
+    setTimeout(() => setRevealStep('rarity'), 5200);   // 5.2s in
+    setTimeout(() => setRevealStep('none'), 6100);    // 6.1s out
+    setTimeout(() => setRevealStep('full-card'), 6900); // 6.9s full card
     
     setTimeout(() => {
       setGameState('result');
@@ -222,16 +225,18 @@ export default function GamePage() {
         } else {
           router.push('/');
         }
-      }, 5000);
-    }, 11900);
+      }, 5000); // Show results for 5s before next round
+    }, 11900); // Total reveal time (6.9s + 5s card display)
   };
 
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
     
+    // Base scores: +10 correct, -10 wrong, 0 skip
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess ? -10 : 0);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess ? -10 : 0);
     
+    // Relative Tug-of-War Math
     const p1Change = s1 - s2;
     const p2Change = s2 - s1;
     
@@ -425,7 +430,9 @@ export default function GamePage() {
                   {(() => {
                     let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
                     let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
-                    const diff = s1 - s2;
+                    let diff = s1 - s2;
+                    // No relative health gain for skipping if other person failed
+                    if (s1 === 0 && diff > 0) diff = 0;
                     return diff > 0 ? `+${diff}` : diff;
                   })()}
                 </div>
@@ -438,7 +445,9 @@ export default function GamePage() {
                    {(() => {
                     let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess ? -10 : 0);
                     let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess ? -10 : 0);
-                    const diff = s2 - s1;
+                    let diff = s2 - s1;
+                    // No relative health gain for skipping if other person failed
+                    if (s2 === 0 && diff > 0) diff = 0;
                     return diff > 0 ? `+${diff}` : diff;
                   })()}
                 </div>
