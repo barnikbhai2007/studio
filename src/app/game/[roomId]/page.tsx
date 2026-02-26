@@ -57,7 +57,6 @@ export default function GamePage() {
   const [visibleHints, setVisibleHints] = useState<number>(1);
   const [guessInput, setGuessInput] = useState("");
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
-  const [floatingEmotes, setFloatingEmotes] = useState<{id: string, url: string, x: number}[]>([]);
   const [currentRarity, setCurrentRarity] = useState<any>(null);
   
   const isPlayer1 = room?.player1Id === user?.uid;
@@ -78,7 +77,7 @@ export default function GamePage() {
     if (room?.status === 'Completed') {
        if (room.winnerId !== user?.uid && room.loserId !== user?.uid) return;
        if (room.loserId && room.loserId !== user?.uid) {
-         toast({ title: "VICTORY!", description: "Opponent has forfeited the match!" });
+         toast({ title: "VICTORY!", description: "Opponent has surrendered!" });
        }
        router.push(`/result/${roomId}`);
     }
@@ -87,10 +86,11 @@ export default function GamePage() {
   useEffect(() => {
     if (!room || !user) return;
     const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
-    if (room.player2Id) onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
+    let p2Unsub = () => {};
+    if (room.player2Id) p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
+    return () => { p1Unsub(); p2Unsub(); };
   }, [room, db, user]);
 
-  // Synchronized Round Timer Logic
   useEffect(() => {
     if (roundData?.timerStartedAt && gameState === 'playing') {
       const startTime = new Date(roundData.timerStartedAt).getTime();
@@ -261,7 +261,6 @@ export default function GamePage() {
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
        
-       // Update Battle History
        const bhId = [winnerId, loserId].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
@@ -280,10 +279,29 @@ export default function GamePage() {
   const handleForfeit = async () => {
     if (!roomRef || !user || !room) return;
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
+    const loserId = user.uid;
+
+    const bhId = [winnerId, loserId].sort().join('_');
+    const bhRef = doc(db, "battleHistories", bhId);
+    const bhSnap = await getDoc(bhRef);
+    if (!bhSnap.exists()) {
+      await setDoc(bhRef, { 
+        id: bhId, 
+        player1Id: [winnerId, loserId].sort()[0], 
+        player2Id: [winnerId, loserId].sort()[1], 
+        player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, 
+        player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, 
+        totalMatches: 1 
+      });
+    } else {
+      const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
+      await updateDoc(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+    }
+
     await updateDoc(roomRef, { 
       status: 'Completed', 
       winnerId, 
-      loserId: user.uid,
+      loserId,
       finishedAt: new Date().toISOString()
     });
   };
@@ -443,7 +461,7 @@ export default function GamePage() {
           <PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end">
             <div className="grid grid-cols-3 gap-2">
               {EMOTES.map(emote => (
-                <button key={emote.id} onClick={() => {}} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
+                <button key={emote.id} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
                   <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
                 </button>
               ))}

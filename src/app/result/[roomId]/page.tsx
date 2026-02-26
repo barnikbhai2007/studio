@@ -27,8 +27,8 @@ export default function ResultPage() {
   const [p2Profile, setP2Profile] = useState<any>(null);
   const [battleHistory, setBattleHistory] = useState<any>(null);
 
-  const isPlayer1 = room?.player1Id === user?.uid;
   const isWinner = room?.winnerId === user?.uid;
+  const isPlayer1 = room?.player1Id === user?.uid;
   const healthDiff = Math.max(0, Math.abs((room?.player1CurrentHealth || 0) - (room?.player2CurrentHealth || 0)));
 
   useEffect(() => {
@@ -36,22 +36,28 @@ export default function ResultPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    if (room?.status === 'InProgress') {
-      router.push(`/game/${roomId}`);
-    } else if (room?.status === 'Lobby') {
-      router.push(`/lobby/${roomId}`);
-    }
-  }, [room?.status, roomId, router]);
-
-  useEffect(() => {
     if (!room || !user) return;
-    onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
+
+    const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
+    let unsubP2 = () => {};
+    let unsubBH = () => {};
+
     if (room.player2Id) {
-      onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
-      const battleHistoryId = [room.player1Id, room.player2Id].sort().join('_');
-      onSnapshot(doc(db, "battleHistories", battleHistoryId), snap => setBattleHistory(snap.data()));
+      unsubP2 = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
+      const bhId = [room.player1Id, room.player2Id].sort().join('_');
+      unsubBH = onSnapshot(doc(db, "battleHistories", bhId), snap => {
+        if (snap.exists()) {
+          setBattleHistory(snap.data());
+        }
+      });
     }
-  }, [room, db, user]);
+
+    return () => {
+      unsubP1();
+      unsubP2();
+      unsubBH();
+    };
+  }, [room?.player1Id, room?.player2Id, db, user]);
 
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1) return;
@@ -68,7 +74,6 @@ export default function ResultPage() {
         winnerId: null,
         loserId: null,
         finishedAt: null,
-        timerStartedAt: null,
       });
       await batch.commit();
     } catch (e) {
@@ -76,7 +81,13 @@ export default function ResultPage() {
     }
   };
 
-  if (isUserLoading || isRoomLoading || !room || !p1Profile) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
+  if (isUserLoading || isRoomLoading || !room || !p1Profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Swords className="w-12 h-12 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
