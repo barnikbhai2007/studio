@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -281,6 +282,18 @@ export default function GamePage() {
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
        
+       // Update Leaderboard Statistics
+       const winnerRef = doc(db, "userProfiles", winnerId);
+       const loserRef = doc(db, "userProfiles", loserId);
+       await updateDoc(winnerRef, { 
+         totalWins: increment(1), 
+         totalGamesPlayed: increment(1) 
+       });
+       await updateDoc(loserRef, { 
+         totalLosses: increment(1), 
+         totalGamesPlayed: increment(1) 
+       });
+
        const bhId = [winnerId, loserId].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
@@ -300,6 +313,12 @@ export default function GamePage() {
     if (!roomRef || !user || !room) return;
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
+
+    // Update Leaderboard Statistics on Forfeit
+    const winnerRef = doc(db, "userProfiles", winnerId);
+    const loserRef = doc(db, "userProfiles", loserId);
+    await updateDoc(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
+    await updateDoc(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
     const bhId = [winnerId, loserId].sort().join('_');
     const bhRef = doc(db, "battleHistories", bhId);

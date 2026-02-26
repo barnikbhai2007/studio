@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -81,6 +82,7 @@ export default function LandingPage() {
               avatarUrl: photoURL || `https://picsum.photos/seed/${uid}/200/200`,
               totalGamesPlayed: 0,
               totalWins: 0,
+              totalLosses: 0,
               equippedEmoteIds: DEFAULT_EQUIPPED_IDS,
               createdAt: new Date().toISOString(),
               lastLoginAt: new Date().toISOString()
@@ -377,7 +379,11 @@ export default function LandingPage() {
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <Target className="w-5 h-5 text-primary" /> QUESTS
               </Button>
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
+              <Button 
+                onClick={() => router.push('/leaderboard')}
+                variant="outline" 
+                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
+              >
                 <BarChart3 className="w-5 h-5 text-yellow-500" /> LEADERBOARD
               </Button>
               <Button 
