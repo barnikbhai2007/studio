@@ -49,8 +49,8 @@ export default function LandingPage() {
     setIsActionLoading(true);
     
     try {
-      // 4-digit numeric code for "actual" feel
-      const code = Math.floor(1000 + Math.random() * 9000).toString();
+      // 6-digit numeric code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
       const roomRef = doc(db, "gameRooms", code);
 
       await setDoc(roomRef, {
@@ -110,7 +110,6 @@ export default function LandingPage() {
         player2CurrentHealth: roomData.healthOption
       });
 
-      // Crucial: Wait a small beat for Firestore to propagate if needed, though redirect should be fine
       setTimeout(() => {
         router.push(`/lobby/${cleanCode}`);
       }, 100);
@@ -187,7 +186,7 @@ export default function LandingPage() {
                   className="h-16 bg-[#161618] border-white/10 text-center font-black tracking-[0.2em] text-2xl focus-visible:ring-primary rounded-2xl text-white uppercase"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
-                  maxLength={4}
+                  maxLength={6}
                 />
                 <Button 
                   onClick={handleJoinRoom} 

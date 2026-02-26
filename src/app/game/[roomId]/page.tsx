@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -199,10 +198,9 @@ export default function GamePage() {
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
-    // Partial matching: If guess is inside the full name or vice-versa
-    // OR if guess matches any single name part (e.g. "Messi" in "Lionel Messi")
+    // Improved matching: Split into parts and check if guess matches any part
     const correctParts = correctFull.split(/\s+/);
-    const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull.includes(guessNormalized) || guessNormalized.includes(correctFull);
+    const isCorrect = correctParts.some(part => part === guessNormalized) || correctFull === guessNormalized;
 
     const update: any = isPlayer1 
       ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect }
@@ -235,6 +233,7 @@ export default function GamePage() {
     setRoundTimer(null);
     setRevealStep('none');
     
+    // Precise Cinematic Timing
     setTimeout(() => setRevealStep('country'), 2200);
     setTimeout(() => setRevealStep('none'), 3100);
     setTimeout(() => setRevealStep('position'), 3800);
@@ -243,6 +242,7 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('none'), 6100);
     setTimeout(() => setRevealStep('full-card'), 6900);
 
+    // After 6.9s (card reveal) + 5s display = ~12s
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
@@ -257,7 +257,7 @@ export default function GamePage() {
           router.push('/');
         }
       }, 10000);
-    }, 14000);
+    }, 11900);
   };
 
   const calculateRoundResults = async () => {
@@ -266,12 +266,12 @@ export default function GamePage() {
     let p1Adjust = 0;
     let p2Adjust = 0;
 
-    // P1 Adjustment
+    // P1 Adjustment (+10 correct, -10 wrong, 0 skip)
     if (!roundData.player1Guess) p1Adjust = 0;
     else if (roundData.player1GuessedCorrectly) p1Adjust = 10;
     else p1Adjust = -10;
 
-    // P2 Adjustment
+    // P2 Adjustment (+10 correct, -10 wrong, 0 skip)
     if (!roundData.player2Guess) p2Adjust = 0;
     else if (roundData.player2GuessedCorrectly) p2Adjust = 10;
     else p2Adjust = -10;
