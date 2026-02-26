@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle } from "lucide-react";
+import { 
+  Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, 
+  SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle, LogOut, Flame,
+  ShieldAlert
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion } from "firebase/firestore";
@@ -88,7 +92,7 @@ export default function GamePage() {
       const emoteObj = EMOTES.find(e => e.id === emoteId);
       if (emoteObj) {
         const id = Math.random().toString();
-        const x = Math.random() * 30 + 65;
+        const x = Math.random() * 30 + 35; // centered floating area
         setFloatingEmotes(prev => [...prev, { id: id, url: emoteObj.url, x }]);
         setTimeout(() => setFloatingEmotes(prev => prev.filter(e => e.id !== id)), 2500);
       }
@@ -136,19 +140,22 @@ export default function GamePage() {
     if (roundData) {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
+      
       const hasP1Guessed = !!roundData.player1Guess;
       const hasP2Guessed = !!roundData.player2Guess;
-      const iGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
       
-      if ((hasP1Guessed || hasP2Guessed) && !iGuessed && roundTimer === null && gameState === 'playing') {
+      // 15s Timer starts for all players if either has guessed
+      if ((hasP1Guessed || hasP2Guessed) && roundTimer === null && gameState === 'playing') {
         setRoundTimer(15);
+        toast({ title: "Opponent Guessed!", description: "15 seconds remaining to lock your answer!" });
       }
+
       if (hasP1Guessed && hasP2Guessed && gameState === 'playing' && !revealTriggered.current) {
         setGameState('finalizing');
         setTimeout(() => handleReveal(), 3000);
       }
     }
-  }, [roundData, isPlayer1, gameState]);
+  }, [roundData, gameState, roundTimer]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -168,9 +175,6 @@ export default function GamePage() {
     if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
     } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
-      if (!guessInput && ! (isPlayer1 ? roundData?.player1Guess : roundData?.player2Guess)) {
-        handleSkip();
-      }
       setGameState('finalizing');
       setTimeout(() => handleReveal(), 3000);
     }
@@ -193,7 +197,7 @@ export default function GamePage() {
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
     
     await updateDoc(roundRef, update);
-    toast({ title: "Guess Locked In", description: `Decision: ${guessInput}` });
+    toast({ title: "Decision Locked", description: `You guessed: ${guessInput}` });
   };
 
   const handleSkip = async () => {
@@ -208,6 +212,7 @@ export default function GamePage() {
   const handleForfeit = async () => {
     if (!roomRef || !user) return;
     await updateDoc(roomRef, { status: 'Completed', winnerId: isPlayer1 ? room.player2Id : room.player1Id });
+    toast({ variant: "destructive", title: "Match Forfeited", description: "Returning to lobby..." });
     router.push('/');
   };
 
@@ -251,20 +256,16 @@ export default function GamePage() {
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef) return;
     
-    // Explicit Points: +10, -10, 0
     let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess === "SKIPPED" || !roundData.player1Guess ? 0 : -10);
     let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess === "SKIPPED" || !roundData.player2Guess ? 0 : -10);
     
-    // Tug-of-War "Difference Maker" - Only depletion, no restoration
     const diff = s1 - s2;
     let p1NewHealth = room.player1CurrentHealth;
     let p2NewHealth = room.player2CurrentHealth;
 
     if (diff > 0) {
-      // P1 wins round, P2 loses health based on the difference
       p2NewHealth = Math.max(0, p2NewHealth - diff);
     } else if (diff < 0) {
-      // P2 wins round, P1 loses health based on the difference
       p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
     }
     
@@ -298,15 +299,18 @@ export default function GamePage() {
           {revealStep === 'full-card' && currentRarity && (
             <div className="relative fc-card-container">
               <div className={`w-64 h-[420px] md:w-80 md:h-[520px] fc-animation-reveal rounded-3xl shadow-[0_0_150px_rgba(255,165,0,0.5)] flex flex-col border-[8px] md:border-[10px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
-                <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center">
-                  <div className="flex flex-col items-center gap-4 md:gap-6">
-                     <span className="text-6xl md:text-8xl font-black text-white/40 leading-none tracking-tighter drop-shadow-2xl">{targetPlayer?.position}</span>
-                     <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-32 md:w-48 filter drop-shadow-[0_20px_20px_rgba(0,0,0,0.8)] transform scale-125" alt="flag" />
+                <div className="p-6 md:p-10 flex flex-col h-full items-center text-center justify-center relative">
+                  <div className="absolute top-4 left-4 flex flex-col items-center gap-1">
+                     <span className="text-3xl md:text-5xl font-black text-white/40 leading-none tracking-tighter">{targetPlayer?.position}</span>
+                     <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-12 md:w-16 shadow-lg rounded-sm" alt="flag" />
                   </div>
-                  <div className="mt-8 md:mt-12 w-full space-y-4">
-                    <div className="bg-black/95 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
+                  <div className="mt-8 flex flex-col items-center gap-4 md:gap-6">
+                     <Flame className="w-24 h-24 md:w-32 md:h-32 text-white/10" />
+                  </div>
+                  <div className="mt-auto w-full space-y-4">
+                    <div className="bg-black/80 backdrop-blur-2xl px-3 md:px-4 py-3 md:py-5 rounded-2xl w-full border border-white/20 shadow-2xl">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs font-black text-primary/80 uppercase tracking-tighter">{currentRarity.type}</span>
+                        <span className="text-[10px] font-black text-primary/80 uppercase tracking-widest">{currentRarity.type}</span>
                       </div>
                       <h3 className="text-xl md:text-3xl font-black uppercase text-white tracking-tight fc-text-glow leading-tight">{targetPlayer?.name}</h3>
                     </div>
@@ -330,41 +334,37 @@ export default function GamePage() {
         ))}
       </div>
 
-      <header className="p-3 md:p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
-        <div className="flex flex-col gap-1.5 md:gap-2 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
-              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-full h-full rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
-              {hasP1Guessed && <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] md:text-sm font-black truncate text-white uppercase">{p1Profile?.displayName || "Player 1"}</span>
-              {hasP1Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
-            </div>
+      <header className="p-3 md:p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 flex items-center justify-between sticky top-0 z-30 h-16 md:h-20">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
+            <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-full h-full rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
+            {hasP1Guessed && <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
           </div>
-          <div className="flex items-center gap-2">
-            <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-muted/30" />
-            <span className="text-[10px] md:text-xs font-black text-primary">{room.player1CurrentHealth}</span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] md:text-xs font-black truncate text-white uppercase">{p1Profile?.displayName || "Player 1"}</span>
+            <div className="flex items-center gap-1 mt-0.5">
+               <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 w-12 md:w-20 bg-muted/30" />
+               <span className="text-[8px] md:text-[10px] font-black text-primary">{room.player1CurrentHealth}</span>
+            </div>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <Badge className="bg-primary text-black font-black px-3 md:px-4 py-1 md:py-1.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap uppercase">ROUND {room.currentRoundNumber}</Badge>
-          <Button variant="ghost" size="sm" onClick={handleForfeit} className="h-6 text-[8px] text-red-500 font-black uppercase hover:bg-red-500/10">Forfeit</Button>
+
+        <div className="flex flex-col items-center gap-0.5 px-2">
+          <Badge className="bg-primary text-black font-black px-2 py-0.5 text-[8px] md:text-[10px] shadow-lg transform -skew-x-12 whitespace-nowrap uppercase">R{room.currentRoundNumber}</Badge>
+          <button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">Forfeit</button>
         </div>
-        <div className="flex flex-col gap-1.5 md:gap-2 items-end min-w-0">
-          <div className="flex items-center gap-2 w-full justify-end">
-            <div className="flex flex-col items-end min-w-0">
-              <span className="text-[10px] md:text-sm font-black truncate text-white uppercase">{p2Profile?.displayName || "Opponent"}</span>
-              {hasP2Guessed && <span className="text-[8px] md:text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
-            </div>
-            <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
-              <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
-              {hasP2Guessed && <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
+
+        <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+          <div className="flex flex-col items-end min-w-0">
+            <span className="text-[10px] md:text-xs font-black truncate text-white uppercase">{p2Profile?.displayName || "Opponent"}</span>
+            <div className="flex items-center gap-1 mt-0.5">
+               <span className="text-[8px] md:text-[10px] font-black text-secondary">{room.player2CurrentHealth}</span>
+               <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 w-12 md:w-20 bg-muted/30 rotate-180" />
             </div>
           </div>
-          <div className="flex items-center gap-2 w-full justify-end">
-            <span className="text-[10px] md:text-xs font-black text-secondary">{room.player2CurrentHealth}</span>
-            <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 bg-muted/30 rotate-180" />
+          <div className="relative shrink-0 w-8 h-8 md:w-10 md:h-10">
+            <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
+            {hasP2Guessed && <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-1 ring-white"><CheckCircle2 className="w-2.5 h-2.5 text-white" /></div>}
           </div>
         </div>
       </header>
@@ -376,49 +376,43 @@ export default function GamePage() {
                 <div className="absolute inset-0 bg-primary/20 blur-[60px] md:blur-[100px] rounded-full animate-pulse" />
                 <div className="text-7xl md:text-[10rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_80px_rgba(255,123,0,0.6)] relative z-10">{countdown}</div>
              </div>
-             <div className="flex flex-col items-center gap-2">
-               <p className="text-lg md:text-2xl font-black uppercase tracking-[0.2em] md:tracking-[0.4em] text-white/90 animate-pulse">Prepare to Duel</p>
-               <div className="h-1 w-16 md:h-1.5 md:w-24 bg-primary rounded-full" />
-             </div>
+             <p className="text-lg md:text-2xl font-black uppercase tracking-[0.2em] text-white/90 animate-pulse">PREPARE TO DUEL</p>
           </div>
         ) : gameState === 'finalizing' ? (
-          <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center animate-in fade-in zoom-in duration-500">
+          <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center">
              <div className="relative">
                 <div className="absolute inset-0 bg-primary/30 blur-[80px] rounded-full animate-pulse" />
-                <Loader2 className="w-20 h-20 md:w-24 md:h-24 text-primary animate-spin relative z-10" />
+                <Loader2 className="w-20 h-20 text-primary animate-spin relative z-10" />
              </div>
-             <div className="space-y-2">
-               <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">Finalising Answer</h2>
-               <div className="flex items-center justify-center gap-2 text-primary font-bold uppercase text-[10px] tracking-widest animate-pulse">
-                  <Sparkles className="w-3 h-3" /> Both players locked in <Sparkles className="w-3 h-3" />
-               </div>
-             </div>
+             <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter">FINALISING ANSWERS</h2>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-primary" /> Scouting Reports
+                <Clock className="w-3.5 h-3.5 text-primary" /> SCOUTING REPORTS
               </h3>
               {anyoneGuessed && (
-                <Badge className="bg-red-500 text-white border border-white/20 px-3 py-1.5 text-[9px] font-black flex items-center gap-1.5 uppercase tracking-[0.1em] animate-in zoom-in shadow-lg">
-                  <Ban className="w-3.5 h-3.5" /> Scouting Suspended
-                </Badge>
-              )}
-              {roundTimer !== null && (
-                <Badge className="bg-red-600 animate-pulse text-white px-3 h-8 text-[10px] md:text-xs font-black border-2 border-white/40 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
-                  <AlertCircle className="w-3.5 h-3.5 mr-1.5" /> {roundTimer}s REMAINING
+                <Badge className="bg-red-500 text-white border border-white/20 px-3 py-1 text-[9px] font-black flex items-center gap-1.5 uppercase animate-in zoom-in">
+                  <Ban className="w-3.5 h-3.5" /> SCOUTING SUSPENDED
                 </Badge>
               )}
             </div>
+            {roundTimer !== null && (
+              <div className="flex items-center justify-center bg-red-600/20 p-2 rounded-xl border border-red-600/30 animate-pulse">
+                <AlertCircle className="w-4 h-4 text-red-500 mr-2" />
+                <span className="text-sm font-black text-red-500 uppercase">{roundTimer}S REMAINING</span>
+              </div>
+            )}
             <div className="space-y-3">
               {!targetPlayer ? (
-                <div className="flex flex-col items-center justify-center p-12 space-y-4 opacity-50">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" /><p className="text-[10px] font-black uppercase tracking-widest">Awaiting Player Data...</p>
+                <div className="flex flex-col items-center justify-center p-12 opacity-50">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+                  <p className="text-[10px] font-black uppercase">Loading Intelligence...</p>
                 </div>
               ) : (
                 targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (
-                  <div key={idx} className="bg-card/80 backdrop-blur-md p-4 md:p-5 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
+                  <div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2">
                     <p className="text-xs md:text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
                   </div>
                 ))
@@ -428,70 +422,117 @@ export default function GamePage() {
         )}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 p-4 md:p-6 bg-black/40 backdrop-blur-3xl border-t border-white/10 space-y-4 z-40">
-        <div className="max-w-lg mx-auto w-full flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3 md:gap-4">
-             {iHaveGuessed && gameState === 'playing' ? (
-              <div className="flex-1 flex items-center gap-2 bg-green-500/20 px-4 py-2 rounded-full border border-green-500/30 h-14 md:h-16">
-                <CheckCircle2 className="w-4 h-4 text-green-500 animate-bounce" />
-                <p className="text-[10px] font-black text-green-400 uppercase tracking-[0.15em]">Decision Locked. {oppHasGuessed ? 'Waiting for reveal...' : 'Waiting for opponent...'}</p>
+      {/* Floating Emote Button */}
+      <div className="fixed bottom-24 right-4 z-50">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button size="icon" className="h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-2xl hover:scale-110 transition-transform border-4 border-white/20">
+              <SmilePlus className="w-7 h-7" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end">
+            <div className="grid grid-cols-3 gap-2">
+              {EMOTES.map(emote => (
+                <button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90">
+                  <img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} />
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <footer className="fixed bottom-0 left-0 right-0 p-4 md:p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
+        <div className="max-w-lg mx-auto w-full">
+          {iHaveGuessed && gameState === 'playing' ? (
+            <div className="flex items-center gap-3 bg-green-500/10 px-4 py-4 rounded-2xl border border-green-500/30">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <p className="text-[11px] md:text-xs font-black text-green-400 uppercase tracking-widest leading-tight">
+                DECISION LOCKED.<br/>
+                <span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span>
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Input 
+                placeholder="TYPE PLAYER NAME..." 
+                className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-sm md:text-base rounded-2xl" 
+                value={guessInput} 
+                onChange={(e) => setGuessInput(e.target.value)} 
+                disabled={iHaveGuessed || gameState !== 'playing'} 
+                onKeyDown={(e) => e.key === 'Enter' && handleGuess()} 
+              />
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleGuess} 
+                  disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim()} 
+                  className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs shadow-lg"
+                >
+                  LOCK IN GUESS
+                </Button>
+                <Button 
+                  onClick={handleSkip} 
+                  variant="outline" 
+                  disabled={iHaveGuessed || gameState !== 'playing'} 
+                  className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase"
+                >
+                  SKIP
+                </Button>
               </div>
-            ) : (
-              <div className="flex gap-2 flex-1">
-                <Input placeholder="ENTER PLAYER NAME" className="h-14 md:h-16 bg-white/5 border-white/10 font-black tracking-widest text-white placeholder:text-white/20 rounded-2xl focus-visible:ring-primary text-center uppercase text-sm md:text-base" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} onKeyDown={(e) => e.key === 'Enter' && handleGuess()} />
-                <div className="flex flex-col gap-1">
-                   <Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing'} className="h-10 w-14 md:h-12 md:w-16 rounded-xl bg-primary hover:bg-primary/90 shadow-[0_0_30px_rgba(255,123,0,0.3)] group active:scale-95 transition-all"><Send className="w-4 h-4" /></Button>
-                   <Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="h-10 w-14 md:h-12 md:w-16 rounded-xl border-white/10 bg-white/5 text-[8px] font-black uppercase"><SkipForward className="w-4 h-4" /></Button>
-                </div>
-              </div>
-            )}
-            <Popover><PopoverTrigger asChild><Button variant="secondary" className="h-14 w-14 md:h-16 md:w-16 rounded-2xl border border-white/10 shadow-xl"><SmilePlus className="w-5 h-5 md:w-6 md:h-6" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{EMOTES.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.id} /></button>))}</div></PopoverContent></Popover>
-          </div>
+            </div>
+          )}
         </div>
       </footer>
 
       {gameState === 'result' && (
-        <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-6 md:p-8 space-y-6 md:space-y-8 animate-in fade-in backdrop-blur-3xl overflow-y-auto">
-           <Trophy className="w-12 h-12 md:w-16 md:h-16 text-secondary animate-bounce" />
-           <div className="flex flex-col items-center gap-4 text-center">
-              <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter drop-shadow-2xl">{targetPlayer?.name}</h2>
-              <Badge className="bg-primary text-black font-black text-lg px-6 py-2 skew-x-[-12deg]">ROUND RESULT</Badge>
+        <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in backdrop-blur-3xl">
+           <Trophy className="w-16 h-16 text-secondary animate-bounce" />
+           <div className="text-center space-y-2">
+              <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">{targetPlayer?.name}</h2>
+              <Badge className="bg-primary text-black font-black text-lg px-6 py-1 skew-x-[-12deg]">ROUND OVER</Badge>
            </div>
-           <div className="w-full max-w-md grid grid-cols-2 gap-3 md:gap-4 mt-6 md:mt-8">
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
-                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-primary object-cover" alt="p1" />
-                <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p1Profile?.displayName || "Player 1"}</span>
-                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player1Guess || "SKIPPED"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
+           
+           <div className="w-full max-w-md grid grid-cols-2 gap-4">
+              <div className="bg-white/5 p-4 rounded-3xl text-center space-y-3 border border-white/5">
+                <span className="text-[10px] font-black text-slate-500 uppercase">{p1Profile?.displayName || "Player 1"}</span>
+                <p className="font-black text-xs text-white truncate italic">"{roundData?.player1Guess || "SKIP"}"</p>
+                <div className={`text-3xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
                   {(() => {
-                    let s1 = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? -10 : 0);
-                    return s1 > 0 ? `+${s1}` : s1;
+                    const pts = roundData?.player1GuessedCorrectly ? 10 : (roundData?.player1Guess && roundData?.player1Guess !== "SKIPPED" ? -10 : 0);
+                    return pts > 0 ? `+${pts}` : pts;
                   })()}
-                </div>
-                <div className="w-full space-y-1">
-                   <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 bg-white/5" />
-                   <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">Health Post-Duel</span>
                 </div>
               </div>
-              <div className="bg-white/5 p-4 md:p-5 rounded-3xl text-center space-y-3 border border-white/5 shadow-2xl flex flex-col items-center min-w-0">
-                <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-secondary object-cover" alt="p2" />
-                <span className="text-[10px] font-black truncate w-full text-white uppercase opacity-70">{p2Profile?.displayName || "Player 2"}</span>
-                <p className="font-black text-[10px] md:text-xs text-white truncate w-full px-1 italic">"{roundData?.player2Guess || "SKIPPED"}"</p>
-                <div className={`text-2xl md:text-4xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
-                   {(() => {
-                    let s2 = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? -10 : 0);
-                    return s2 > 0 ? `+${s2}` : s2;
+              <div className="bg-white/5 p-4 rounded-3xl text-center space-y-3 border border-white/5">
+                <span className="text-[10px] font-black text-slate-500 uppercase">{p2Profile?.displayName || "Player 2"}</span>
+                <p className="font-black text-xs text-white truncate italic">"{roundData?.player2Guess || "SKIP"}"</p>
+                <div className={`text-3xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? 'text-red-500' : 'text-slate-500')}`}>
+                  {(() => {
+                    const pts = roundData?.player2GuessedCorrectly ? 10 : (roundData?.player2Guess && roundData?.player2Guess !== "SKIPPED" ? -10 : 0);
+                    return pts > 0 ? `+${pts}` : pts;
                   })()}
-                </div>
-                <div className="w-full space-y-1">
-                   <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 bg-white/5 rotate-180" />
-                   <span className="text-[8px] font-black uppercase text-slate-500 tracking-tighter">Health Post-Duel</span>
                 </div>
               </div>
            </div>
-           <div className="text-center pt-4">
-              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] animate-pulse">Next Round Loading...</p>
+
+           <div className="w-full max-w-md space-y-4 px-4">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-black text-primary uppercase">
+                   <span>{p1Profile?.displayName} Health</span>
+                   <span>{room.player1CurrentHealth} HP</span>
+                </div>
+                <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-3 bg-white/5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px] font-black text-secondary uppercase">
+                   <span>{p2Profile?.displayName} Health</span>
+                   <span>{room.player2CurrentHealth} HP</span>
+                </div>
+                <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-3 bg-white/5 rotate-180" />
+              </div>
            </div>
+
+           <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.5em] animate-pulse">PREPARING NEXT ROUND</p>
         </div>
       )}
     </div>

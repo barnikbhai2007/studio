@@ -3,7 +3,7 @@ export type RarityType = 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'D
 export interface Footballer {
   id: string;
   name: string;
-  countryCode: string; // ISO 3166-1 alpha-2 or FlagCDN specific codes (e.g. gb-eng)
+  countryCode: string; 
   position: string;
   rating: number; // 1-1000 (Higher = Rarer to spawn)
   club: string;
@@ -60,8 +60,7 @@ export function getRandomFootballer(excludeIds: string[] = []): Footballer {
   const available = FOOTBALLERS.filter(f => !excludeIds.includes(f.id));
   const pool = available.length > 0 ? available : FOOTBALLERS;
   
-  // Weighting logic: Higher rating = Lower chance
-  // (1001 - rating)^2 gives a strong bias towards common players
+  // Weights based on rarity (Rating 1000 is rarest)
   const totalWeight = pool.reduce((sum, f) => sum + Math.pow(1001 - f.rating, 2), 0);
   let random = Math.random() * totalWeight;
   
@@ -70,6 +69,5 @@ export function getRandomFootballer(excludeIds: string[] = []): Footballer {
     if (random < weight) return f;
     random -= weight;
   }
-  
   return pool[0];
 }
