@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Swords, History, Home, Sparkles, RefreshCw } from "lucide-react";
-import { useFirestore, useUser, useDoc, useCollection, useMemoFirebase } from "@/firebase";
-import { doc, collection, onSnapshot, query, orderBy, writeBatch, getDocs } from "firebase/firestore";
-import { FOOTBALLERS } from "@/lib/footballer-data";
+import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -24,20 +23,13 @@ export default function ResultPage() {
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
 
-  const roundsQuery = useMemoFirebase(() => {
-    if (!user || !roomId) return null;
-    return query(collection(db, "gameRooms", roomId as string, "gameRounds"), orderBy("roundNumber", "asc"));
-  }, [db, roomId, user]);
-
-  const { data: rounds } = useCollection(roundsQuery);
-
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
   const [battleHistory, setBattleHistory] = useState<any>(null);
 
   const isPlayer1 = room?.player1Id === user?.uid;
   const isWinner = room?.winnerId === user?.uid;
-  const healthDiff = Math.abs((room?.player1CurrentHealth || 0) - (room?.player2CurrentHealth || 0));
+  const healthDiff = Math.max(0, Math.abs((room?.player1CurrentHealth || 0) - (room?.player2CurrentHealth || 0)));
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -102,7 +94,7 @@ export default function ResultPage() {
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-white">
           {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
         </h1>
-        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform -skew-x-12">
+        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform -skew-x-12 uppercase">
           {healthDiff} HP DIFFERENCE
         </Badge>
       </header>
@@ -126,51 +118,26 @@ export default function ResultPage() {
          </div>
       </section>
 
-      <section className="w-full max-w-2xl space-y-4">
-        <h3 className="text-xs font-black text-white/40 tracking-widest uppercase flex items-center gap-2">
-          <History className="w-4 h-4" /> ROUND LOG
-        </h3>
-        <div className="space-y-3">
-          {rounds?.map((r: any) => {
-            const footballer = FOOTBALLERS.find(f => f.id === r.footballerId);
-            return (
-              <div key={r.id} className="bg-card/40 backdrop-blur-xl p-4 rounded-2xl border border-white/5 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                <div className="text-center">
-                  <p className={`text-[10px] font-black truncate ${r.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player1Guess || "SKIP"}</p>
-                  <span className={`text-xs font-black ${r.player1ScoreChange > 0 ? 'text-green-400' : r.player1ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
-                    {r.player1ScoreChange > 0 ? `+${r.player1ScoreChange}` : r.player1ScoreChange}
-                  </span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <Badge variant="outline" className="border-white/10 text-[8px] font-black uppercase py-0.5 mb-1">RD {r.roundNumber}</Badge>
-                  <span className="text-[9px] font-black text-primary uppercase truncate max-w-[80px] text-center">{footballer?.name}</span>
-                </div>
-                <div className="text-center">
-                  <p className={`text-[10px] font-black truncate ${r.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500/50'}`}>{r.player2Guess || "SKIP"}</p>
-                  <span className={`text-xs font-black ${r.player2ScoreChange > 0 ? 'text-green-400' : r.player2ScoreChange < 0 ? 'text-red-400' : 'text-white/20'}`}>
-                    {r.player2ScoreChange > 0 ? `+${r.player2ScoreChange}` : r.player2ScoreChange}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {battleHistory && (
         <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
           <div className="text-center">
-            <h3 className="text-xs font-black text-secondary tracking-widest uppercase mb-1">HEAD-TO-HEAD BATTLES</h3>
+            <h3 className="text-xs font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
+              <History className="w-4 h-4" /> HEAD-TO-HEAD BATTLES
+            </h3>
             <span className="text-[10px] font-bold text-white/30 uppercase">TOTAL DUELS: {battleHistory.totalMatches}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
              <div className="flex-1 text-center">
-                <span className="text-[3rem] font-black text-primary leading-none">{battleHistory.player1Id === p1Profile.id ? battleHistory.player1Wins : battleHistory.player2Wins}</span>
+                <span className="text-[3rem] font-black text-primary leading-none">
+                  {battleHistory.player1Id === room.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                </span>
                 <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
              </div>
              <div className="w-px h-12 bg-white/10" />
              <div className="flex-1 text-center">
-                <span className="text-[3rem] font-black text-secondary leading-none">{battleHistory.player2Id === p2Profile?.id ? battleHistory.player2Wins : battleHistory.player1Wins}</span>
+                <span className="text-[3rem] font-black text-secondary leading-none">
+                  {battleHistory.player1Id === room.player2Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                </span>
                 <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "GUEST"} WINS</span>
              </div>
           </div>

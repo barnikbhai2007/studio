@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
   LogOut, Target, Heart, Info,
-  BarChart3, Smile, Award
+  BarChart3, Smile
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -183,7 +183,7 @@ export default function LandingPage() {
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl overflow-hidden">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-black text-white">WELCOME DUELIST</CardTitle>
+              <CardTitle className="text-2xl font-black text-white uppercase">WELCOME DUELIST</CardTitle>
               <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Sign in to start your career</CardDescription>
             </CardHeader>
             <CardContent>
@@ -198,7 +198,7 @@ export default function LandingPage() {
               <div className="flex items-center gap-4">
                 <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
                 <div className="flex flex-col">
-                  <span className="font-black text-sm">{user.displayName?.toUpperCase()}</span>
+                  <span className="font-black text-sm uppercase">{user.displayName}</span>
                   <span className="text-[8px] text-primary font-black tracking-widest uppercase">ACTIVE PLAYER</span>
                 </div>
               </div>
@@ -208,18 +208,18 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} disabled={isActionLoading} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 gap-3 shadow-lg rounded-2xl">
+              <Button onClick={handleCreateRoom} disabled={isActionLoading} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 gap-3 shadow-lg rounded-2xl uppercase">
                 {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-7 h-7" />} CREATE NEW DUEL
               </Button>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="ENTER CODE" 
+                  placeholder="ROOM CODE" 
                   className="h-16 bg-[#161618] border-white/10 text-center font-black tracking-[0.3em] text-2xl rounded-2xl text-white uppercase"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
                   maxLength={6}
                 />
-                <Button onClick={handleJoinRoom} disabled={isActionLoading || !roomCode} variant="secondary" className="h-16 px-8 font-black rounded-2xl">
+                <Button onClick={handleJoinRoom} disabled={isActionLoading || !roomCode} variant="secondary" className="h-16 px-8 font-black rounded-2xl uppercase">
                   JOIN
                 </Button>
               </div>
@@ -230,7 +230,7 @@ export default function LandingPage() {
                 <Target className="w-5 h-5 text-primary" /> Quests
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
-                <Award className="w-5 h-5 text-yellow-500" /> Achievements
+                <BarChart3 className="w-5 h-5 text-yellow-500" /> Leaderboard
               </Button>
               <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
                 <Info className="w-5 h-5 text-secondary" /> Info
