@@ -199,7 +199,7 @@ export default function LandingPage() {
                 <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
                 <div className="flex flex-col">
                   <span className="font-black text-sm uppercase">{user.displayName}</span>
-                  <span className="text-[8px] text-primary font-black tracking-widest uppercase">ACTIVE PLAYER</span>
+                  <span className="text-[8px] text-primary font-black tracking-widest uppercase">WELCOME BACK DUELIST</span>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl">
@@ -254,7 +254,7 @@ export default function LandingPage() {
            </div>
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
               <Users className="text-primary w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL DUELISTS</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL DUELISTS REGISTERED</span>
               <span className="text-2xl font-black">{playerCount.toLocaleString()}</span>
            </div>
         </div>
