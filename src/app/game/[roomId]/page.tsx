@@ -193,7 +193,7 @@ export default function GamePage() {
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
-        {/* ADD YOUR VIDEO SOURCE BELOW */}
+        {/* REPLACE THE SRC BELOW WITH YOUR OWN VIDEO LINK */}
         <video 
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover opacity-80"
@@ -202,6 +202,7 @@ export default function GamePage() {
           playsInline
         >
           <source src="https://player.vimeo.com/external/370331493.sd.mp4?s=29073739925e016142646b5d92825853240a5a51&profile_id=164&oauth2_token_id=57447761" type="video/mp4" />
+          Your browser does not support the video tag.
         </video>
         
         <div className="absolute inset-0 bg-white/20 fc-flash-overlay pointer-events-none z-10" />
