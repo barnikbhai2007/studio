@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
-  LogOut, Target, Heart, Info,
-  BarChart3, Smile, Sparkles, ScrollText
+  LogOut, Target, Heart, Info, HelpCircle,
+  BarChart3, Smile, Sparkles, ScrollText, X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -52,7 +53,6 @@ export default function LandingPage() {
       const userRef = doc(db, "userProfiles", user.uid);
       const userSnap = await getDoc(userRef);
 
-      // Always show sync on login as requested
       startAssetSync(user.uid, user.displayName, user.photoURL, !userSnap.exists());
       
     } catch (error: any) {
@@ -159,18 +159,33 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
-      {isSyncing && (
+      {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center">
+          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
+            {showManual && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowManual(false)} 
+                className="absolute -top-12 right-0 text-slate-500 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </Button>
+            )}
+
             <div className="relative inline-block shrink-0">
               <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full animate-pulse" />
-              <Download className="w-12 h-12 text-primary mx-auto relative z-10 animate-bounce" />
+              {isSyncing ? (
+                <Download className="w-12 h-12 text-primary mx-auto relative z-10 animate-bounce" />
+              ) : (
+                <HelpCircle className="w-12 h-12 text-primary mx-auto relative z-10" />
+              )}
             </div>
             
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">🎮 Welcome to FootyDuel!</h2>
               
-              <ScrollArea className="h-[40vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
+              <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
                   <p className="text-white text-sm">
                     FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
@@ -201,12 +216,21 @@ export default function LandingPage() {
                 </div>
               </ScrollArea>
 
-              <div className="w-full space-y-2 px-4">
-                <Progress value={syncProgress} className="h-2 bg-white/5" />
-                <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
-                  {syncProgress < 100 ? `Syncing Intelligence... ${Math.round(syncProgress)}%` : "Ready for Kickoff!"}
-                </p>
-              </div>
+              {isSyncing ? (
+                <div className="w-full space-y-2 px-4">
+                  <Progress value={syncProgress} className="h-2 bg-white/5" />
+                  <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
+                    {syncProgress < 100 ? `Syncing Intelligence... ${Math.round(syncProgress)}%` : "Ready for Kickoff!"}
+                  </p>
+                </div>
+              ) : (
+                <Button 
+                  onClick={() => setShowManual(false)} 
+                  className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl"
+                >
+                  GOT IT, DUELIST
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -302,6 +326,15 @@ export default function LandingPage() {
            </div>
         </div>
       </div>
+
+      {/* Floating Info Button */}
+      <Button 
+        onClick={() => setShowManual(true)} 
+        size="icon" 
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-black shadow-2xl hover:scale-110 transition-transform z-50 border-4 border-[#0a0a0b]"
+      >
+        <span className="text-2xl font-black">?</span>
+      </Button>
     </div>
   );
 }
