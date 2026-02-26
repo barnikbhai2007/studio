@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Clock, Send, User, Star, Swords, Zap, CheckCircle2 } from "lucide-react";
+import { Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot } from "firebase/firestore";
@@ -23,6 +23,7 @@ export default function GamePage() {
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const revealTriggered = useRef(false);
 
   const roomRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -65,6 +66,7 @@ export default function GamePage() {
     setGuessInput("");
     setRoundTimer(null);
     setVisibleHints(1);
+    revealTriggered.current = false;
 
     if (isPlayer1 && room && roundRef) {
       const player = FOOTBALLERS[Math.floor(Math.random() * FOOTBALLERS.length)];
@@ -90,22 +92,38 @@ export default function GamePage() {
     const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
     const p2Unsub = room.player2Id ? onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data())) : () => {};
 
-    if (!roundData && isPlayer1) {
-      startNewRoundLocally();
-    }
-
     return () => {
       p1Unsub();
       p2Unsub();
     };
-  }, [room, db, roundData, startNewRoundLocally, isPlayer1, user]);
+  }, [room, db, user]);
 
   useEffect(() => {
     if (roundData) {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
+
+      // Alert when opponent guesses
+      const hasP1Guessed = !!roundData.player1Guess;
+      const hasP2Guessed = !!roundData.player2Guess;
+      
+      const opponentGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
+      const iGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
+
+      if (opponentGuessed && !iGuessed && roundTimer === null && gameState === 'playing') {
+        setRoundTimer(15);
+        toast({
+          title: "Opponent Guessed!",
+          description: "15 seconds remaining to lock in your answer!",
+          variant: "destructive",
+        });
+      }
+
+      if (hasP1Guessed && hasP2Guessed && gameState === 'playing' && !revealTriggered.current) {
+        handleReveal();
+      }
     }
-  }, [roundData]);
+  }, [roundData, isPlayer1, gameState]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -120,26 +138,17 @@ export default function GamePage() {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
 
-    if (roundTimer !== null && roundTimer > 0) {
+    if (gameState === 'playing' && roundTimer !== null && roundTimer > 0) {
       timer = setTimeout(() => setRoundTimer(roundTimer - 1), 1000);
-    } else if (roundTimer === 0) {
+    } else if (roundTimer === 0 && gameState === 'playing' && !revealTriggered.current) {
       handleReveal();
     }
 
     return () => clearTimeout(timer);
   }, [gameState, countdown, visibleHints, roundTimer]);
 
-  useEffect(() => {
-    if (gameState === 'playing' && roundData) {
-      const bothGuessed = roundData.player1Guess && roundData.player2Guess;
-      if (bothGuessed) {
-        handleReveal();
-      }
-    }
-  }, [roundData, gameState]);
-
   const handleGuess = async () => {
-    if (!guessInput.trim() || !roundRef || !roundData) return;
+    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
     
     const isCorrect = guessInput.toLowerCase().trim() === (targetPlayer?.name.toLowerCase().trim() || "");
     const update: any = isPlayer1 
@@ -147,16 +156,23 @@ export default function GamePage() {
       : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
     
     await updateDoc(roundRef, update);
-    toast({ title: "Guess Submitted", description: `You guessed: ${guessInput}` });
+    toast({ title: "Guess Locked In", description: `You guessed: ${guessInput}` });
     
-    if (roundTimer === null) setRoundTimer(15);
+    // If I'm the first to guess, start a local timer for the opponent (UI only, logic driven by Firestore)
+    if (!roundData.player1Guess && !roundData.player2Guess) {
+      setRoundTimer(15);
+    }
   };
 
   const handleReveal = () => {
+    if (revealTriggered.current) return;
+    revealTriggered.current = true;
+
     setGameState('reveal');
+    setRoundTimer(null);
     setRevealStep('none');
     
-    // Exact cinematic timing requested
+    // Precise cinematic timing as requested
     setTimeout(() => setRevealStep('country'), 1700);
     setTimeout(() => setRevealStep('none'), 2600);
     setTimeout(() => setRevealStep('position'), 2900);
@@ -174,8 +190,6 @@ export default function GamePage() {
           if (isPlayer1 && roomRef) {
             await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
           }
-          setGameState('countdown');
-          setCountdown(5);
           startNewRoundLocally();
         } else {
           router.push('/');
@@ -228,15 +242,12 @@ export default function GamePage() {
           autoPlay
           src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4"
         />
-        
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
-        
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && (
               <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
                 <div className="text-[200px] filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]">{targetPlayer?.flag}</div>
-                <div className="mt-4 h-1.5 w-64 bg-white/50 blur-sm animate-pulse" />
               </div>
             )}
             {revealStep === 'position' && (
@@ -278,17 +289,17 @@ export default function GamePage() {
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 grid grid-cols-3 items-center sticky top-0 z-30">
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 rounded-full border-2 border-primary shadow-lg" alt="P1" />
+            <div className="relative shrink-0">
+              <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-10 h-10 min-w-[40px] rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
               {hasP1Guessed && (
                 <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
                 </div>
               )}
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <span className="text-sm font-black truncate text-white">{p1Profile?.displayName || "Player 1"}</span>
               {hasP1Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
@@ -303,16 +314,14 @@ export default function GamePage() {
           <Badge className="bg-primary text-black font-black px-4 py-1.5 text-xs shadow-lg transform -skew-x-12">ROUND {room.currentRoundNumber}</Badge>
         </div>
 
-        <div className="flex flex-col gap-2 items-end">
-          <div className="flex items-center gap-2">
-            <div className="flex flex-col items-end">
+        <div className="flex flex-col gap-2 items-end min-w-0">
+          <div className="flex items-center gap-2 w-full justify-end">
+            <div className="flex flex-col items-end min-w-0">
               <span className="text-sm font-black truncate text-white">{p2Profile?.displayName || "Opponent"}</span>
               {hasP2Guessed && <span className="text-[10px] font-black text-green-500 uppercase leading-none tracking-tighter">GUESSED</span>}
             </div>
-            <div className="relative">
-              <div className="w-10 h-10 rounded-full bg-secondary border-2 border-secondary overflow-hidden shadow-lg">
-                 <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full object-cover" />
-              </div>
+            <div className="relative shrink-0">
+              <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-10 h-10 min-w-[40px] rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
               {hasP2Guessed && (
                 <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 shadow-lg animate-in zoom-in ring-2 ring-white">
                   <CheckCircle2 className="w-3 h-3 text-white" />
@@ -331,31 +340,29 @@ export default function GamePage() {
         {gameState === 'countdown' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-8">
              <div className="text-[12rem] font-black text-primary animate-ping leading-none drop-shadow-[0_0_50px_rgba(255,123,0,0.5)]">{countdown}</div>
-             <p className="text-2xl font-headline font-bold uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Prepare to Duel</p>
+             <p className="text-2xl font-bold uppercase tracking-[0.4em] text-muted-foreground animate-pulse">Prepare to Duel</p>
           </div>
         ) : (
-          <>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" /> Scouting Reports
-                </h3>
-                {roundTimer !== null && (
-                  <Badge className="bg-red-600/90 animate-pulse text-white px-4 h-10 text-sm font-black border-2 border-white/20">
-                    {roundTimer}s REMAINING
-                  </Badge>
-                )}
-              </div>
-              
-              <div className="space-y-3">
-                {targetPlayer?.hints.slice(0, visibleHints).map((hint, idx) => (
-                  <div key={idx} className="bg-card/80 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
-                    <p className="text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
-                  </div>
-                ))}
-              </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" /> Scouting Reports
+              </h3>
+              {roundTimer !== null && (
+                <Badge className="bg-red-600 animate-pulse text-white px-4 h-10 text-sm font-black border-2 border-white/40 shadow-[0_0_20px_rgba(220,38,38,0.5)]">
+                  <AlertCircle className="w-4 h-4 mr-2" /> {roundTimer}s REMAINING
+                </Badge>
+              )}
             </div>
-          </>
+            
+            <div className="space-y-3">
+              {targetPlayer?.hints.slice(0, visibleHints).map((hint, idx) => (
+                <div key={idx} className="bg-card/80 backdrop-blur-md p-5 rounded-2xl border border-white/10 shadow-2xl animate-in slide-in-from-bottom-4 duration-500">
+                  <p className="text-sm font-bold text-white/90 leading-relaxed italic">"{hint}"</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </main>
 
@@ -392,20 +399,20 @@ export default function GamePage() {
       {gameState === 'result' && (
         <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-8 space-y-10 animate-in fade-in backdrop-blur-3xl">
            <Trophy className="w-20 h-20 text-secondary animate-bounce drop-shadow-[0_0_30px_rgba(255,165,0,0.5)]" />
-           <h2 className="text-4xl font-black font-headline tracking-tighter text-white">ROUND SUMMARY</h2>
+           <h2 className="text-4xl font-black tracking-tighter text-white">ROUND SUMMARY</h2>
            <div className="w-full max-w-md grid grid-cols-2 gap-6">
               <div className="bg-white/5 p-6 rounded-3xl text-center space-y-3 border-b-4 border-primary shadow-2xl">
-                <p className="text-[10px] text-primary font-black tracking-widest">P1 STATUS</p>
+                <p className="text-[10px] text-primary font-black tracking-widest uppercase">P1 GUESS</p>
                 <p className="font-black text-sm text-white truncate px-2">{roundData?.player1Guess || "NO GUESS"}</p>
                 <div className={`text-3xl font-black ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
-                  {roundData?.player1GuessedCorrectly ? "+10 HP" : "-10 HP"}
+                  {roundData?.player1GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
               <div className="bg-white/5 p-6 rounded-3xl text-center space-y-3 border-b-4 border-secondary shadow-2xl">
-                <p className="text-[10px] text-secondary font-black tracking-widest">P2 STATUS</p>
+                <p className="text-[10px] text-secondary font-black tracking-widest uppercase">P2 GUESS</p>
                 <p className="font-black text-sm text-white truncate px-2">{roundData?.player2Guess || "NO GUESS"}</p>
                 <div className={`text-3xl font-black ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
-                   {roundData?.player2GuessedCorrectly ? "+10 HP" : "-10 HP"}
+                   {roundData?.player2GuessedCorrectly ? "+20" : "-10"}
                 </div>
               </div>
            </div>
