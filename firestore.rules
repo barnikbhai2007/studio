@@ -11,20 +11,22 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles: Publicly readable for leaderboards/results.
-    // Writes restricted to signed-in users.
+    // User Profiles: Publicly readable for leaderboards and result identification.
+    // Writes restricted to the owner.
     match /userProfiles/{userId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isOwner(userId);
     }
 
-    // Game Rooms: Restricted to authenticated users for all operations.
-    match /gameRooms/{roomId} {
-      allow read, write: if request.auth != null;
+    // Game Rooms: Publicly readable to allow for landing page stats and result history.
+    // Writes and sub-collections restricted to authenticated users.
+    match /gameRooms/{gameRoomId} {
+      allow read: if true;
+      allow write: if isSignedIn();
       
-      // Apply the same authentication requirement to all sub-collections (rounds, emotes).
+      // Sub-collections (rounds, emotes) require authentication.
       match /{allSubdocs=**} {
-        allow read, write: if request.auth != null;
+        allow read, write: if isSignedIn();
       }
     }
 

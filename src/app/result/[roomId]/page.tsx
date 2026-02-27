@@ -25,7 +25,7 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
-  // Safely calculate the H2H composite ID only when both IDs exist
+  // Safely calculate the H2H composite ID
   const bid = useMemo(() => {
     if (!room?.player1Id || !room?.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
