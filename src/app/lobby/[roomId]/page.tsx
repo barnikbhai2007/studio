@@ -178,12 +178,14 @@ export default function LobbyPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="DEMO">DEMO (Starter Pack)</SelectItem>
-                        <SelectItem value="FDv1.0">FDv1.0 (Season 1)</SelectItem>
+                        <SelectItem value="FDv1.0">FDv1.0 (700 Footballers)</SelectItem>
                         <SelectItem value="All">ALL PACKS</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.gameVersion || 'DEMO'}</div>
+                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">
+                      {room.gameVersion === 'FDv1.0' ? 'FDv1.0 (700 Footballers)' : (room.gameVersion || 'DEMO')}
+                    </div>
                   )}
                 </div>
               </div>
