@@ -1,4 +1,3 @@
-
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -7,8 +6,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
 export function initializeFirebase() {
-  // Always prioritize the config object to ensure initialization works on Netlify/Vercel
-  // This bypasses the Hosting auto-config which can fail if not on Firebase Hosting
+  // Always prioritize the config object to ensure initialization works on Netlify
   if (!getApps().length) {
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);

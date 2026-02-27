@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -166,7 +165,7 @@ export default function LandingPage() {
       router.push(`/lobby/${roomCode.trim()}`);
     } catch (error: any) {
       console.error("Join error:", error);
-      toast({ variant: "destructive", title: "Join Failed", description: "Please check the room code or your connection." });
+      toast({ variant: "destructive", title: "Join Failed", description: "Check connection or permissions." });
       setIsActionLoading(false);
     }
   };
@@ -208,7 +207,7 @@ export default function LandingPage() {
             
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase tracking-normal text-primary">
-                {isSyncing ? "SYNCING CAREER" : "🎮 Welcome to FootyDuel!"}
+                {isSyncing ? "SYNCING CAREER" : "Welcome to FootyDuel!"}
               </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
@@ -219,13 +218,13 @@ export default function LandingPage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-white text-sm leading-tight">
+                      <p className="text-white text-sm leading-tight normal-case">
                         FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
                       </p>
                       
                       <div className="space-y-4">
-                        <h3 className="text-primary flex items-center gap-2 text-sm">
-                          <Plus className="w-4 h-4" /> ⚽ HOW IT WORKS:
+                        <h3 className="text-primary flex items-center gap-2 text-sm uppercase">
+                          <Plus className="w-4 h-4" /> How It Works:
                         </h3>
                         <ul className="space-y-3 list-none">
                           <li className="flex gap-2"><span className="text-primary">1.</span> Create a room or join one using a room code.</li>
@@ -238,7 +237,7 @@ export default function LandingPage() {
                       </div>
 
                       <div className="pt-4 border-t border-white/10 space-y-4">
-                        <p className="text-primary text-sm">🔥 Stay fast. Stay sharp. Prove your football knowledge.</p>
+                        <p className="text-primary text-sm uppercase">Stay fast. Stay sharp. Prove your football knowledge.</p>
                         <p className="text-slate-400 normal-case">Good luck and have fun! ~ Barnik (brokenAqua)</p>
                       </div>
                     </>
@@ -269,9 +268,9 @@ export default function LandingPage() {
               <X className="w-6 h-6" />
             </Button>
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
-              <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-2 text-center">
                 <Coffee className="w-10 h-10 text-primary" />
-                <h2 className="text-2xl font-black uppercase text-primary tracking-normal leading-tight text-center">BUY THE DEV A COFFEE</h2>
+                <h2 className="text-2xl font-black uppercase text-primary tracking-normal leading-tight">BUY THE DEV A COFFEE</h2>
               </div>
               
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
@@ -370,7 +369,7 @@ export default function LandingPage() {
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
               </Button>
-              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Info className="w-5 h-5 mr-2 text-primary" /> INFO
               </Button>
             </div>

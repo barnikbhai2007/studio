@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -26,7 +25,6 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
-  // Defensive bid calculation
   const bid = useMemo(() => {
     if (!room || !room.player1Id || !room.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
@@ -48,7 +46,6 @@ export default function ResultPage() {
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
   
-  // Defensive health calculation with safety defaults
   const p1Health = room?.player1CurrentHealth ?? 0;
   const p2Health = room?.player2CurrentHealth ?? 0;
   const healthMax = room?.healthOption ?? 100;
