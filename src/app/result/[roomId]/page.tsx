@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Swords, History, Home, Sparkles, RefreshCw } from "lucide-react";
+import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Loader2 } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit, arrayUnion, updateDoc } from "firebase/firestore";
 
@@ -37,7 +37,6 @@ export default function ResultPage() {
 
   const historyQuery = useMemoFirebase(() => {
     if (!bid) return null;
-    // We strictly use status Completed to avoid listing active/broken rooms
     return query(
       collection(db, "gameRooms"),
       where("betweenIds", "==", bid),
@@ -66,7 +65,6 @@ export default function ResultPage() {
   useEffect(() => {
     if (!room || !user) return;
 
-    // Real-time listener for both players to ensure profile data is updated
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
       if (snap.exists()) setP1Profile(snap.data());
     });
@@ -87,10 +85,14 @@ export default function ResultPage() {
   useEffect(() => {
     if (!user || !db || !room) return;
     const profile = isPlayer1 ? p1Profile : p2Profile;
-    if (profile && profile.totalWins >= 10 && !(profile.unlockedEmoteIds || []).includes('ten_wins')) {
-      updateDoc(doc(db, "userProfiles", user.uid), {
-        unlockedEmoteIds: arrayUnion('ten_wins')
-      });
+    // CRITICAL FIX: Ensure profile and stats exist before checking logic to prevent client-side exception
+    if (profile && typeof profile.totalWins === 'number' && profile.totalWins >= 10) {
+      const unlocked = profile.unlockedEmoteIds || [];
+      if (!unlocked.includes('ten_wins')) {
+        updateDoc(doc(db, "userProfiles", user.uid), {
+          unlockedEmoteIds: arrayUnion('ten_wins')
+        }).catch(err => console.error("Quest update failed", err));
+      }
     }
   }, [p1Profile, p2Profile, user, isPlayer1, db, room]);
 
@@ -137,7 +139,7 @@ export default function ResultPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
         <div className="flex flex-col items-center gap-4">
           <Swords className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Finalizing Intelligence...</p>
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Finalizing Duel Analysis...</p>
         </div>
       </div>
     );
@@ -170,8 +172,8 @@ export default function ResultPage() {
 
       <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p1Profile.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
-            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName || "PLAYER 1"}</span>
+            <img src={p1Profile?.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
+            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player1CurrentHealth}</span></div>
               <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
@@ -226,14 +228,14 @@ export default function ResultPage() {
               <span className="text-[3rem] font-black text-primary leading-none">
                 {h2hStats.p1}
               </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName || "PLAYER 1"} WINS</span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile?.displayName || "P1"} WINS</span>
            </div>
            <div className="w-px h-12 bg-white/10" />
            <div className="flex-1 text-center">
               <span className="text-[3rem] font-black text-secondary leading-none">
                 {h2hStats.p2}
               </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "OPPONENT"} WINS</span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "P2"} WINS</span>
            </div>
         </div>
       </section>

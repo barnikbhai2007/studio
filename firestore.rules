@@ -37,9 +37,9 @@ service cloud.firestore {
       }
     }
 
-    // Explicitly allow listing the gameRooms collection (for history and counters)
+    // Explicitly allow listing the gameRooms collection for history and stats
     match /gameRooms {
-      allow list: if true;
+      allow read: if true;
     }
 
     // Battle Histories: Real-time syncing between players
