@@ -130,7 +130,7 @@ export default function GamePage() {
        setShowGameOverPopup(true);
        const t = setTimeout(() => {
          router.push(`/result/${roomId}`);
-       }, 5000);
+       }, 5500); // 5.5s to ensure the 5s popup animation finishes
        return () => clearTimeout(t);
     }
   }, [room?.status, roomId, router, showGameOverPopup]);
@@ -254,7 +254,7 @@ export default function GamePage() {
   }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
 
   useEffect(() => {
-    if (gameState === 'result' && isPlayer1 && autoNextRoundCountdown === null) {
+    if (gameState === 'result' && autoNextRoundCountdown === null) {
       setAutoNextRoundCountdown(5);
     }
 
@@ -312,11 +312,6 @@ export default function GamePage() {
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
     
-    // Precise Timestamps: 
-    // 2.2s: Country In, 3.1s: Out
-    // 3.8s: Position In, 4.7s: Out
-    // 5.2s: Rarity In, 6.1s: Out
-    // 6.9s: Full Card Reveal
     const steps = [
       { s: 'country', t: 2200 },
       { s: 'none', t: 3100 },
