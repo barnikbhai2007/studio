@@ -14,7 +14,7 @@ service cloud.firestore {
       return isSignedIn() && (request.auth.uid == p1 || request.auth.uid == p2);
     }
 
-    // Allow public listing of userProfiles and gameRooms for landing page stats and results
+    // Allow public listing of userProfiles and gameRooms for landing page stats
     match /userProfiles/{userId} {
       allow get: if true;
       allow list: if true;
@@ -37,7 +37,9 @@ service cloud.firestore {
     }
 
     match /battleHistories/{battleHistoryId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
     }
 
     match /footballers/{footballerId} {

@@ -6,10 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Calendar, CheckCircle2, XCircle } from "lucide-react";
-import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit } from "firebase/firestore";
-import { format } from "date-fns";
+import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Calendar, CheckCircle2, XCircle, Users } from "lucide-react";
+import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -40,18 +39,12 @@ export default function ResultPage() {
     return [room.player1Id, room.player2Id].sort().join('_');
   }, [room]);
 
-  const historyQuery = useMemoFirebase(() => {
+  const battleHistoryRef = useMemoFirebase(() => {
     if (!betweenIds) return null;
-    return query(
-      collection(db, "gameRooms"),
-      where("betweenIds", "==", betweenIds),
-      where("status", "==", "Completed"),
-      orderBy("finishedAt", "desc"),
-      limit(10)
-    );
+    return doc(db, "battleHistories", betweenIds);
   }, [db, betweenIds]);
 
-  const { data: history, isLoading: isHistoryLoading } = useCollection(historyQuery);
+  const { data: battleHistory, isLoading: isHistoryLoading } = useDoc(battleHistoryRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -122,7 +115,7 @@ export default function ResultPage() {
       {isWinner && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {[...Array(20)].map((_, i) => (
-            <div key={i} className="absolute animate-confetti opacity-0" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 3}s` }}>
+            <div key(i) className="absolute animate-confetti opacity-0" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 3}s` }}>
               <Sparkles className="text-secondary w-6 h-6 fill-secondary" />
             </div>
           ))}
@@ -134,16 +127,16 @@ export default function ResultPage() {
           <div className="absolute inset-0 bg-secondary/20 blur-[60px] rounded-full animate-pulse" />
           <Trophy className="w-24 h-24 text-secondary relative z-10 mx-auto animate-in zoom-in duration-700" />
         </div>
-        <h1 className="text-5xl md:text-7xl font-black uppercase text-white">
+        <h1 className="text-5xl md:text-7xl font-black uppercase text-white leading-tight">
           {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
         </h1>
-        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 uppercase">
+        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 uppercase rounded-xl">
           {healthDiff} HP DIFFERENCE
         </Badge>
       </header>
 
       <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
-         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+         <div className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
             <img src={p1Profile?.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
             <div className="mt-4 w-full">
@@ -151,7 +144,7 @@ export default function ResultPage() {
               <Progress value={(p1Health / healthMax) * 100} className="h-2 bg-black/20" />
             </div>
          </div>
-         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+         <div className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
             <img src={p2Profile?.avatarUrl || `https://picsum.photos/seed/${room.player2Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
             <div className="mt-4 w-full">
@@ -164,67 +157,58 @@ export default function ResultPage() {
       <section className="w-full max-w-2xl space-y-4">
         <div className="flex items-center gap-2 px-2">
           <History className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-black uppercase text-white">HEAD TO HEAD HISTORY</h2>
+          <h2 className="text-xl font-black uppercase text-white">LIFETIME HEAD-TO-HEAD</h2>
         </div>
         
-        <div className="space-y-3">
-          {isHistoryLoading ? (
-            <div className="p-12 text-center bg-white/5 rounded-[2rem] border border-white/5">
-              <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
-              <p className="text-[10px] font-black uppercase text-slate-500">Retrieving Battle Logs...</p>
-            </div>
-          ) : history && history.length > 0 ? (
-            history.map((match) => {
-              const matchWinnerId = match.winnerId;
-              const matchIsP1Winner = matchWinnerId === room.player1Id;
-              const matchDate = match.finishedAt ? new Date(match.finishedAt) : new Date();
-              
-              return (
-                <Card key={match.id} className="bg-white/5 border-white/5 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl ${matchWinnerId === user?.uid ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                        {matchWinnerId === user?.uid ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black uppercase text-white">
-                          {matchIsP1Winner ? p1Profile?.displayName : p2Profile?.displayName} WON
-                        </p>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase">
-                          <Calendar className="w-3 h-3" />
-                          {format(matchDate, 'MMM d, h:mm a')}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-black text-white leading-none">
-                        {match.player1CurrentHealth} - {match.player2CurrentHealth}
-                      </p>
-                      <p className="text-[8px] font-black text-primary uppercase tracking-widest mt-1">FINAL HP</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
-          ) : (
-            <div className="p-12 text-center bg-white/5 rounded-[2rem] border border-white/5">
-              <Swords className="w-10 h-10 text-slate-700 mx-auto mb-2" />
-              <p className="text-[10px] font-black uppercase text-slate-500">NO PREVIOUS ENCOUNTERS RECORDED</p>
-            </div>
-          )}
-        </div>
+        {isHistoryLoading ? (
+          <div className="p-12 text-center bg-white/5 rounded-[2.5rem] border border-white/5">
+            <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
+            <p className="text-[10px] font-black uppercase text-slate-500">Syncing Career Records...</p>
+          </div>
+        ) : battleHistory ? (
+          <Card className="bg-white/5 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-md">
+            <CardContent className="p-8">
+              <div className="grid grid-cols-3 gap-6 items-center">
+                <div className="text-center space-y-2">
+                  <p className="text-[10px] font-black text-slate-500 uppercase truncate px-1">{p1Profile?.displayName}</p>
+                  <p className="text-5xl font-black text-primary tracking-tighter">
+                    {room.player1Id === battleHistory.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                  </p>
+                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">WINS</p>
+                </div>
+                <div className="text-center border-x border-white/10 py-4 space-y-2 bg-white/5 rounded-3xl">
+                  <p className="text-[10px] font-black text-slate-500 uppercase">TOTAL</p>
+                  <p className="text-3xl font-black text-white tracking-tighter">{battleHistory.totalMatches}</p>
+                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">BATTLES</p>
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="text-[10px] font-black text-slate-500 uppercase truncate px-1">{p2Profile?.displayName}</p>
+                  <p className="text-5xl font-black text-secondary tracking-tighter">
+                    {room.player2Id === battleHistory.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
+                  </p>
+                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">WINS</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="p-12 text-center bg-white/5 rounded-[2.5rem] border border-white/5">
+            <Users className="w-10 h-10 text-slate-700 mx-auto mb-2" />
+            <p className="text-[10px] font-black uppercase text-slate-500">FIRST TIME RIVALS</p>
+          </div>
+        )}
       </section>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-50">
-        <div className="max-w-2xl mx-auto flex gap-3">
-          <Button onClick={() => router.push('/')} className="flex-1 h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl uppercase">
+        <div className="max-w-2xl mx-auto flex gap-4">
+          <Button onClick={() => router.push('/')} className="flex-1 h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl uppercase shadow-2xl">
             <Home className="w-6 h-6" /> HOME
           </Button>
           <Button 
             variant="outline" 
             disabled={!isPlayer1} 
             onClick={handlePlayAgain} 
-            className="h-14 px-8 border-white/10 bg-white/5 font-black uppercase rounded-2xl gap-2"
+            className="h-14 px-8 border-white/10 bg-white/5 font-black uppercase rounded-2xl gap-2 shadow-2xl"
           >
             <RefreshCw className="w-6 h-6" /> PLAY AGAIN
           </Button>
