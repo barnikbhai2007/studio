@@ -149,11 +149,17 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
+  // Handle Initial Music state: Pause on mount
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
+  }, []);
+
   const startNewRoundLocally = useCallback(async () => {
     if (isInitializingRound.current) return;
     isInitializingRound.current = true;
 
     setGameState('countdown');
+    window.dispatchEvent(new CustomEvent("footy-pause-bgm")); // Ensure pause on new round start
     setRevealStep('none');
     setCountdown(5);
     setGuessInput("");
@@ -225,6 +231,7 @@ export default function GamePage() {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     } else if (gameState === 'countdown' && countdown === 0) {
       setGameState('playing');
+      window.dispatchEvent(new CustomEvent("footy-resume-bgm")); // Song starts when game starts
     }
     if (gameState === 'playing' && visibleHints < 5 && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);

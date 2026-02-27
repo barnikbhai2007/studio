@@ -64,14 +64,12 @@ export default function LandingPage() {
     fetchTotalPlayers();
   }, [db]);
 
-  // --- WEEKLY SEASON RESET & REWARD SYNC ---
   const handleSeasonReset = useCallback(async () => {
     if (!user || !profileData) return;
 
     const now = new Date();
     const lastReset = profileData.lastWeeklyReset ? new Date(profileData.lastWeeklyReset) : new Date(0);
     
-    // Calculate previous Monday 00:00 IST
     const lastMondayIST = new Date();
     lastMondayIST.setUTCHours(18, 30, 0, 0); 
     const day = now.getUTCDay();
@@ -79,10 +77,7 @@ export default function LandingPage() {
     lastMondayIST.setUTCDate(now.getUTCDate() - daysSinceMonday);
     
     if (now > lastMondayIST && lastReset < lastMondayIST) {
-      // It's a new season cycle!
       setIsSyncing(true);
-      
-      // 1. Check if user was Rank 1
       const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
       const lbSnap = await getDocs(lbQuery);
       const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
@@ -104,7 +99,6 @@ export default function LandingPage() {
     }
   }, [user, profileData, db, toast]);
 
-  // --- GLOBAL QUEST SYNC ---
   const syncQuests = useCallback(async () => {
     if (!user || !profileData) return;
     const currentUnlocked = profileData.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
@@ -244,6 +238,14 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Floating Info Button */}
+      <button 
+        onClick={() => setShowManual(true)} 
+        className="fixed top-6 right-6 z-50 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all shadow-2xl group"
+      >
+        <HelpCircle className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
+      </button>
 
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
