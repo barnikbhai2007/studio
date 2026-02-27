@@ -7,32 +7,32 @@ service cloud.firestore {
     }
 
     // User Profiles: Publicly readable for leaderboard and stats.
-    // Writes restricted to authenticated users.
+    // Writes restricted to the owner.
     match /userProfiles/{userId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId;
     }
 
-    // Game Rooms: Allow public list/get for today's stats and match history.
-    // Writes restricted to authenticated users.
+    // Game Rooms and subcollections: 
+    // Allow public read for match history, joining, and today's stats.
+    // Allow create/update for any signed-in player.
     match /gameRooms/{roomId} {
       allow read: if true;
       allow write: if isSignedIn();
       
-      // Sub-collections (rounds, emotes)
       match /{allChildren=**} {
         allow read: if true;
         allow write: if isSignedIn();
       }
     }
 
-    // Battle Histories: Used for H2H syncing
+    // Battle Histories: Collective stats between players.
     match /battleHistories/{bhId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
-    // Footballers: Static game data
+    // Footballers: Static game data.
     match /footballers/{footballerId} {
       allow read: if true;
     }

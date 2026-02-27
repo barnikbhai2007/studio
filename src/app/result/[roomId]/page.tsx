@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Loader2 } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit, arrayUnion, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -62,7 +62,7 @@ export default function ResultPage() {
   }, [room?.status, roomId, router]);
 
   useEffect(() => {
-    if (!room?.player1Id || !user) return;
+    if (!room?.player1Id || !db) return;
 
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
       if (snap.exists()) setP1Profile(snap.data());
@@ -79,7 +79,7 @@ export default function ResultPage() {
       unsubP1();
       unsubP2();
     };
-  }, [room?.player1Id, room?.player2Id, db, user]);
+  }, [room?.player1Id, room?.player2Id, db]);
 
   const h2hStats = useMemo(() => {
     if (!recentMatches || !room?.player1Id || !room?.player2Id) return { p1: 0, p2: 0, total: 0 };
@@ -133,7 +133,7 @@ export default function ResultPage() {
       {isWinner && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {[...Array(20)].map((_, i) => (
-            <div key={i} className={`absolute animate-confetti opacity-0`} style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 3}s` }}>
+            <div key={i} className="absolute animate-confetti opacity-0" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 3}s` }}>
               <Sparkles className="text-secondary w-6 h-6 fill-secondary" />
             </div>
           ))}
