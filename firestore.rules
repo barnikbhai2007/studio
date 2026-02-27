@@ -7,15 +7,17 @@ service cloud.firestore {
     }
 
     // User Profiles: Publicly readable for leaderboard and stats.
-    // Writes restricted to the owner.
+    // Writes restricted to the owner for profile setup.
+    // Updates allowed for signed-in users to allow game result recording.
     match /userProfiles/{userId} {
       allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn();
     }
 
     // Game Rooms and subcollections: 
-    // Allow public read for match history, joining, and today's stats.
-    // Allow create/update for any signed-in player.
+    // Allow public read for match history, joining, and daily stats.
+    // Allow write for any signed-in player to enable game logic and joining.
     match /gameRooms/{roomId} {
       allow read: if true;
       allow write: if isSignedIn();
