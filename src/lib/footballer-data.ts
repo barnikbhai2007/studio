@@ -58,7 +58,12 @@ export const FOOTBALLERS: Footballer[] = [
   { id: '22', name: 'Robert Lewandowski', countryCode: 'pl', position: 'ST', club: 'Barcelona', hints: ["Bayern Munich legend.", "Poland top scorer.", "Goal machine.", "The 'Body' nickname.", "Moved to Barcelona in 2022."], version: 'DEMO' },
   { id: '23', name: 'Kevin De Bruyne', countryCode: 'be', position: 'CM', club: 'Man City', hints: ["Assist king.", "Belgian maestro.", "Man City captain.", "Visionary passing.", "Ex-Chelsea & Wolfsburg."], version: 'DEMO' },
   { id: '24', name: 'Mohamed Salah', countryCode: 'eg', position: 'RW', club: 'Liverpool', hints: ["The Egyptian King.", "Liverpool goalscorer.", "Puskas winner.", "African legend.", "Ex-Chelsea & Roma."], version: 'DEMO' },
-  { id: '25', name: 'Karim Benzema', countryCode: 'fr', position: 'ST', club: 'Al Ittihad', hints: ["2022 Ballon d'Or.", "Real Madrid legend.", "French striker.", "9 seasons with CR7.", "Plays in Saudi Arabia."], version: 'DEMO' }
+  { id: '25', name: 'Karim Benzema', countryCode: 'fr', position: 'ST', club: 'Al Ittihad', hints: ["2022 Ballon d'Or.", "Real Madrid legend.", "French striker.", "9 seasons with CR7.", "Plays in Saudi Arabia."], version: 'DEMO' },
+  { id: '26', name: 'Vinícius Júnior', countryCode: 'br', position: 'LW', club: 'Real Madrid', hints: ["Real Madrid talisman.", "Scored in 2022 & 2024 UCL finals.", "Dynamic Brazilian winger.", "Known for elite dribbling.", "Number 7 icon."], version: 'DEMO' },
+  { id: '27', name: 'Jude Bellingham', countryCode: 'gb-eng', position: 'CAM', club: 'Real Madrid', hints: ["English golden boy.", "Golden Boy 2023.", "Real Madrid's goal-scoring midfielder.", "Ex-Dortmund & Birmingham.", "Open arms celebration."], version: 'DEMO' },
+  { id: '28', name: 'Phil Foden', countryCode: 'gb-eng', position: 'RW', club: 'Man City', hints: ["Stockport Iniesta.", "PL Player of the Season 23/24.", "City homegrown hero.", "Elite technical ability.", "Three Lions creative hub."], version: 'DEMO' },
+  { id: '29', name: 'Bukayo Saka', countryCode: 'gb-eng', position: 'RW', club: 'Arsenal', hints: ["Starboy.", "Arsenal's main winger.", "England's constant threat.", "Hale End graduate.", "Left-footed magician."], version: 'DEMO' },
+  { id: '30', name: 'Jamal Musiala', countryCode: 'de', position: 'CAM', club: 'Bayern', hints: ["Germany's rising gem.", "Magic Musiala.", "Bayern Munich playmaker.", "Incredible close control.", "Ex-Chelsea academy."], version: 'DEMO' }
 ];
 
 export function getRandomFootballer(excludeIds: string[] = [], version: string = 'All'): Footballer {
@@ -71,7 +76,6 @@ export function getRandomFootballer(excludeIds: string[] = [], version: string =
     pool = FOOTBALLERS;
   }
   
-  // All players have equal probability
   const randomIndex = Math.floor(Math.random() * pool.length);
   return pool[randomIndex];
 }
