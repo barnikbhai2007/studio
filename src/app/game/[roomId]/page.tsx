@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -100,13 +101,22 @@ export default function GamePage() {
   useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
+      // Strict emote check: only emotes created within the last 3 seconds and definitely newer than what we have
       const newEmotes = recentEmotes
-        .filter(e => now - (e.createdAt?.seconds * 1000 || now) < 3000)
-        .map(e => ({ id: e.id, emoteId: e.emoteId, createdAt: e.createdAt?.seconds * 1000 }));
+        .filter(e => {
+          const createdAt = e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now);
+          return now - createdAt < 3000;
+        })
+        .map(e => ({ 
+          id: e.id, 
+          emoteId: e.emoteId, 
+          createdAt: e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now)
+        }));
       
       setActiveEmotes(prev => {
         const existingIds = new Set(prev.map(p => p.id));
         const filtered = newEmotes.filter(n => !existingIds.has(n.id));
+        if (filtered.length === 0) return prev;
         return [...prev, ...filtered].slice(-10);
       });
     }
@@ -155,7 +165,6 @@ export default function GamePage() {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
       
-      // RESET ALL ROUND STATE IMMEDIATELY
       revealTriggered.current = false;
       isInitializingRound.current = false;
       revealTimeouts.current.forEach(t => clearTimeout(t));
@@ -172,7 +181,6 @@ export default function GamePage() {
         setGameState('countdown');
         setCountdown(5);
       } else {
-        // ROUND 2+ starts immediately after summary/transition
         setGameState('playing');
       }
     }
@@ -182,8 +190,8 @@ export default function GamePage() {
     if (isInitializingRound.current || !isPlayer1 || !room || !roundRef || !roomRef) return;
     isInitializingRound.current = true;
 
-    const pickedRarity = getRandomRarity();
-    setCurrentRarity(pickedRarity);
+    const r1 = getRandomRarity().type;
+    const r2 = getRandomRarity().type;
 
     try {
       const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
@@ -192,7 +200,8 @@ export default function GamePage() {
         gameRoomId: roomId,
         roundNumber: currentRoundNumber,
         footballerId: player.id,
-        rarityType: pickedRarity.type,
+        player1Rarity: r1,
+        player2Rarity: r2,
         creatorId: room.player1Id,
         opponentId: room.player2Id,
         hintsRevealedCount: 1,
@@ -209,8 +218,6 @@ export default function GamePage() {
       await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
     } catch (err) {
       console.error("Round init error:", err);
-    } finally {
-      // isInitializingRound stays true until next round change handled by currentRoundNumber observer
     }
   }, [isPlayer1, room, roomId, currentRoundId, currentRoundNumber, roundRef, roomRef]);
 
@@ -221,12 +228,13 @@ export default function GamePage() {
   }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
-    // SYNC GUARD: Don't process stale round data
     if (roundData && roundData.roundNumber === currentRoundNumber && gameState === 'playing') {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
-      if (roundData.rarityType) {
-        const rarity = RARITIES.find(r => r.type === roundData.rarityType);
+      
+      const pRarityType = isPlayer1 ? roundData.player1Rarity : roundData.player2Rarity;
+      if (pRarityType) {
+        const rarity = RARITIES.find(r => r.type === pRarityType);
         if (rarity) setCurrentRarity(rarity);
       }
       
@@ -235,7 +243,7 @@ export default function GamePage() {
         handleRevealTrigger();
       }
     }
-  }, [roundData, gameState, currentRoundNumber]);
+  }, [roundData, gameState, currentRoundNumber, isPlayer1]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -245,7 +253,6 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    // Hint Reveal Logic
     if (gameState === 'playing' && visibleHints < 5 && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
@@ -311,14 +318,15 @@ export default function GamePage() {
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
     
+    // Snappy Reveal: 0.2s intervals
     const steps = [
-      { s: 'country', t: 1000 },
-      { s: 'none', t: 2200 },
-      { s: 'position', t: 2800 },
-      { s: 'none', t: 4000 },
-      { s: 'rarity', t: 4600 },
-      { s: 'none', t: 5800 },
-      { s: 'full-card', t: 6500 }
+      { s: 'country', t: 200 },
+      { s: 'none', t: 400 },
+      { s: 'position', t: 600 },
+      { s: 'none', t: 800 },
+      { s: 'rarity', t: 1000 },
+      { s: 'none', t: 1200 },
+      { s: 'full-card', t: 1400 }
     ];
 
     steps.forEach(step => {
@@ -329,7 +337,7 @@ export default function GamePage() {
     const finalT = setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
-    }, 11500);
+    }, 4500); // Sequence complete faster now
     revealTimeouts.current.push(finalT);
   };
 
@@ -422,9 +430,9 @@ export default function GamePage() {
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
         <video className="absolute inset-0 w-full h-full object-cover opacity-60" playsInline autoPlay src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4" />
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
-        <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
+        <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6 text-center">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
+            {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-300"><img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
             {revealStep === 'position' && targetPlayer && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer.position}</span></div>}
             {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black border-4 border-white/50 uppercase tracking-widest`}>{currentRarity.type}</Badge></div>}
           </div>
@@ -534,7 +542,7 @@ export default function GamePage() {
                   <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000" />
                 </div>
                 <Badge className={`${(roundData?.player1ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player1ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {(roundData?.player1ScoreChange ?? 0) > 0 ? `+${roundData.player1ScoreChange}` : (roundData?.player1ScoreChange ?? 0)} HP
+                  {(roundData?.player1ScoreChange ?? 0) > 0 ? `+${roundData.player1ScoreChange}` : (roundData?.player1ScoreChange ?? 0)} pts
                 </Badge>
               </Card>
               
@@ -546,7 +554,7 @@ export default function GamePage() {
                   <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000 rotate-180" />
                 </div>
                 <Badge className={`${(roundData?.player2ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player2ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {(roundData?.player2ScoreChange ?? 0) > 0 ? `+${roundData.player2ScoreChange}` : (roundData?.player2ScoreChange ?? 0)} HP
+                  {(roundData?.player2ScoreChange ?? 0) > 0 ? `+${roundData.player2ScoreChange}` : (roundData?.player2ScoreChange ?? 0)} pts
                 </Badge>
               </Card>
             </div>

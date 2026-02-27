@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -208,6 +209,14 @@
           "type": "string",
           "description": "Reference to the Footballer entity that is the correct answer for this round. (Relationship: Footballer 1:N GameRound)"
         },
+        "player1Rarity": {
+          "type": "string",
+          "description": "The rarity pulled by player 1 for this round."
+        },
+        "player2Rarity": {
+          "type": "string",
+          "description": "The rarity pulled by player 2 for this round."
+        },
         "creatorGuess": {
           "type": "string",
           "description": "The guess provided by the room creator for this round. Null if no guess was made."
@@ -393,6 +402,6 @@
         }
       }
     ],
-    "reasoning": "The recommended Firestore structure is designed to be secure, scalable, and highly debuggable, strictly adhering to the core design principles and strategy mandates. \n\n**Authorization Independence (CRITICAL) and QAPs:**\n\n1.  **User Profiles (`/users/{userId}`):** User profiles are stored in a top-level collection, with each document ID (`userId`) matching the Firebase Authentication UID. This directly satisfies Authorization Independence as `request.auth.uid` can be compared directly to the document's path `userId` to grant access, eliminating any need for `get()` calls in security rules. For QAPs (Queries as Permissions), users can only retrieve or modify their own profile, enabling secure `get` operations. Listing other users' profiles can be restricted or limited to public fields. \n\n2.  **Footballers (`/footballers/{footballerId}`):** This collection stores static, publicly available game data. Access is globally readable, with write access typically restricted to administrators. This structure is inherently authorization-independent as no specific user context is required for reads. QAPs are naturally met as any user can list or get any footballer document.\n\n3.  **Game Rooms (`/gameRooms/{gameRoomId}`):** Each `GameRoom` document includes `creatorId` and `opponentId`. These fields are crucial for Authorization Independence; security rules can directly check if `request.auth.uid` matches either the `creatorId` or `opponentId` within the `GameRoom` document (`resource.data.creatorId` or `resource.data.opponentId`) without performing cross-document `get()` operations. This design supports atomic updates to `GameRoom` documents. For QAPs, players can query for game rooms where they are either the creator or the opponent (e.g., `where('creatorId', '==', uid)` or `where('opponentId', '==', uid)`), ensuring that `list` operations only return relevant, authorized results.\n\n4.  **Game Rounds (`/gameRooms/{gameRoomId}/rounds/{roundId}`):** `GameRound` documents are nested within their respective `GameRoom`s. To ensure Authorization Independence for subcollections (as per Strategy A), each `GameRound` document **denormalizes** the `creatorId` and `opponentId` from its parent `GameRoom`. This means security rules for `GameRound` can directly evaluate permissions based on fields within the `GameRound` document itself, avoiding expensive and non-atomic `get(/databases/$(database)/documents/gameRooms/$(gameRoomId))` calls. This denormalization also supports QAPs, allowing players to list all rounds for a specific `gameRoomId` they are authorized to access.\n\n5.  **Battle Histories (`/battleHistories/{battleHistoryId}`):** This collection aggregates head-to-head statistics between two players. Each document explicitly contains `player1Id` and `player2Id`. Similar to `GameRoom`, Authorization Independence is achieved because security rules can directly check if `request.auth.uid` matches either `player1Id` or `player2Id` in the document. To ensure a predictable and consistent document ID for a given pair of players, the `battleHistoryId` could be programmatically generated (e.g., concatenating the lexicographically sorted `uid`s, `uid1_uid2`). This structure supports QAPs by allowing players to query for battle histories where they are either `player1Id` or `player2Id`.\n\n**Structural Segregation and Access Modeling:**\n\n*   **Segregation:** All documents within a collection (`/users`, `/footballers`, `/gameRooms`, `/battleHistories`) share a homogeneous security posture. For `GameRound`, although nested, it shares the same player-specific access requirements as its parent `GameRoom`, further enforced by denormalization.\n*   **Access Modeling:**\n    *   **Private Data:** `UserProfile` follows the path-based ownership pattern (`/users/{userId}`).\n    *   **User-Owned/Collaborative Data:** `GameRoom` and `BattleHistory` utilize explicit player ID fields (`creatorId`, `opponentId`, `player1Id`, `player2Id`) to define collaboration and ownership.\n    *   **Nested Data:** `GameRound` uses a hierarchical path, with denormalized fields for independent rule evaluation.\n    *   **Global Data:** `Footballer` is a global, publicly readable collection."
+    "reasoning": "The structure adheres to Authorization Independence and supports QAPs for secure, scalable access."
   }
 }
