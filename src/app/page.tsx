@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc, collection, arrayUnion, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
@@ -39,6 +39,13 @@ export default function LandingPage() {
   const { data: allRooms } = useCollection(roomsRef);
   const { data: allPlayers } = useCollection(playersRef);
 
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user) return null;
+    return doc(db, "userProfiles", user.uid);
+  }, [db, user]);
+
+  const { data: profileData } = useDoc(userProfileRef);
+
   const roomsToday = useMemo(() => {
     if (!allRooms) return 0;
     return allRooms.filter(r => r.createdAt && isToday(new Date(r.createdAt))).length;
@@ -46,13 +53,11 @@ export default function LandingPage() {
 
   const playerCount = useMemo(() => allPlayers?.length || 0, [allPlayers]);
 
-  // Handle Rank 1 Seasonal Reset Quest - Deliver only during the reset window
   useEffect(() => {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
       
       const now = new Date();
-      // Reset Window: Monday 00:00 IST to 01:00 IST (UTC Sunday 18:30 - 19:30)
       const isResetWindow = now.getUTCDay() === 0 && now.getUTCHours() >= 18 && now.getUTCHours() < 20;
       
       if (isResetWindow) {
@@ -193,7 +198,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
-      {/* Welcome Manual & Asset Sync Overlay */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -271,7 +275,6 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Support Dev Overlay */}
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
@@ -312,7 +315,6 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Info / About Me Overlay */}
       {showAbout && (
         <div className="fixed inset-0 z-[120] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -374,10 +376,22 @@ export default function LandingPage() {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex items-center justify-between bg-white/5 p-4 rounded-3xl border border-white/5">
               <div className="flex items-center gap-4">
-                <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
+                <div className="relative">
+                  <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
+                  <div className="absolute -bottom-1 -right-1 bg-secondary text-secondary-foreground rounded-full p-0.5 border-2 border-[#0a0a0b]">
+                    <Trophy className="w-2.5 h-2.5" />
+                  </div>
+                </div>
                 <div className="flex flex-col">
-                  <span className="font-black text-sm uppercase">{user.displayName}</span>
-                  <span className="text-[8px] text-primary font-black tracking-widest uppercase">WELCOME BACK DUELIST</span>
+                  <span className="font-black text-sm uppercase truncate max-w-[120px]">{user.displayName}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8px] text-primary font-black tracking-widest uppercase flex items-center gap-0.5">
+                      <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0}
+                    </span>
+                    <span className="text-[8px] text-slate-500 font-black tracking-widest uppercase flex items-center gap-0.5">
+                      <Swords className="w-2 h-2" /> {profileData?.totalGamesPlayed || 0}
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl">
@@ -464,7 +478,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Floating Info Button */}
       <Button 
         onClick={() => setShowManual(true)} 
         size="icon" 
