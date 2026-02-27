@@ -11,33 +11,29 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles: Allow public reading for leaderboard and results.
-    // Writes restricted to the owner, but update is open to signed-in users
-    // to allow game results to be logged by either participant.
+    // User Profiles: Publicly readable for leaderboards/results.
+    // Writes restricted to signed-in users.
     match /userProfiles/{userId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
-    // Game Rooms: Allow public reading so anyone can join via code and see stats.
-    // Allow any signed-in user to create or update a room.
+    // Game Rooms: Restricted to authenticated users for all operations.
     match /gameRooms/{roomId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if request.auth != null;
       
-      // Allow subcollections (rounds, emotes) to be handled by players.
+      // Apply the same authentication requirement to all sub-collections (rounds, emotes).
       match /{allSubdocs=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if request.auth != null;
       }
     }
 
-    // Battle Histories: Allow public read, write for signed-in players.
+    // Battle Histories: Authenticated access for logging head-to-head stats.
     match /battleHistories/{bhId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
-    // Footballers: Static game data is publicly readable.
+    // Footballers: Static game data is publicly readable for all users.
     match /footballers/{footballerId} {
       allow read: if true;
     }
