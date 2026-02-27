@@ -169,9 +169,7 @@ export default function GamePage() {
         if (roomRef) {
           await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
         }
-      } catch (err) {
-        console.error("Failed to initialize round:", err);
-      } finally {
+      } catch (err) {} finally {
         isInitializingRound.current = false;
       }
     } else {
@@ -399,10 +397,7 @@ export default function GamePage() {
       await batch.commit();
       toast({ title: "MATCH CONCEDED", description: "DUEL LOGGED AS DEFEAT." });
       router.push(`/result/${roomId}`);
-    } catch (error) {
-      console.error("Forfeit error:", error);
-      toast({ variant: "destructive", title: "FORFEIT FAILED", description: "SERVER NOT SYNCING." });
-    }
+    } catch (error) {}
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -429,7 +424,7 @@ export default function GamePage() {
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
-            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white tracking-tighter drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
+            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
             {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black border-4 border-white/50 uppercase tracking-widest`}>{currentRarity.type}</Badge></div>}
           </div>
           {revealStep === 'full-card' && currentRarity && (
@@ -445,7 +440,7 @@ export default function GamePage() {
                 
                 <div className="mt-auto relative z-20 p-4">
                   <div className="bg-black/90 backdrop-blur-xl p-6 rounded-[2rem] border border-white/10 shadow-2xl flex flex-col items-center text-center">
-                    <h3 className="text-3xl md:text-4xl font-black uppercase text-white tracking-tighter leading-none mb-4">
+                    <h3 className="text-3xl md:text-4xl font-black uppercase text-white leading-none mb-4">
                       {targetPlayer?.name}
                     </h3>
                     <img 
@@ -482,7 +477,7 @@ export default function GamePage() {
            <div className="relative">
               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
               <div className="relative z-10 space-y-6">
-                 <h2 className="text-7xl font-black text-white uppercase tracking-tighter animate-bounce">
+                 <h2 className="text-7xl font-black text-white uppercase animate-bounce">
                     {room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}
                  </h2>
                  <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/10">
@@ -654,8 +649,8 @@ export default function GamePage() {
         <div className="fixed inset-0 z-50 bg-black/98 flex flex-col items-center justify-center p-6 space-y-8 animate-in fade-in backdrop-blur-3xl">
            <Trophy className="w-16 h-16 text-secondary animate-bounce" />
            <div className="text-center space-y-2">
-              <h2 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter">{targetPlayer?.name}</h2>
-              <Badge className="bg-primary text-black font-black text-lg px-6 py-1 skew-x-[-12deg]">ROUND OVER</Badge>
+              <h2 className="text-4xl md:text-6xl font-black text-white uppercase">{targetPlayer?.name}</h2>
+              <Badge className="bg-primary text-black font-black text-lg px-6 py-1">ROUND OVER</Badge>
            </div>
            
            <div className="w-full max-w-md grid grid-cols-2 gap-4">

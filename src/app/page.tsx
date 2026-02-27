@@ -55,7 +55,6 @@ export default function LandingPage() {
         const snapshot = await getCountFromServer(coll);
         setTotalPlayers(snapshot.data().count);
       } catch (e) {
-        console.error("Error fetching player count:", e);
         setTotalPlayers(0);
       }
     };
@@ -164,7 +163,6 @@ export default function LandingPage() {
       }
       router.push(`/lobby/${roomCode.trim()}`);
     } catch (error: any) {
-      console.error("Join error:", error);
       toast({ variant: "destructive", title: "Join Failed", description: "Check connection or permissions." });
       setIsActionLoading(false);
     }
@@ -230,8 +228,8 @@ export default function LandingPage() {
                           <li className="flex gap-2"><span className="text-primary">1.</span> Create a room or join one using a room code.</li>
                           <li className="flex gap-2"><span className="text-primary">2.</span> Wait in the lobby until both players are ready.</li>
                           <li className="flex gap-2"><span className="text-primary">3.</span> Each round, a footballer will be revealed.</li>
-                          <li className="flex gap-2"><span className="text-primary">4.</span> Correct guess = +10 points. Wrong guess = –10 points. Skip = 0 points.</li>
-                          <li className="flex gap-2"><span className="text-primary">5.</span> If both players score the same, health remains unchanged. If one gets +10 and the other –10, the second player loses 20 health.</li>
+                          <li className="flex gap-2"><span className="text-primary">4.</span> Correct guess = +10 points. Wrong guess = -10 points. Skip = 0 points.</li>
+                          <li className="flex gap-2"><span className="text-primary">5.</span> If both players score the same, health remains unchanged. If one gets +10 and the other -10, the second player loses 20 health.</li>
                           <li className="flex gap-2"><span className="text-primary">6.</span> Forfeiting the match or dropping to 0 health results in defeat.</li>
                         </ul>
                       </div>
@@ -276,7 +274,7 @@ export default function LandingPage() {
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
               
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4 text-center">
-                Scan the QR code and help the project to run for more days.
+                Buy the dev a coffee. Scan the QR code and help the project to run for more days.
               </p>
 
               <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">

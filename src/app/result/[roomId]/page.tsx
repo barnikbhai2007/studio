@@ -90,7 +90,7 @@ export default function ResultPage() {
       if (!unlocked.includes('ten_wins')) {
         updateDoc(doc(db, "userProfiles", user.uid), {
           unlockedEmoteIds: arrayUnion('ten_wins')
-        }).catch(err => console.error("Quest update failed", err));
+        }).catch(err => {});
       }
     }
   }, [p1Profile, p2Profile, user, isPlayer1, db, room]);
@@ -128,9 +128,7 @@ export default function ResultPage() {
         finishedAt: null,
       });
       await batch.commit();
-    } catch (e) {
-      console.error("Failed to reset game:", e);
-    }
+    } catch (e) {}
   };
 
   if (isUserLoading || isRoomLoading || !room || !p1Profile) {

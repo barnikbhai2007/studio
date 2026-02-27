@@ -9,15 +9,16 @@ service cloud.firestore {
     // User Profiles: Publicly readable for leaderboard and match results
     match /userProfiles/{userId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn();
     }
 
-    // Game Rooms: Allow reading (get/list) for all to support history and joining
-    // Using a recursive wildcard to ensure all sub-collections are also readable
+    // Game Rooms: Allow reading (get/list) for all to support history and stats
     match /gameRooms/{roomId} {
       allow read: if true;
       allow create, update: if isSignedIn();
       
+      // Sub-collections (rounds, emotes)
       match /{allChildren=**} {
         allow read, write: if isSignedIn();
       }
@@ -25,7 +26,8 @@ service cloud.firestore {
 
     // Battle Histories: Real-time syncing between players
     match /battleHistories/{battleHistoryId} {
-      allow read, write: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     // Footballers: Static data, publicly readable
