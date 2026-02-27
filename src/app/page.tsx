@@ -206,11 +206,11 @@ export default function LandingPage() {
             </div>
             
             <div className="w-full space-y-4">
-              <h2 className="text-3xl font-black uppercase tracking-normal text-primary">
+              <h2 className="text-3xl font-black uppercase text-primary">
                 {isSyncing ? "SYNCING CAREER" : "Welcome to FootyDuel!"}
               </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
-                <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
+                <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
                   {isSyncing ? (
                     <div className="space-y-4 text-center py-8">
                        <p className="text-sm">SETTING UP PLAYER INTELLIGENCE...</p>
@@ -270,7 +270,7 @@ export default function LandingPage() {
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
               <div className="flex flex-col items-center gap-2 text-center">
                 <Coffee className="w-10 h-10 text-primary" />
-                <h2 className="text-2xl font-black uppercase text-primary tracking-normal leading-tight">BUY THE DEV A COFFEE</h2>
+                <h2 className="text-2xl font-black uppercase text-primary leading-tight">BUY THE DEV A COFFEE</h2>
               </div>
               
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
@@ -301,13 +301,13 @@ export default function LandingPage() {
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-normal text-white uppercase">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black text-white uppercase">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-black text-white uppercase tracking-normal">AUTHENTICATION</CardTitle>
+              <CardTitle className="text-2xl font-black text-white uppercase">AUTHENTICATION</CardTitle>
               <CardDescription className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Join the global duelist arena</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
@@ -327,7 +327,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-black text-base uppercase truncate max-w-[140px] tracking-tight">{user.displayName}</span>
+                  <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
                       <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0} WINS
@@ -369,7 +369,7 @@ export default function LandingPage() {
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
               </Button>
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
+              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Info className="w-5 h-5 mr-2 text-primary" /> INFO
               </Button>
             </div>
