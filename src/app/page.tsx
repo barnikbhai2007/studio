@@ -1,23 +1,25 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, X, Coffee
+  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, limit, getCountFromServer } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, limit, getCountFromServer, arrayUnion } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { startOfDay } from "date-fns";
-import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
+import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, ALL_EMOTES } from "@/lib/emote-data";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -27,6 +29,8 @@ export default function LandingPage() {
   const [showSupport, setShowSupport] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [totalPlayers, setTotalPlayers] = useState(0);
+  const [completedQuest, setCompletedQuest] = useState<any>(null);
+
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -60,6 +64,27 @@ export default function LandingPage() {
     };
     fetchTotalPlayers();
   }, [db]);
+
+  // --- GLOBAL QUEST SYNC ---
+  const syncQuests = useCallback(async () => {
+    if (!user || !profileData) return;
+    const currentUnlocked = profileData.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+    
+    // Check 10 Wins Quest
+    if (profileData.totalWins >= 10 && !currentUnlocked.includes('ten_wins')) {
+      const uRef = doc(db, "userProfiles", user.uid);
+      await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('ten_wins') });
+      const emote = ALL_EMOTES.find(e => e.id === 'ten_wins');
+      setCompletedQuest({ title: 'SEASONED DUELIST (10 WINS)', emote });
+      toast({ title: "QUEST UNLOCKED", description: "SEASONED DUELIST REWARD GRANTED." });
+    }
+  }, [user, profileData, db, toast]);
+
+  useEffect(() => {
+    if (profileData) {
+      syncQuests();
+    }
+  }, [profileData, syncQuests]);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -179,6 +204,30 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Global Quest Completion Popup */}
+      <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
+        <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/30 blur-[60px] animate-pulse" />
+            <PartyPopper className="w-16 h-16 text-primary relative z-10 animate-bounce" />
+          </div>
+          <div className="space-y-2 relative z-10">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">QUEST COMPLETE!</h2>
+            <p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p>
+          </div>
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-3 w-full relative z-10">
+            <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase">REWARD UNLOCKED</p>
+              <p className="text-sm font-black text-white uppercase">{completedQuest?.emote?.name}</p>
+            </div>
+          </div>
+          <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">
+            CLAIM REWARD
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">

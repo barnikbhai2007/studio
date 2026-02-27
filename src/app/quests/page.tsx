@@ -20,8 +20,8 @@ export default function QuestsPage() {
   const { data: profile } = useDoc(userRef);
 
   // Merge defaults to ensure base emotes are never treated as locked
-  const unlockedIds = Array.from(new Set([...UNLOCKED_EMOTE_IDS, ...(profile?.unlockedEmoteIds || [])]));
-
+  const unlockedIdsFromDb = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+  
   const totalWeight = RARITIES.reduce((acc, r) => acc + r.weight, 0);
 
   const quests = [
@@ -30,49 +30,56 @@ export default function QuestsPage() {
       title: "PLATINUM DISCOVERY",
       description: "Encounter a PLATINUM rarity CRISTIANO RONALDO during a duel reveal.",
       rewardId: "ronaldo_platinum",
-      icon: <Star className="w-5 h-5 text-cyan-400" />
+      icon: <Star className="w-5 h-5 text-cyan-400" />,
+      requirementMet: false // Card based, checked in-game
     },
     {
       id: "q2",
       title: "DIAMOND MAESTRO",
       description: "Encounter a DIAMOND rarity LIONEL MESSI during a duel reveal.",
       rewardId: "messi_diamond",
-      icon: <Sparkles className="w-5 h-5 text-indigo-400" />
+      icon: <Sparkles className="w-5 h-5 text-indigo-400" />,
+      requirementMet: false // Card based, checked in-game
     },
     {
       id: "q3",
       title: "GOLDEN FINISHER",
       description: "Encounter a GOLD rarity ERLING HAALAND during a duel reveal.",
       rewardId: "haaland_gold",
-      icon: <Flame className="w-5 h-5 text-yellow-500" />
+      icon: <Flame className="w-5 h-5 text-yellow-500" />,
+      requirementMet: false // Card based, checked in-game
     },
     {
       id: "q4",
       title: "SILVER SPEEDSTER",
       description: "Encounter a SILVER rarity KYLIAN MBAPPÉ during a duel reveal.",
       rewardId: "mbappe_silver",
-      icon: <ShieldCheck className="w-5 h-5 text-slate-300" />
+      icon: <ShieldCheck className="w-5 h-5 text-slate-300" />,
+      requirementMet: false // Card based, checked in-game
     },
     {
       id: "q5",
       title: "MASTER SKILLER",
       description: "Encounter a MASTER rarity NEYMAR JR during a duel reveal.",
       rewardId: "neymar_master",
-      icon: <Target className="w-5 h-5 text-purple-500" />
+      icon: <Target className="w-5 h-5 text-purple-500" />,
+      requirementMet: false // Card based, checked in-game
     },
     {
       id: "q6",
       title: "SEASONED DUELIST",
       description: "Reach a career total of 10 VICTORIES.",
       rewardId: "ten_wins",
-      icon: <Trophy className="w-5 h-5 text-primary" />
+      icon: <Trophy className="w-5 h-5 text-primary" />,
+      requirementMet: (profile?.totalWins || 0) >= 10
     },
     {
       id: "q7",
       title: "KING OF THE HILL",
       description: "Achieve RANK 1 when the Global Season resets (Monday 00:00 IST).",
       rewardId: "rank_one",
-      icon: <Crown className="w-5 h-5 text-secondary" />
+      icon: <Crown className="w-5 h-5 text-secondary" />,
+      requirementMet: false // Time based
     }
   ];
 
@@ -123,7 +130,7 @@ export default function QuestsPage() {
             <div className="grid gap-4">
               {quests.map((quest) => {
                 const emote = ALL_EMOTES.find(e => e.id === quest.rewardId);
-                const isUnlocked = unlockedIds.includes(quest.rewardId);
+                const isUnlocked = unlockedIdsFromDb.includes(quest.rewardId) || quest.requirementMet;
                 
                 return (
                   <Card key={quest.id} className={`bg-[#161618] border-white/5 rounded-3xl overflow-hidden transition-all group ${isUnlocked ? 'border-primary/40 bg-primary/5' : 'hover:border-white/10'}`}>

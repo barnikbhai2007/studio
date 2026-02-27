@@ -27,8 +27,12 @@ export default function EmotesPage() {
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ALWAYS merge the 7 base emotes with whatever is in DB
-  const unlockedList = Array.from(new Set([...UNLOCKED_EMOTE_IDS, ...(profile?.unlockedEmoteIds || [])]));
+  // Merge logic: Base Emotes + Unlocked from DB + Wins requirement
+  const unlockedList = Array.from(new Set([
+    ...UNLOCKED_EMOTE_IDS, 
+    ...(profile?.unlockedEmoteIds || []),
+    ...(profile?.totalWins >= 10 ? ['ten_wins'] : [])
+  ]));
 
   useEffect(() => {
     if (profile) {
