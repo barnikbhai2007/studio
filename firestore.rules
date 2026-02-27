@@ -6,22 +6,23 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // User Profiles: Publicly readable for leaderboard and results.
-    // Creation/Update allowed for authenticated users.
+    // User Profiles: Publicly readable for leaderboard and stats.
+    // Writes restricted to authenticated users.
     match /userProfiles/{userId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow write: if isSignedIn();
     }
 
     // Game Rooms: Allow public list/get for today's stats and match history.
     // Writes restricted to authenticated users.
     match /gameRooms/{roomId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow write: if isSignedIn();
       
       // Sub-collections (rounds, emotes)
       match /{allChildren=**} {
-        allow read, write: if isSignedIn();
+        allow read: if true;
+        allow write: if isSignedIn();
       }
     }
 

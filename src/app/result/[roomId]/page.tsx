@@ -25,9 +25,8 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
-  // Memoize betweenIds strictly to prevent query loops
   const bid = useMemo(() => {
-    if (!room || !room.player1Id || !room.player2Id) return null;
+    if (!room?.player1Id || !room?.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
   }, [room]);
 
@@ -63,7 +62,7 @@ export default function ResultPage() {
   }, [room?.status, roomId, router]);
 
   useEffect(() => {
-    if (!room || !user || !room.player1Id) return;
+    if (!room?.player1Id || !user) return;
 
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
       if (snap.exists()) setP1Profile(snap.data());
@@ -80,23 +79,10 @@ export default function ResultPage() {
       unsubP1();
       unsubP2();
     };
-  }, [room, db, user]);
-
-  useEffect(() => {
-    if (!user || !db || !room || !p1Profile) return;
-    const profile = isPlayer1 ? p1Profile : p2Profile;
-    if (profile && typeof profile.totalWins === 'number' && profile.totalWins >= 10) {
-      const unlocked = profile.unlockedEmoteIds || [];
-      if (!unlocked.includes('ten_wins')) {
-        updateDoc(doc(db, "userProfiles", user.uid), {
-          unlockedEmoteIds: arrayUnion('ten_wins')
-        }).catch(() => {});
-      }
-    }
-  }, [p1Profile, p2Profile, user, isPlayer1, db, room]);
+  }, [room?.player1Id, room?.player2Id, db, user]);
 
   const h2hStats = useMemo(() => {
-    if (!recentMatches || !room || !room.player1Id || !room.player2Id) return { p1: 0, p2: 0, total: 0 };
+    if (!recentMatches || !room?.player1Id || !room?.player2Id) return { p1: 0, p2: 0, total: 0 };
     const p1Id = room.player1Id;
     const p2Id = room.player2Id;
     
