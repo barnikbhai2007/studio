@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { 
   Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, ScrollText, X
+  BarChart3, Smile, Sparkles, ScrollText, X, Coffee
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -40,7 +40,6 @@ export default function LandingPage() {
 
   const { data: profileData } = useDoc(userProfileRef);
 
-  // Optimized query for counts - checking only recent rooms to avoid permission/limit issues
   const todayQuery = useMemoFirebase(() => {
     const today = startOfDay(new Date()).toISOString();
     return query(collection(db, "gameRooms"), where("createdAt", ">=", today), limit(50));
@@ -54,7 +53,6 @@ export default function LandingPage() {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
       const now = new Date();
-      // Target: Monday 00:00 IST = Sunday 18:30 UTC. 
       const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() >= 18 && now.getUTCHours() <= 19;
       
       if (isResetWindow) {
@@ -85,9 +83,10 @@ export default function LandingPage() {
 
   const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
+    setSyncProgress(0);
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 8;
+      progress += Math.random() * 12;
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
@@ -111,11 +110,12 @@ export default function LandingPage() {
             await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
           }
           setIsSyncing(false);
+          setShowManual(true); // Show welcome message after setup
           toast({ title: "Duelist Ready", description: `LOGGED IN AS ${displayName?.toUpperCase()}` });
         }, 800);
       }
       setSyncProgress(progress);
-    }, 200);
+    }, 150);
   };
 
   const handleCreateRoom = async () => {
@@ -185,10 +185,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
-      {/* Background Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Overlays: Manual & Support */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -214,36 +212,52 @@ export default function LandingPage() {
             
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">
-                {isSyncing ? "Syncing Career" : "🎮 How to Duel"}
+                {isSyncing ? "SYNCING CAREER" : "🎮 Welcome to FootyDuel!"}
               </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
-                <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
-                  <p className="text-white text-sm leading-tight">
-                    FootyDuel is a real-time 1v1 footballer guessing battle.
-                  </p>
-                  <div className="space-y-3">
-                    <h3 className="text-primary flex items-center gap-2">
-                      <ScrollText className="w-4 h-4" /> Rules:
-                    </h3>
-                    <ul className="space-y-2 list-none">
-                      <li>• Correct guess = +10 HP gain potential.</li>
-                      <li>• Wrong guess = –10 HP risk.</li>
-                      <li>• Skip = 0 HP change.</li>
-                      <li>• Win 10 matches to unlock the VICTORY ROYALE emote!</li>
-                      <li>• Encounter rare cards to unlock their exclusive emotes.</li>
-                    </ul>
-                  </div>
+                <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
+                  {isSyncing ? (
+                    <div className="space-y-4 text-center py-8">
+                       <p className="text-sm">SETTING UP PLAYER INTELLIGENCE...</p>
+                       <p className="opacity-50">ESTABLISHING SECURE CONNECTION TO ARENA...</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-white text-sm leading-tight">
+                        FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
+                      </p>
+                      
+                      <div className="space-y-4">
+                        <h3 className="text-primary flex items-center gap-2 text-sm">
+                          <Plus className="w-4 h-4" /> HOW IT WORKS:
+                        </h3>
+                        <ul className="space-y-3 list-none">
+                          <li className="flex gap-2"><span className="text-primary">1.</span> Create a room or join one using a room code.</li>
+                          <li className="flex gap-2"><span className="text-primary">2.</span> Wait in the lobby until both players are ready.</li>
+                          <li className="flex gap-2"><span className="text-primary">3.</span> Each round, a footballer will be revealed.</li>
+                          <li className="flex gap-2"><span className="text-primary">4.</span> Correct guess = +10 points. Wrong guess = –10 points. Skip = 0 points.</li>
+                          <li className="flex gap-2"><span className="text-primary">5.</span> If both players score the same, health remains unchanged. If one gets +10 and the other –10, the second player loses 20 health.</li>
+                          <li className="flex gap-2"><span className="text-primary">6.</span> Forfeiting the match or dropping to 0 health results in defeat.</li>
+                        </ul>
+                      </div>
+
+                      <div className="pt-4 border-t border-white/10 space-y-4">
+                        <p className="text-primary text-sm">🔥 Stay fast. Stay sharp. Prove your football knowledge.</p>
+                        <p className="text-slate-400 italic">Good luck and have fun! ~ Barnik (brokenAqua)</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </ScrollArea>
               {isSyncing ? (
                 <div className="w-full space-y-2 px-4">
                   <Progress value={syncProgress} className="h-2 bg-white/5" />
                   <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
-                    Syncing Intelligence... {Math.round(syncProgress)}%
+                    SETUP FILE LOADING... {Math.round(syncProgress)}%
                   </p>
                 </div>
               ) : (
-                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl">
+                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-[0_0_30px_rgba(255,123,0,0.3)]">
                   READY TO KICKOFF
                 </Button>
               )}
@@ -254,14 +268,25 @@ export default function LandingPage() {
 
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
+          <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
             <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
               <X className="w-6 h-6" />
             </Button>
-            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-8 flex flex-col items-center">
-              <h2 className="text-3xl font-black uppercase text-primary tracking-tighter">SUPPORT DEV</h2>
-              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR" />
-              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">BACK</Button>
+            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
+              <div className="flex flex-col items-center gap-2">
+                <Coffee className="w-10 h-10 text-primary" />
+                <h2 className="text-2xl font-black uppercase text-primary tracking-tighter leading-tight">BUY THE DEV A COFFEE</h2>
+              </div>
+              
+              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
+              
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4">
+                Scan the QR code and help the project to run for more days.
+              </p>
+
+              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
+                BACK TO DUEL
+              </Button>
             </div>
           </div>
         </div>
@@ -353,7 +378,7 @@ export default function LandingPage() {
 
             <div className="pt-2">
               <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest">
-                <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT DEVELOPER
+                <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT THE DEV
               </Button>
             </div>
           </div>
@@ -367,7 +392,7 @@ export default function LandingPage() {
            </div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
               <Users className="text-primary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS online</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS ONLINE</span>
               <span className="text-2xl font-black">{playerCount}</span>
            </div>
         </div>
