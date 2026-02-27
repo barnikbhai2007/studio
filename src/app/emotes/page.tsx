@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Smile, ArrowLeft, Save, CheckCircle2, Lock, Sparkles, Trophy } from "lucide-react";
+import { Smile, ArrowLeft, Save, CheckCircle2, Lock, Sparkles, Trophy, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
 
 export default function EmotesPage() {
   const router = useRouter();
@@ -49,7 +48,7 @@ export default function EmotesPage() {
     
     if (!isCurrentlyEquipped) {
       if (!unlockedList.includes(emoteId)) {
-        toast({ variant: "destructive", title: "LOCKED", description: "COMPLETE QUESTS TO UNLOCK." });
+        toast({ variant: "destructive", title: "LOCKED", description: "COMPLETE QUESTS OR WIN SEASONS TO UNLOCK." });
         return;
       }
       if (equippedIds.length >= 6) {
@@ -78,6 +77,14 @@ export default function EmotesPage() {
     return <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]"><Smile className="w-12 h-12 text-primary animate-spin" /></div>;
   }
 
+  // Filter out Rank One from Locked list - it's a hidden reward
+  const visibleEmotes = ALL_EMOTES.filter(e => {
+    if (e.id === SEASON_REWARD_EMOTE_ID) {
+      return unlockedList.includes(e.id); // Only show Rank One if owned
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white p-4 flex flex-col items-center">
       <div className="w-full max-w-2xl space-y-8 py-8">
@@ -103,8 +110,13 @@ export default function EmotesPage() {
                 {equippedIds.map(id => {
                   const emote = ALL_EMOTES.find(e => e.id === id);
                   return (
-                    <div key={id} onClick={() => toggleEmote(id)} className="relative aspect-square rounded-2xl border-2 border-primary overflow-hidden cursor-pointer">
-                      <img src={emote?.url} className="w-full h-full object-cover" alt={emote?.name} />
+                    <div key={id} onClick={() => toggleEmote(id)} className="relative aspect-square rounded-2xl border-2 border-primary overflow-hidden cursor-pointer group">
+                      <img src={emote?.url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt={emote?.name} />
+                      {id === SEASON_REWARD_EMOTE_ID && (
+                        <div className="absolute top-1 right-1 bg-primary text-black p-0.5 rounded shadow-lg">
+                          <Crown className="w-3 h-3" />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -117,7 +129,7 @@ export default function EmotesPage() {
               <Sparkles className="w-4 h-4 text-primary" /> COLLECTION
             </h3>
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {ALL_EMOTES.filter(e => e.id !== 'rank_one' || unlockedList.includes('rank_one')).map(emote => {
+              {visibleEmotes.map(emote => {
                 const isEquipped = equippedIds.includes(emote.id);
                 const isUnlocked = unlockedList.includes(emote.id);
                 return (
@@ -125,6 +137,11 @@ export default function EmotesPage() {
                     <img src={emote.url} className="w-full h-full object-cover" alt={emote.name} />
                     {isEquipped && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><CheckCircle2 className="w-8 h-8 text-primary" /></div>}
                     {!isUnlocked && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Lock className="w-6 h-6 text-white/60" /></div>}
+                    {emote.id === SEASON_REWARD_EMOTE_ID && (
+                      <div className="absolute top-2 right-2 bg-primary text-black p-1 rounded shadow-lg">
+                        <Crown className="w-4 h-4" />
+                      </div>
+                    )}
                   </div>
                 );
               })}

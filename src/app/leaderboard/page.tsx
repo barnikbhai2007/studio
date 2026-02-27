@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -8,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { 
   Trophy, ArrowLeft, Medal, Users, Swords, 
-  TrendingUp, Clock, Sparkles, Flame
+  TrendingUp, Clock, Sparkles, Flame, Crown
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, query, orderBy, limit } from "firebase/firestore";
+import { ALL_EMOTES, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
 
 export default function LeaderboardPage() {
   const router = useRouter();
@@ -20,28 +20,25 @@ export default function LeaderboardPage() {
   const leaderboardQuery = useMemoFirebase(() => {
     return query(
       collection(db, "userProfiles"),
-      orderBy("totalWins", "desc"),
-      limit(10)
+      orderBy("weeklyWins", "desc"),
+      limit(5)
     );
   }, [db]);
 
   const { data: topPlayers, isLoading } = useCollection(leaderboardQuery);
-
-  // Dynamic countdown for the weekly refresh (Next Monday 00:00 IST)
   const [timeLeft, setTimeLeft] = useState("");
+  const rewardEmote = ALL_EMOTES.find(e => e.id === SEASON_REWARD_EMOTE_ID);
 
   useEffect(() => {
     const calculateTime = () => {
       const now = new Date();
-      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC
       const target = new Date();
-      target.setUTCHours(18, 30, 0, 0);
+      target.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
       
       const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
       const daysUntilSunday = (7 - day) % 7;
       target.setUTCDate(now.getUTCDate() + daysUntilSunday);
       
-      // If target is in the past (it's Sunday evening), move to next Sunday
       if (target <= now) {
         target.setUTCDate(target.getUTCDate() + 7);
       }
@@ -55,7 +52,7 @@ export default function LeaderboardPage() {
     };
 
     calculateTime();
-    const timer = setInterval(calculateTime, 60000); // Refresh every minute
+    const timer = setInterval(calculateTime, 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -82,62 +79,74 @@ export default function LeaderboardPage() {
           <div className="flex flex-col">
             <h1 className="text-4xl font-black uppercase tracking-tighter">HALL OF FAME</h1>
             <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase flex items-center gap-2">
-              <Sparkles className="w-3 h-3" /> GLOBAL RANKINGS
+              <Sparkles className="w-3 h-3" /> TOP 5 ELITE DUELISTS
             </span>
           </div>
         </header>
 
-        <section className="grid gap-4">
+        <section className="grid gap-6">
+          <Card className="bg-primary/5 border-primary/20 rounded-[2rem] p-6 border-2 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_40px_rgba(249,115,22,0.1)]">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 bg-primary/20 blur-[30px] rounded-full animate-pulse" />
+              <img src={rewardEmote?.url} className="w-24 h-24 rounded-2xl object-cover relative z-10 border-2 border-primary shadow-2xl" alt="Season Reward" />
+              <div className="absolute -top-2 -right-2 bg-primary text-black p-1 rounded-lg z-20 shadow-lg">
+                <Crown className="w-5 h-5" />
+              </div>
+            </div>
+            <div className="text-center md:text-left space-y-1">
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">SEASON 1 REWARD</p>
+              <h2 className="text-2xl font-black uppercase text-white leading-none">{rewardEmote?.name}</h2>
+              <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed max-w-xs">
+                FINISH AT RANK 1 TO CLAIM THIS EXCLUSIVE EMOTE. AUTOMATICALLY ADDED AT SEASON END.
+              </p>
+            </div>
+          </Card>
+
           <Card className="bg-[#161618] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5">
               <div>
-                <CardTitle className="text-xl font-black uppercase">TOP DUELISTS</CardTitle>
+                <CardTitle className="text-xl font-black uppercase">CURRENT STANDINGS</CardTitle>
                 <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  RANKED BY TOTAL VICTORIES
+                  WEEKLY PERFORMANCE
                 </CardDescription>
               </div>
               <Badge variant="outline" className="border-primary/50 text-primary font-black uppercase text-[10px] py-1 gap-2">
-                <Clock className="w-3 h-3" /> REFRESH IN: {timeLeft || "---"}
+                <Clock className="w-3 h-3" /> RESET IN: {timeLeft || "---"}
               </Badge>
             </CardHeader>
             <CardContent className="px-0">
               <div className="space-y-1">
                 {topPlayers?.map((player: any, index: number) => {
-                  const winRate = player.totalGamesPlayed > 0 
-                    ? Math.round((player.totalWins / player.totalGamesPlayed) * 100) 
-                    : 0;
-                  
                   return (
                     <div 
                       key={player.id} 
-                      className={`flex items-center gap-4 p-4 transition-colors ${index === 0 ? 'bg-primary/10 border-y border-primary/20' : 'hover:bg-white/5'}`}
+                      className={`flex items-center gap-4 p-5 transition-all ${index === 0 ? 'bg-primary/10 border-y border-primary/20' : 'hover:bg-white/5'}`}
                     >
-                      <div className="w-8 flex justify-center items-center">
-                        {index === 0 ? <Trophy className="w-6 h-6 text-yellow-500" /> : 
-                         index === 1 ? <Medal className="w-6 h-6 text-slate-300" /> :
-                         index === 2 ? <Medal className="w-6 h-6 text-orange-600" /> :
-                         <span className="text-xl font-black text-white/20 italic">{index + 1}</span>}
+                      <div className="w-10 flex justify-center items-center">
+                        {index === 0 ? <Crown className="w-8 h-8 text-yellow-500 drop-shadow-lg" /> : 
+                         index === 1 ? <Medal className="w-7 h-7 text-slate-300" /> :
+                         index === 2 ? <Medal className="w-7 h-7 text-orange-600" /> :
+                         <span className="text-2xl font-black text-white/20 italic">#{index + 1}</span>}
                       </div>
                       
                       <div className="relative">
                         <img 
                           src={player.avatarUrl || `https://picsum.photos/seed/${player.id}/100/100`} 
-                          className={`w-12 h-12 rounded-full border-2 object-cover ${index === 0 ? 'border-primary ring-4 ring-primary/20' : 'border-white/10'}`} 
+                          className={`w-14 h-14 rounded-full border-2 object-cover ${index === 0 ? 'border-primary ring-4 ring-primary/20' : 'border-white/10'}`} 
                           alt={player.displayName} 
                         />
-                        {index === 0 && <Flame className="absolute -top-1 -right-1 w-5 h-5 text-orange-500 fill-orange-500" />}
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <p className="font-black uppercase text-sm truncate">{player.displayName}</p>
+                        <p className="font-black uppercase text-base truncate">{player.displayName}</p>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                          {player.totalGamesPlayed} MATCHES • {winRate}% WIN RATE
+                          PROFESSIONAL DUELIST • SEASON 1
                         </p>
                       </div>
 
                       <div className="text-right">
-                        <p className="text-2xl font-black text-white tracking-tighter leading-none">{player.totalWins}</p>
-                        <p className="text-[8px] font-black text-primary uppercase tracking-widest">WINS</p>
+                        <p className="text-3xl font-black text-white tracking-tighter leading-none">{player.weeklyWins || 0}</p>
+                        <p className="text-[8px] font-black text-primary uppercase tracking-widest">WEEKLY WINS</p>
                       </div>
                     </div>
                   );
@@ -146,25 +155,17 @@ export default function LeaderboardPage() {
                 {(!topPlayers || topPlayers.length === 0) && (
                   <div className="p-12 text-center opacity-30">
                     <Users className="w-12 h-12 mx-auto mb-4" />
-                    <p className="text-xs font-black uppercase tracking-widest">NO DATA REGISTERED YET</p>
+                    <p className="text-xs font-black uppercase tracking-widest">WAITING FOR KICKOFF</p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
-
-          <Card className="bg-white/5 border-dashed border-white/10 rounded-[2rem] p-6 text-center">
-            <TrendingUp className="w-8 h-8 text-secondary mx-auto mb-3" />
-            <h3 className="text-sm font-black uppercase text-white mb-1">PROVE YOUR KNOWLEDGE</h3>
-            <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed max-w-xs mx-auto">
-              EVERY VICTORY COUNTS TOWARDS YOUR GLOBAL RANK. CLIMB THE LADDER AND BECOME A LEGEND.
-            </p>
-          </Card>
         </section>
 
         <footer className="text-center pt-4">
           <p className="text-[8px] font-black uppercase tracking-[0.5em] text-slate-600">
-            FOOTYDUEL COMPETITIVE SEASON 1
+            NEXT RESET: MONDAY 00:00 IST
           </p>
         </footer>
       </div>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -8,18 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { 
   Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper
+  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper, Crown
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, collection, query, where, limit, getCountFromServer, arrayUnion } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, limit, getCountFromServer, arrayUnion, orderBy, getDocs } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { startOfDay } from "date-fns";
-import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, ALL_EMOTES } from "@/lib/emote-data";
+import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, ALL_EMOTES, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -65,20 +64,60 @@ export default function LandingPage() {
     fetchTotalPlayers();
   }, [db]);
 
+  // --- WEEKLY SEASON RESET & REWARD SYNC ---
+  const handleSeasonReset = useCallback(async () => {
+    if (!user || !profileData) return;
+
+    const now = new Date();
+    const lastReset = profileData.lastWeeklyReset ? new Date(profileData.lastWeeklyReset) : new Date(0);
+    
+    // Calculate previous Monday 00:00 IST
+    const lastMondayIST = new Date();
+    lastMondayIST.setUTCHours(18, 30, 0, 0); 
+    const day = now.getUTCDay();
+    const daysSinceMonday = (day + 6) % 7;
+    lastMondayIST.setUTCDate(now.getUTCDate() - daysSinceMonday);
+    
+    if (now > lastMondayIST && lastReset < lastMondayIST) {
+      // It's a new season cycle!
+      setIsSyncing(true);
+      
+      // 1. Check if user was Rank 1
+      const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
+      const lbSnap = await getDocs(lbQuery);
+      const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
+      
+      const updatePayload: any = {
+        weeklyWins: 0,
+        lastWeeklyReset: now.toISOString()
+      };
+
+      if (isWinner) {
+        updatePayload.unlockedEmoteIds = arrayUnion(SEASON_REWARD_EMOTE_ID);
+        const emote = ALL_EMOTES.find(e => e.id === SEASON_REWARD_EMOTE_ID);
+        setCompletedQuest({ title: 'THE CHAMPION (RANK 1)', emote });
+      }
+
+      await updateDoc(doc(db, "userProfiles", user.uid), updatePayload);
+      setIsSyncing(false);
+      toast({ title: "NEW SEASON STARTED", description: "WEEKLY WINS HAVE BEEN REFRESHED." });
+    }
+  }, [user, profileData, db, toast]);
+
   // --- GLOBAL QUEST SYNC ---
   const syncQuests = useCallback(async () => {
     if (!user || !profileData) return;
     const currentUnlocked = profileData.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
     
-    // Check 10 Wins Quest
     if (profileData.totalWins >= 10 && !currentUnlocked.includes('ten_wins')) {
       const uRef = doc(db, "userProfiles", user.uid);
       await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('ten_wins') });
       const emote = ALL_EMOTES.find(e => e.id === 'ten_wins');
       setCompletedQuest({ title: 'SEASONED DUELIST (10 WINS)', emote });
-      toast({ title: "QUEST UNLOCKED", description: "SEASONED DUELIST REWARD GRANTED." });
     }
-  }, [user, profileData, db, toast]);
+    
+    handleSeasonReset();
+  }, [user, profileData, db, handleSeasonReset]);
 
   useEffect(() => {
     if (profileData) {
@@ -119,6 +158,8 @@ export default function LandingPage() {
               totalGamesPlayed: 0,
               totalWins: 0,
               totalLosses: 0,
+              weeklyWins: 0,
+              lastWeeklyReset: new Date().toISOString(),
               equippedEmoteIds: DEFAULT_EQUIPPED_IDS,
               unlockedEmoteIds: UNLOCKED_EMOTE_IDS,
               createdAt: new Date().toISOString(),
@@ -129,7 +170,6 @@ export default function LandingPage() {
           }
           setIsSyncing(false);
           setShowManual(true);
-          toast({ title: "Duelist Ready", description: `LOGGED IN AS ${displayName?.toUpperCase()}` });
         }, 500);
       }
       setSyncProgress(progress);
@@ -205,7 +245,6 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Global Quest Completion Popup */}
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
           <div className="relative">
@@ -213,18 +252,18 @@ export default function LandingPage() {
             <PartyPopper className="w-16 h-16 text-primary relative z-10 animate-bounce" />
           </div>
           <div className="space-y-2 relative z-10">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">QUEST COMPLETE!</h2>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">SEASON REWARD!</h2>
             <p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p>
           </div>
           <div className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-3 w-full relative z-10">
             <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
             <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase">REWARD UNLOCKED</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase">EXCLUSIVE UNLOCK</p>
               <p className="text-sm font-black text-white uppercase">{completedQuest?.emote?.name}</p>
             </div>
           </div>
           <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">
-            CLAIM REWARD
+            COLLECT REWARD
           </Button>
         </DialogContent>
       </Dialog>
@@ -233,16 +272,10 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
             {!isSyncing && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setShowManual(false)} 
-                className="absolute -top-12 right-0 text-slate-500 hover:text-white"
-              >
+              <Button variant="ghost" size="icon" onClick={() => setShowManual(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
                 <X className="w-6 h-6" />
               </Button>
             )}
-
             <div className="relative inline-block shrink-0">
               <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full animate-pulse" />
               {isSyncing ? (
@@ -251,41 +284,34 @@ export default function LandingPage() {
                 <HelpCircle className="w-12 h-12 text-primary mx-auto relative z-10" />
               )}
             </div>
-            
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase text-primary">
-                {isSyncing ? "SYNCING CAREER" : "Welcome to FootyDuel!"}
+                {isSyncing ? "SYNCING SEASON" : "Welcome to FootyDuel!"}
               </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
                   {isSyncing ? (
                     <div className="space-y-4 text-center py-8">
-                       <p className="text-sm">SETTING UP PLAYER INTELLIGENCE...</p>
-                       <p className="opacity-50">ESTABLISHING SECURE CONNECTION TO ARENA...</p>
+                       <p className="text-sm">CALCULATING SEASON RANKINGS...</p>
+                       <p className="opacity-50">SYNCING COMPETITIVE LADDER...</p>
                     </div>
                   ) : (
                     <>
                       <p className="text-white text-sm leading-tight normal-case">
-                        FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
+                        FootyDuel is a real-time 1v1 footballer guessing battle. Prove your knowledge and climb the weekly leaderboard!
                       </p>
-                      
                       <div className="space-y-4">
                         <h3 className="text-primary flex items-center gap-2 text-sm uppercase">
-                          <Plus className="w-4 h-4" /> How It Works:
+                          <Crown className="w-4 h-4" /> Weekly Season:
                         </h3>
                         <ul className="space-y-3 list-none">
-                          <li className="flex gap-2"><span className="text-primary">1.</span> Create a room or join one using a room code.</li>
-                          <li className="flex gap-2"><span className="text-primary">2.</span> Wait in the lobby until both players are ready.</li>
-                          <li className="flex gap-2"><span className="text-primary">3.</span> Each round, a footballer will be revealed.</li>
-                          <li className="flex gap-2"><span className="text-primary">4.</span> Correct guess = +10 points. Wrong guess = -10 points. Skip = 0 points.</li>
-                          <li className="flex gap-2"><span className="text-primary">5.</span> If both players score the same, health remains unchanged. If one gets +10 and the other -10, the second player loses 20 health.</li>
-                          <li className="flex gap-2"><span className="text-primary">6.</span> Forfeiting the match or dropping to 0 health results in defeat.</li>
+                          <li className="flex gap-2"><span className="text-primary">1.</span> Leaderboard resets every Monday at 00:00 IST.</li>
+                          <li className="flex gap-2"><span className="text-primary">2.</span> The Rank 1 duelist wins an exclusive weekly emote.</li>
+                          <li className="flex gap-2"><span className="text-primary">3.</span> Only the top 5 elite players are shown in the Hall of Fame.</li>
                         </ul>
                       </div>
-
                       <div className="pt-4 border-t border-white/10 space-y-4">
-                        <p className="text-primary text-sm uppercase">Stay fast. Stay sharp. Prove your football knowledge.</p>
-                        <p className="text-slate-400 normal-case">Good luck and have fun! ~ Barnik (brokenAqua)</p>
+                        <p className="text-primary text-sm uppercase">Stay fast. Stay sharp. Win the week.</p>
                       </div>
                     </>
                   )}
@@ -300,7 +326,7 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
-                  READY TO KICKOFF
+                  READY TO DUEL
                 </Button>
               )}
             </div>
@@ -317,31 +343,19 @@ export default function LandingPage() {
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
               <div className="flex flex-col items-center gap-2 text-center">
                 <Coffee className="w-10 h-10 text-primary" />
-                <h2 className="text-2xl font-black uppercase text-primary leading-tight">BUY THE DEV A COFFEE</h2>
+                <h2 className="text-2xl font-black uppercase text-primary leading-tight">SUPPORT THE DEV</h2>
               </div>
-              
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
-              
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4 text-center">
-                Buy the dev a coffee. Scan the QR code and help the project to run for more days.
+                Scan the QR to support the project.
               </p>
-
               <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
-                BACK TO DUEL
+                BACK TO ARENA
               </Button>
             </div>
           </div>
         </div>
       )}
-
-      <div className="fixed bottom-6 right-6 z-50">
-        <Button 
-          onClick={() => setShowManual(true)} 
-          className="w-14 h-14 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-primary shadow-2xl hover:scale-110 transition-all flex items-center justify-center"
-        >
-          <HelpCircle className="w-8 h-8" />
-        </Button>
-      </div>
 
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
         <header className="text-center space-y-4">
@@ -355,7 +369,6 @@ export default function LandingPage() {
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="text-center pb-2">
               <CardTitle className="text-2xl font-black text-white uppercase">AUTHENTICATION</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Join the global duelist arena</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
               <Button onClick={handleGoogleLogin} className="w-full h-16 bg-white text-black font-black text-lg gap-3 rounded-2xl hover:scale-[1.02] transition-transform">
@@ -377,10 +390,7 @@ export default function LandingPage() {
                   <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
-                      <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0} WINS
-                    </span>
-                    <span className="text-[9px] text-slate-500 font-black uppercase flex items-center gap-1">
-                      <Swords className="w-2 h-2" /> {profileData?.totalGamesPlayed || 0} MATCHES
+                      <Crown className="w-2 h-2" /> {profileData?.weeklyWins || 0} WEEKLY
                     </span>
                   </div>
                 </div>
@@ -395,23 +405,17 @@ export default function LandingPage() {
                 CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-0 transition-transform" />
               </Button>
               <div className="flex gap-2">
-                <Input 
-                  placeholder="CODE" 
-                  className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl uppercase border-white/10 focus:border-primary/50" 
-                  value={roomCode} 
-                  onChange={(e) => setRoomCode(e.target.value)} 
-                  maxLength={6} 
-                />
+                <Input placeholder="CODE" className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl uppercase border-white/10 focus:border-primary/50" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
                 <Button onClick={handleJoinRoom} variant="secondary" className="h-14 px-8 font-black rounded-xl uppercase text-lg shadow-xl">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
-                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
+                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LADDER
               </Button>
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
@@ -437,15 +441,9 @@ export default function LandingPage() {
            </div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
               <Users className="text-primary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">TOTAL REGISTERED</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">TOTAL PLAYERS</span>
               <span className="text-2xl font-black">{totalPlayers}</span>
            </div>
-        </div>
-
-        <div className="text-center pt-8 pb-4">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
-            MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500" /> IN INDIA
-          </p>
         </div>
       </div>
     </div>

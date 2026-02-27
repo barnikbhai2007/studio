@@ -47,6 +47,7 @@ export const QUEST_EMOTE_IDS = [
   'haaland_gold',
   'mbappe_silver',
   'neymar_master',
-  'ten_wins',
-  'rank_one'
+  'ten_wins'
 ];
+
+export const SEASON_REWARD_EMOTE_ID = 'rank_one';
