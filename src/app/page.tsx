@@ -64,14 +64,12 @@ export default function LandingPage() {
     fetchTotalPlayers();
   }, [db]);
 
-  // --- WEEKLY SEASON RESET & REWARD SYNC ---
   const handleSeasonReset = useCallback(async () => {
     if (!user || !profileData) return;
 
     const now = new Date();
     const lastReset = profileData.lastWeeklyReset ? new Date(profileData.lastWeeklyReset) : new Date(0);
     
-    // Calculate previous Monday 00:00 IST
     const lastMondayIST = new Date();
     lastMondayIST.setUTCHours(18, 30, 0, 0); 
     const day = now.getUTCDay();
@@ -79,10 +77,8 @@ export default function LandingPage() {
     lastMondayIST.setUTCDate(now.getUTCDate() - daysSinceMonday);
     
     if (now > lastMondayIST && lastReset < lastMondayIST) {
-      // It's a new season cycle!
       setIsSyncing(true);
       
-      // 1. Check if user was Rank 1
       const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
       const lbSnap = await getDocs(lbQuery);
       const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
@@ -104,7 +100,6 @@ export default function LandingPage() {
     }
   }, [user, profileData, db, toast]);
 
-  // --- GLOBAL QUEST SYNC ---
   const syncQuests = useCallback(async () => {
     if (!user || !profileData) return;
     const currentUnlocked = profileData.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
@@ -415,7 +410,7 @@ export default function LandingPage() {
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
               <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LADDER
+                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
               </Button>
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
@@ -445,6 +440,18 @@ export default function LandingPage() {
               <span className="text-2xl font-black">{totalPlayers}</span>
            </div>
         </div>
+
+        <footer className="text-center pt-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
+            MADE WITH ❤️ IN INDIA
+          </p>
+        </footer>
+      </div>
+      
+      <div className="fixed bottom-8 right-8 z-50">
+        <Button variant="ghost" size="icon" onClick={() => setShowManual(true)} className="w-12 h-12 bg-white/5 rounded-full border border-white/10 text-primary hover:bg-white/10">
+          <HelpCircle className="w-6 h-6" />
+        </Button>
       </div>
     </div>
   );
