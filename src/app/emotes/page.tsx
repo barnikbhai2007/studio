@@ -27,7 +27,7 @@ export default function EmotesPage() {
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ALWAYS include the 7 base emotes in the list, regardless of DB state
+  // ALWAYS merge the 7 base emotes with whatever is in DB
   const unlockedList = Array.from(new Set([...UNLOCKED_EMOTE_IDS, ...(profile?.unlockedEmoteIds || [])]));
 
   useEffect(() => {

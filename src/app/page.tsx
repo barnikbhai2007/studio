@@ -40,7 +40,7 @@ export default function LandingPage() {
 
   const { data: profileData } = useDoc(userProfileRef);
 
-  // Optimized query for counts
+  // Optimized query for counts - checking only recent rooms to avoid permission/limit issues
   const todayQuery = useMemoFirebase(() => {
     const today = startOfDay(new Date()).toISOString();
     return query(collection(db, "gameRooms"), where("createdAt", ">=", today), limit(50));
@@ -54,8 +54,7 @@ export default function LandingPage() {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
       const now = new Date();
-      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC. 
-      // Checking for a window on Monday morning IST.
+      // Target: Monday 00:00 IST = Sunday 18:30 UTC. 
       const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() >= 18 && now.getUTCHours() <= 19;
       
       if (isResetWindow) {
@@ -186,6 +185,9 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
+      {/* Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
+
       {/* Overlays: Manual & Support */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
@@ -258,8 +260,8 @@ export default function LandingPage() {
             </Button>
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-8 flex flex-col items-center">
               <h2 className="text-3xl font-black uppercase text-primary tracking-tighter">SUPPORT DEV</h2>
-              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2" alt="QR" />
-              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl">BACK</Button>
+              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR" />
+              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">BACK</Button>
             </div>
           </div>
         </div>
@@ -267,14 +269,14 @@ export default function LandingPage() {
 
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
         <header className="flex justify-between items-start">
-          <Button variant="ghost" size="icon" onClick={() => setShowManual(true)} className="text-slate-500 hover:text-white">
+          <Button variant="ghost" size="icon" onClick={() => setShowManual(true)} className="text-slate-500 hover:text-white transition-colors">
             <HelpCircle className="w-6 h-6" />
           </Button>
           <div className="text-center space-y-4">
-            <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2">
+            <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
               <Swords className="w-12 h-12" />
             </div>
-            <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
+            <h1 className="text-6xl font-black tracking-tighter text-white uppercase italic">FOOTY DUEL</h1>
           </div>
           <Button variant="ghost" size="icon" className="text-slate-500 hover:text-white" onClick={() => toast({ title: "FOOTYDUEL v1.0", description: "Season 1: The Beginning" })}>
             <Info className="w-6 h-6" />
@@ -282,77 +284,91 @@ export default function LandingPage() {
         </header>
 
         {!user ? (
-          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-black text-white uppercase">SIGN IN</CardTitle>
+          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
+            <CardHeader className="text-center pb-2">
+              <CardTitle className="text-2xl font-black text-white uppercase tracking-tighter">AUTHENTICATION</CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Join the global duelist arena</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl">
-                <LogIn className="w-5 h-5" /> GOOGLE SIGN IN
+            <CardContent className="pt-4">
+              <Button onClick={handleGoogleLogin} className="w-full h-16 bg-white text-black font-black text-lg gap-3 rounded-2xl hover:scale-[1.02] transition-transform">
+                <LogIn className="w-6 h-6" /> GOOGLE SIGN IN
               </Button>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between bg-white/5 p-4 rounded-3xl border border-white/5">
+            <div className="flex items-center justify-between bg-white/5 p-4 rounded-[2rem] border border-white/5 backdrop-blur-md shadow-xl">
               <div className="flex items-center gap-4">
-                <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary" alt="Profile" />
+                <div className="relative">
+                  <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-14 h-14 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
+                  <div className="absolute -bottom-1 -right-1 bg-primary text-black rounded-full p-1 border-2 border-[#0a0a0b]">
+                    <Sparkles className="w-3 h-3" />
+                  </div>
+                </div>
                 <div className="flex flex-col">
-                  <span className="font-black text-sm uppercase truncate max-w-[120px]">{user.displayName}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[8px] text-primary font-black uppercase flex items-center gap-1">
+                  <span className="font-black text-base uppercase truncate max-w-[140px] tracking-tight">{user.displayName}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
                       <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0} WINS
                     </span>
-                    <span className="text-[8px] text-slate-500 font-black uppercase flex items-center gap-1">
+                    <span className="text-[9px] text-slate-500 font-black uppercase flex items-center gap-1">
                       <Swords className="w-2 h-2" /> {profileData?.totalGamesPlayed || 0} MATCHES
                     </span>
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500">
+              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500">
                 <LogOut className="w-5 h-5" />
               </Button>
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-2xl uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)]">
-                CREATE DUEL
+              <Button onClick={handleCreateRoom} className="w-full h-20 text-2xl font-black bg-primary rounded-[1.5rem] uppercase shadow-[0_0_40px_rgba(255,123,0,0.4)] hover:scale-[1.02] transition-all group">
+                CREATE DUEL <Swords className="ml-2 w-6 h-6 group-hover:rotate-12 transition-transform" />
               </Button>
               <div className="flex gap-2">
-                <Input placeholder="ROOM" className="h-16 bg-[#161618] text-center font-black tracking-[0.3em] text-2xl rounded-2xl uppercase border-white/10" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
-                <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-2xl uppercase">JOIN</Button>
+                <Input 
+                  placeholder="ROOM CODE" 
+                  className="h-16 bg-[#161618] text-center font-black tracking-[0.4em] text-2xl rounded-[1.2rem] uppercase border-white/10 focus:border-primary/50" 
+                  value={roomCode} 
+                  onChange={(e) => setRoomCode(e.target.value)} 
+                  maxLength={6} 
+                />
+                <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-[1.2rem] uppercase text-lg shadow-xl">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
-                <Target className="w-5 h-5 mr-2" /> QUESTS
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
+                <Target className="w-6 h-6 mr-2 text-primary" /> QUESTS
               </Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
-                <BarChart3 className="w-5 h-5 mr-2" /> BOARD
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
+                <BarChart3 className="w-6 h-6 mr-2 text-secondary" /> BOARD
               </Button>
             </div>
 
-            <Button onClick={() => router.push('/emotes')} variant="outline" className="w-full h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
-              <Smile className="w-5 h-5 mr-2" /> EMOTE LOADOUT
+            <Button onClick={() => router.push('/emotes')} variant="outline" className="w-full h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
+              <Smile className="w-6 h-6 mr-2 text-primary" /> EMOTE LOADOUT
             </Button>
 
-            <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors">
-              <Heart className="w-3 h-3 mr-2" /> SUPPORT DEVELOPER
-            </Button>
+            <div className="pt-2">
+              <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest">
+                <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT DEVELOPER
+              </Button>
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center">
-              <Trophy className="text-secondary w-6 h-6 mb-1" />
-              <span className="text-[8px] uppercase font-black text-slate-500">DUELS TODAY</span>
-              <span className="text-xl font-black">{roomsToday}</span>
+           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
+              <Trophy className="text-secondary w-8 h-8 mb-2" />
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span>
+              <span className="text-2xl font-black">{roomsToday}</span>
            </div>
-           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center">
-              <Users className="text-primary w-6 h-6 mb-1" />
-              <span className="text-[8px] uppercase font-black text-slate-500">PLAYERS online</span>
-              <span className="text-xl font-black">{playerCount}</span>
+           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
+              <Users className="text-primary w-8 h-8 mb-2" />
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS online</span>
+              <span className="text-2xl font-black">{playerCount}</span>
            </div>
         </div>
 
