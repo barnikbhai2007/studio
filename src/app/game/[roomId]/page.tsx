@@ -122,7 +122,7 @@ export default function GamePage() {
        setShowGameOverPopup(true);
        const t = setTimeout(() => {
          router.push(`/result/${roomId}`);
-       }, 4000);
+       }, 5000);
        return () => clearTimeout(t);
     }
   }, [room?.status, roomId, router, showGameOverPopup]);
@@ -152,16 +152,13 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
-  // Handle Round Synchronization and Flag Reset
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
       
-      // CRITICAL: Reset all interaction flags for the new round
       revealTriggered.current = false;
       isInitializingRound.current = false;
       
-      // Clear timeouts from previous reveal
       revealTimeouts.current.forEach(t => clearTimeout(t));
       revealTimeouts.current = [];
       
@@ -172,7 +169,6 @@ export default function GamePage() {
       setTargetPlayer(null);
       setAutoNextRoundCountdown(null);
 
-      // Start the game state for the new round
       if (currentRoundNumber === 1) {
         setGameState('countdown');
         setCountdown(5);
@@ -403,7 +399,6 @@ export default function GamePage() {
     }
     batch.update(roomRef, { status: 'Completed', winnerId, loserId, finishedAt: new Date().toISOString() });
     await batch.commit();
-    router.push(`/result/${roomId}`);
   };
 
   const sendEmote = async (emoteId: string) => {
