@@ -6,15 +6,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Allow public listing of users and rooms for discovery and stats
+    // Allow public listing of userProfiles and gameRooms for landing page stats and results
     match /userProfiles/{userId} {
-      allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
+      allow get, list: if true;
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /gameRooms/{gameRoomId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update: if isSignedIn();
       
       match /gameRounds/{roundId} {
         allow read, write: if isSignedIn();
@@ -26,7 +26,8 @@ service cloud.firestore {
     }
 
     match /battleHistories/{battleHistoryId} {
-      allow read, write: if isSignedIn();
+      allow get, list: if true;
+      allow create, update: if isSignedIn();
     }
 
     match /footballers/{footballerId} {

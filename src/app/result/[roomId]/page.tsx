@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Calendar, CheckCircle2, XCircle, Users } from "lucide-react";
+import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Users } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
@@ -17,9 +17,9 @@ export default function ResultPage() {
   const db = useFirestore();
 
   const roomRef = useMemoFirebase(() => {
-    if (!user || !roomId) return null;
+    if (!roomId) return null;
     return doc(db, "gameRooms", roomId as string);
-  }, [db, roomId, user]);
+  }, [db, roomId]);
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
 
@@ -38,7 +38,7 @@ export default function ResultPage() {
   const betweenIds = useMemo(() => {
     if (!room?.player1Id || !room?.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
-  }, [room]);
+  }, [room?.player1Id, room?.player2Id]);
 
   const battleHistoryRef = useMemoFirebase(() => {
     if (!betweenIds) return null;
@@ -52,15 +52,8 @@ export default function ResultPage() {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    if (room?.status === 'Lobby') {
-      router.push(`/lobby/${roomId}`);
-    }
-  }, [room?.status, roomId, router]);
-
-  useEffect(() => {
-    // Confetti generation must happen in useEffect to avoid hydration mismatch
     if (room?.status === 'Completed') {
-      const newConfetti = [...Array(20)].map(() => ({
+      const newConfetti = Array.from({ length: 20 }).map(() => ({
         left: `${Math.random() * 100}%`,
         delay: `${Math.random() * 3}s`
       }));
@@ -69,7 +62,7 @@ export default function ResultPage() {
   }, [room?.status]);
 
   useEffect(() => {
-    if (!room?.player1Id || !db) return;
+    if (!room || !db) return;
 
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
       if (snap.exists()) setP1Profile(snap.data());
@@ -86,7 +79,7 @@ export default function ResultPage() {
       unsubP1();
       unsubP2();
     };
-  }, [room?.player1Id, room?.player2Id, db]);
+  }, [room, db]);
 
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1 || !room) return;
@@ -108,6 +101,7 @@ export default function ResultPage() {
         finishedAt: null,
       });
       await batch.commit();
+      router.push(`/lobby/${roomId}`);
     } catch (e) {}
   };
 
@@ -115,8 +109,8 @@ export default function ResultPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
         <div className="flex flex-col items-center gap-4">
-          <Swords className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Finalizing Duel Analysis...</p>
+          <RefreshCw className="w-12 h-12 text-primary animate-spin" />
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Syncing Career Statistics...</p>
         </div>
       </div>
     );
