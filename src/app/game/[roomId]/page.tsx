@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -376,9 +377,22 @@ export default function GamePage() {
        updatePayload.winnerId = winnerId;
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
+       
        const batch = writeBatch(db);
-       batch.update(doc(db, "userProfiles", winnerId), { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
-       batch.update(doc(db, "userProfiles", loserId), { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+       // Winner updates
+       batch.update(doc(db, "userProfiles", winnerId), { 
+         totalWins: increment(1), 
+         weeklyWins: increment(1), 
+         winStreak: increment(1),
+         totalGamesPlayed: increment(1) 
+       });
+       // Loser updates
+       batch.update(doc(db, "userProfiles", loserId), { 
+         totalLosses: increment(1), 
+         totalGamesPlayed: increment(1),
+         winStreak: 0 // Reset streak on loss
+       });
+       
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
@@ -400,9 +414,22 @@ export default function GamePage() {
     if (!roomRef || !user || !room || room.status !== 'InProgress') return;
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
+    
     const batch = writeBatch(db);
-    batch.update(doc(db, "userProfiles", winnerId), { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
-    batch.update(doc(db, "userProfiles", loserId), { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+    // Winner updates
+    batch.update(doc(db, "userProfiles", winnerId), { 
+      totalWins: increment(1), 
+      weeklyWins: increment(1), 
+      winStreak: increment(1),
+      totalGamesPlayed: increment(1) 
+    });
+    // Loser updates
+    batch.update(doc(db, "userProfiles", loserId), { 
+      totalLosses: increment(1), 
+      totalGamesPlayed: increment(1),
+      winStreak: 0 // Reset streak on forfeit
+    });
+    
     const bhId = [winnerId, loserId].sort().join('_');
     const bhRef = doc(db, "battleHistories", bhId);
     const bhSnap = await getDoc(bhRef);

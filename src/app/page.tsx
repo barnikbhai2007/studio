@@ -161,6 +161,7 @@ export default function LandingPage() {
               totalWins: 0,
               totalLosses: 0,
               weeklyWins: 0,
+              winStreak: 0,
               lastWeeklyReset: new Date().toISOString(),
               equippedEmoteIds: DEFAULT_EQUIPPED_IDS,
               unlockedEmoteIds: UNLOCKED_EMOTE_IDS,
@@ -442,7 +443,7 @@ export default function LandingPage() {
                   <div className="flex flex-col">
                     <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
                     <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 w-fit">
-                      <Crown className="w-2 h-2" /> {profileData?.weeklyWins || 0} WIN STREAK
+                      <Crown className="w-2 h-2" /> {profileData?.winStreak || 0} WIN STREAK
                     </span>
                   </div>
                 </div>
