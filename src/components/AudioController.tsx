@@ -6,7 +6,6 @@ import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const MAIN_BGM = "https://res.cloudinary.com/speed-searches/video/upload/v1772188717/main_qct51w.mp3";
-const GAME_BGM = "https://res.cloudinary.com/speed-searches/video/upload/v1772188712/game_v1o3fw.mp3";
 const RESULT_BGM = "https://res.cloudinary.com/speed-searches/video/upload/v1772188718/result_oszoqn.mp3";
 
 export function AudioController() {
@@ -16,11 +15,12 @@ export function AudioController() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(MAIN_BGM);
 
-  // Determine correct track based on route
   useEffect(() => {
     let src = MAIN_BGM;
+    
+    // Silence during game, play on result
     if (pathname.startsWith('/game/')) {
-      src = GAME_BGM;
+      src = ""; 
     } else if (pathname.startsWith('/result/')) {
       src = RESULT_BGM;
     }
@@ -29,34 +29,14 @@ export function AudioController() {
       setCurrentSrc(src);
       if (audioRef.current) {
         audioRef.current.src = src;
-        if (!isMuted && isPlaying) {
+        if (src && !isMuted && isPlaying) {
           audioRef.current.play().catch(() => {});
+        } else {
+          audioRef.current.pause();
         }
       }
     }
   }, [pathname, currentSrc, isMuted, isPlaying]);
-
-  // Handle Global Pause/Resume Events (from Reveal state)
-  useEffect(() => {
-    const handlePause = () => {
-      if (audioRef.current && !isMuted) {
-        audioRef.current.pause();
-      }
-    };
-    const handleResume = () => {
-      if (audioRef.current && !isMuted && isPlaying) {
-        audioRef.current.play().catch(() => {});
-      }
-    };
-
-    window.addEventListener("footy-pause-bgm", handlePause);
-    window.addEventListener("footy-resume-bgm", handleResume);
-
-    return () => {
-      window.removeEventListener("footy-pause-bgm", handlePause);
-      window.removeEventListener("footy-resume-bgm", handleResume);
-    };
-  }, [isMuted, isPlaying]);
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -70,7 +50,7 @@ export function AudioController() {
       if (isMuted) {
         audioRef.current.muted = false;
         setIsMuted(false);
-        audioRef.current.play().catch(() => {});
+        if (currentSrc) audioRef.current.play().catch(() => {});
       } else {
         audioRef.current.muted = true;
         setIsMuted(true);

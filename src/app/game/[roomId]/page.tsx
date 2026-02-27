@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -31,6 +30,8 @@ export default function GamePage() {
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
+  
+  // Critical for round logic
   const revealTriggered = useRef(false);
   const isInitializingRound = useRef(false);
 
@@ -92,12 +93,6 @@ export default function GamePage() {
   }, [user, profile, db]);
 
   useEffect(() => {
-    if (profile && profile.totalWins >= 10) {
-      checkAndUnlockQuest('ten_wins', 'SEASONED DUELIST (10 WINS)');
-    }
-  }, [profile?.totalWins, checkAndUnlockQuest]);
-
-  useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
       const newEmotes = recentEmotes
@@ -150,19 +145,12 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
-  // Handle Music state based on game lifecycle
-  useEffect(() => {
-    if (gameState === 'countdown') {
-      window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
-    } else if (gameState === 'playing') {
-      window.dispatchEvent(new CustomEvent("footy-resume-bgm"));
-    }
-  }, [gameState]);
-
   const startNewRoundLocally = useCallback(async () => {
     if (isInitializingRound.current) return;
     isInitializingRound.current = true;
 
+    // Reset local state for new round
+    revealTriggered.current = false;
     setGameState('countdown');
     setRevealStep('none');
     setCountdown(5);
@@ -170,7 +158,6 @@ export default function GamePage() {
     setRoundTimer(null);
     setVisibleHints(1);
     setTargetPlayer(null);
-    revealTriggered.current = false;
     
     const pickedRarity = getRandomRarity();
     setCurrentRarity(pickedRarity);
@@ -267,16 +254,13 @@ export default function GamePage() {
     if (revealTriggered.current) return;
     revealTriggered.current = true;
     setGameState('finalizing');
-    setTimeout(() => handleRevealSequence(), 2500);
+    setTimeout(() => handleRevealSequence(), 2000);
   };
 
   const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
     
-    // PAUSE BACKGROUND MUSIC FOR VIDEO
-    window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
-
     if (user && targetPlayer && currentRarity) {
       const questCards = [
         { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum", title: "PLATINUM CR7 UNLOCKED" },
@@ -299,9 +283,6 @@ export default function GamePage() {
     
     setTimeout(() => {
       setGameState('result');
-      // RESUME BACKGROUND MUSIC
-      window.dispatchEvent(new CustomEvent("footy-resume-bgm"));
-      
       if (isPlayer1) calculateRoundResults();
       setTimeout(async () => {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
