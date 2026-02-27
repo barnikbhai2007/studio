@@ -12,7 +12,7 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'ronaldo_siu', name: 'CR7 FOCUS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/RONALDO_PP_w2sjfy.jpg' },
   { id: 'mbappe_cry', name: 'TURTLE TEARS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/kylian_mbappe_ty41ip.jpg' },
   { id: 'jude_hey', name: 'HEY JUDE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/Jude_Bellingham_meme_afkxet.jpg' },
-  // Locked Emotes (Planned for Quests)
+  // Locked Emotes (Planned for future Quests)
   { id: 'trophy_gold', name: 'WORLD CUP', url: 'https://picsum.photos/seed/trophy/200/200' },
   { id: 'fire_hot', name: 'ON FIRE', url: 'https://picsum.photos/seed/fire/200/200' },
   { id: 'goal_text', name: 'GOAL!!', url: 'https://picsum.photos/seed/goal/200/200' },
@@ -21,7 +21,7 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'heart_love', name: 'LOVE', url: 'https://picsum.photos/seed/heart/200/200' },
   { id: 'clown_meme', name: 'CLOWN', url: 'https://picsum.photos/seed/clown/200/200' },
   { id: 'skull_dead', name: 'DEAD', url: 'https://picsum.photos/seed/skull/200/200' },
-  { id: 'magic_wand', name: 'MAGIC', url: 'https://picsum.photos/seed/magic/200/200' },
+  { id: 'magic_wand', name: 'MAGIC', url: 'https://picsum.photos/seed/magic/200/200' }
 ];
 
 export const UNLOCKED_EMOTE_IDS = [
