@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -66,6 +65,7 @@ export default function GamePage() {
   const [currentRarity, setCurrentRarity] = useState<any>(null);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, createdAt: number}[]>([]);
   const [showGameOverPopup, setShowGameOverPopup] = useState(false);
+  const [gameOverTimer, setGameOverTimer] = useState(5);
   const [completedQuest, setCompletedQuest] = useState<any>(null);
   
   const isPlayer1 = room?.player1Id === user?.uid;
@@ -128,10 +128,17 @@ export default function GamePage() {
   useEffect(() => {
     if (room?.status === 'Completed' && !showGameOverPopup) {
        setShowGameOverPopup(true);
-       const t = setTimeout(() => {
-         router.push(`/result/${roomId}`);
-       }, 5500); // 5.5s to ensure the 5s popup animation finishes
-       return () => clearTimeout(t);
+       const interval = setInterval(() => {
+         setGameOverTimer(prev => {
+           if (prev <= 1) {
+             clearInterval(interval);
+             router.push(`/result/${roomId}`);
+             return 0;
+           }
+           return prev - 1;
+         });
+       }, 1000);
+       return () => clearInterval(interval);
     }
   }, [room?.status, roomId, router, showGameOverPopup]);
 
@@ -222,7 +229,7 @@ export default function GamePage() {
   }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
-    if (roundData && roundData.roundNumber === currentRoundNumber && gameState === 'playing') {
+    if (roundData && roundData.roundNumber === currentRoundNumber && (gameState === 'playing' || gameState === 'reveal')) {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       
@@ -233,7 +240,7 @@ export default function GamePage() {
       }
       
       const bothGuessed = !!roundData.player1Guess && !!roundData.player2Guess;
-      if (bothGuessed && !revealTriggered.current) {
+      if (bothGuessed && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
     }
@@ -472,15 +479,31 @@ export default function GamePage() {
       </div>
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
-           <div className="relative">
+           <div className="relative w-full max-w-md">
               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
-              <div className="relative z-10 space-y-6">
-                 <h2 className="text-7xl font-black text-white uppercase animate-bounce">{room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}</h2>
-                 <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/10">
-                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
+              <div className="relative z-10 space-y-8">
+                 <h2 className="text-7xl font-black text-white uppercase animate-bounce drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+                   {room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}
+                 </h2>
+                 <div className="bg-white/5 px-8 py-6 rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
+                    <p className="text-xs font-black text-primary uppercase tracking-[0.3em] mb-2">
                       {room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0 ? "TOTAL KNOCKOUT" : "VICTORY BY FORFEIT"}
                     </p>
-                    <p className="text-lg font-black text-white uppercase">{room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON</p>
+                    <p className="text-xl font-black text-white uppercase tracking-tight">
+                      {room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON
+                    </p>
+                 </div>
+                 
+                 <div className="w-full space-y-4 px-8">
+                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                       <div 
+                         className="h-full bg-primary transition-all duration-1000 ease-linear" 
+                         style={{ width: `${(gameOverTimer / 5) * 100}%` }}
+                       />
+                    </div>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">
+                      REDIRECTING TO RESULTS IN {gameOverTimer}S...
+                    </p>
                  </div>
               </div>
            </div>
