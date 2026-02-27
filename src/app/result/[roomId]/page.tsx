@@ -51,6 +51,13 @@ export default function ResultPage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
+  // AUTO-REDIRECT BOTH PLAYERS BACK TO LOBBY IF STATUS CHANGES TO LOBBY
+  useEffect(() => {
+    if (room?.status === 'Lobby') {
+      router.push(`/lobby/${roomId}`);
+    }
+  }, [room?.status, roomId, router]);
+
   useEffect(() => {
     if (room?.status === 'Completed') {
       const newConfetti = Array.from({ length: 20 }).map(() => ({
@@ -101,7 +108,7 @@ export default function ResultPage() {
         finishedAt: null,
       });
       await batch.commit();
-      router.push(`/lobby/${roomId}`);
+      // Redirect handled by status listener
     } catch (e) {}
   };
 

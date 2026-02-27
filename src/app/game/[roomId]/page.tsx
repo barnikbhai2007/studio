@@ -120,7 +120,7 @@ export default function GamePage() {
        setShowGameOverPopup(true);
        setTimeout(() => {
          router.push(`/result/${roomId}`);
-       }, 4000);
+       }, 5000);
     }
   }, [room?.status, roomId, router, showGameOverPopup]);
 
@@ -131,6 +131,22 @@ export default function GamePage() {
     if (room.player2Id) p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
     return () => { p1Unsub(); p2Unsub(); };
   }, [room, db, user]);
+
+  // RESET LOCAL STATE ON ROUND INCREMENT
+  useEffect(() => {
+    if (room?.currentRoundNumber) {
+      setGameState('countdown');
+      setRevealStep('none');
+      setCountdown(room.currentRoundNumber === 1 ? 5 : 0); // Fast start for Round 2+
+      setGuessInput("");
+      setRoundTimer(null);
+      setVisibleHints(1);
+      setTargetPlayer(null);
+      revealTriggered.current = false;
+      isInitializingRound.current = false;
+      if (room.currentRoundNumber > 1) setGameState('playing');
+    }
+  }, [room?.currentRoundNumber]);
 
   useEffect(() => {
     if (roundData?.timerStartedAt && gameState === 'playing') {
@@ -153,15 +169,6 @@ export default function GamePage() {
     if (isInitializingRound.current) return;
     isInitializingRound.current = true;
 
-    setGameState('countdown');
-    setRevealStep('none');
-    setCountdown(5);
-    setGuessInput("");
-    setRoundTimer(null);
-    setVisibleHints(1);
-    setTargetPlayer(null);
-    revealTriggered.current = false;
-    
     const pickedRarity = getRandomRarity();
     setCurrentRarity(pickedRarity);
 
@@ -263,17 +270,6 @@ export default function GamePage() {
   const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
-    if (user && targetPlayer && currentRarity) {
-      const questCards = [
-        { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum", title: "PLATINUM CR7 UNLOCKED" },
-        { name: "Lionel Messi", rarity: "DIAMOND", emoteId: "messi_diamond", title: "DIAMOND MESSI UNLOCKED" },
-        { name: "Erling Haaland", rarity: "GOLD", emoteId: "haaland_gold", title: "GOLDEN HAALAND UNLOCKED" },
-        { name: "Kylian Mbappé", rarity: "SILVER", emoteId: "mbappe_silver", title: "SILVER MBAPPE UNLOCKED" },
-        { name: "Neymar Jr", rarity: "MASTER", emoteId: "neymar_master", title: "MASTER NEYMAR UNLOCKED" }
-      ];
-      const matchedQuest = questCards.find(q => q.name === targetPlayer.name && q.rarity === currentRarity.type);
-      if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
-    }
     setTimeout(() => setRevealStep('country'), 1000); 
     setTimeout(() => setRevealStep('none'), 2200);    
     setTimeout(() => setRevealStep('position'), 2800); 
@@ -287,7 +283,6 @@ export default function GamePage() {
       setTimeout(async () => {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
           if (isPlayer1 && roomRef) await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
-          startNewRoundLocally();
         }
       }, 5000); 
     }, 11500); 
@@ -311,10 +306,8 @@ export default function GamePage() {
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
        const batch = writeBatch(db);
-       const winnerRef = doc(db, "userProfiles", winnerId);
-       const loserRef = doc(db, "userProfiles", loserId);
-       batch.update(winnerRef, { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
-       batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+       batch.update(doc(db, "userProfiles", winnerId), { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
+       batch.update(doc(db, "userProfiles", loserId), { totalLosses: increment(1), totalGamesPlayed: increment(1) });
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
@@ -369,7 +362,6 @@ export default function GamePage() {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
         <video className="absolute inset-0 w-full h-full object-cover opacity-60" playsInline autoPlay src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4" />
-        <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
@@ -387,11 +379,51 @@ export default function GamePage() {
                     <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
                   </div>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
               </div>
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (gameState === 'result' && roundData) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center space-y-8">
+        <div className="space-y-2">
+          <Badge className="bg-primary text-black font-black uppercase">ROUND {room.currentRoundNumber} SUMMARY</Badge>
+          <h2 className="text-4xl font-black text-white uppercase">{targetPlayer?.name}</h2>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 w-full max-w-lg">
+          <div className="space-y-4">
+            <img src={p1Profile?.avatarUrl} className="w-20 h-20 rounded-full mx-auto border-2 border-primary" alt="p1" />
+            <p className="text-xs font-black text-white uppercase truncate">{p1Profile?.displayName}</p>
+            <Badge variant={roundData.player1GuessedCorrectly ? "default" : "destructive"} className="uppercase font-black">
+              {roundData.player1ScoreChange > 0 ? `+${roundData.player1ScoreChange}` : roundData.player1ScoreChange}
+            </Badge>
+          </div>
+          <div className="space-y-4">
+            <img src={p2Profile?.avatarUrl} className="w-20 h-20 rounded-full mx-auto border-2 border-secondary" alt="p2" />
+            <p className="text-xs font-black text-white uppercase truncate">{p2Profile?.displayName}</p>
+            <Badge variant={roundData.player2GuessedCorrectly ? "default" : "destructive"} className="uppercase font-black">
+              {roundData.player2ScoreChange > 0 ? `+${roundData.player2ScoreChange}` : roundData.player2ScoreChange}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="w-full max-w-md space-y-4 pt-8">
+          <div className="flex justify-between text-[10px] font-black uppercase text-slate-500">
+            <span>{p1Profile?.displayName}</span>
+            <span>{p2Profile?.displayName}</span>
+          </div>
+          <div className="flex gap-1 h-3">
+            <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-full bg-slate-800" />
+            <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-full bg-slate-800 rotate-180" />
+          </div>
+        </div>
+
+        <p className="text-[10px] font-black text-primary uppercase animate-pulse pt-8">NEXT ROUND STARTING AUTOMATICALLY...</p>
       </div>
     );
   }
@@ -411,12 +443,14 @@ export default function GamePage() {
           <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">CLAIM REWARD</Button>
         </DialogContent>
       </Dialog>
+
       <div className="fixed inset-0 pointer-events-none z-[60]">
         {activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
           return (<div key={e.id} className="absolute bottom-24 right-8 emote-float"><img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" /></div>);
         })}
       </div>
+
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
            <div className="relative">
@@ -425,12 +459,15 @@ export default function GamePage() {
                  <h2 className="text-7xl font-black text-white uppercase animate-bounce">{room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}</h2>
                  <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/10">
                     <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">MATCH RESULTS</p>
-                    <p className="text-lg font-black text-white uppercase">{room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON</p>
+                    <p className="text-lg font-black text-white uppercase">
+                      {room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON
+                    </p>
                  </div>
               </div>
            </div>
         </div>
       )}
+
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="relative shrink-0 w-10 h-10">
@@ -454,6 +491,7 @@ export default function GamePage() {
           </div>
         </div>
       </header>
+
       <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-48">
         {gameState === 'countdown' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4 p-4 text-center">
@@ -472,9 +510,11 @@ export default function GamePage() {
           </div>
         )}
       </main>
+
       <div className="fixed bottom-24 right-4 z-50">
         <Popover><PopoverTrigger asChild><Button size="icon" className="h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-2xl hover:scale-110 border-4 border-white/20"><SmilePlus className="w-7 h-7" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{equippedEmotes.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.name} /></button>))}</div></PopoverContent></Popover>
       </div>
+
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
         <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} /><div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim()} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK IN GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
       </footer>

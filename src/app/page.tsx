@@ -441,8 +441,8 @@ export default function LandingPage() {
            </div>
         </div>
 
-        <footer className="text-center pt-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600">
+        <footer className="text-center pt-8 border-t border-white/5 mt-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 mb-2">
             MADE WITH ❤️ IN INDIA
           </p>
         </footer>
