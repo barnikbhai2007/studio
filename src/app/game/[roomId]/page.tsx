@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -149,17 +150,20 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
-  // Handle Initial Music state: Pause on mount
+  // Handle Music state based on game lifecycle
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
-  }, []);
+    if (gameState === 'countdown') {
+      window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
+    } else if (gameState === 'playing') {
+      window.dispatchEvent(new CustomEvent("footy-resume-bgm"));
+    }
+  }, [gameState]);
 
   const startNewRoundLocally = useCallback(async () => {
     if (isInitializingRound.current) return;
     isInitializingRound.current = true;
 
     setGameState('countdown');
-    window.dispatchEvent(new CustomEvent("footy-pause-bgm")); // Ensure pause on new round start
     setRevealStep('none');
     setCountdown(5);
     setGuessInput("");
@@ -231,7 +235,6 @@ export default function GamePage() {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     } else if (gameState === 'countdown' && countdown === 0) {
       setGameState('playing');
-      window.dispatchEvent(new CustomEvent("footy-resume-bgm")); // Song starts when game starts
     }
     if (gameState === 'playing' && visibleHints < 5 && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
@@ -242,7 +245,7 @@ export default function GamePage() {
   const normalizeStr = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
   const handleGuess = async () => {
-    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
+    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current) return;
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     const isCorrect = correctFull.split(/\s+/).some(part => part === guessNormalized) || correctFull === guessNormalized;
@@ -253,7 +256,7 @@ export default function GamePage() {
   };
 
   const handleSkip = async () => {
-    if (!roundRef || gameState !== 'playing') return;
+    if (!roundRef || gameState !== 'playing' || revealTriggered.current) return;
     const update: any = isPlayer1 ? { player1Guess: "SKIPPED", player1GuessedCorrectly: false } : { player2Guess: "SKIPPED", player2GuessedCorrectly: false };
     if (!roundData?.timerStartedAt) update.timerStartedAt = new Date().toISOString();
     await updateDoc(roundRef, update);
