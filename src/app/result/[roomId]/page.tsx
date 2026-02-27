@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -5,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Flame } from "lucide-react";
+import { Trophy, Swords, History, Home, Sparkles, RefreshCw } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit, arrayUnion, updateDoc } from "firebase/firestore";
 
@@ -25,11 +26,17 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
+  const bid = useMemo(() => {
+    if (!room) return null;
+    if (room.betweenIds) return room.betweenIds;
+    if (room.player1Id && room.player2Id) {
+      return [room.player1Id, room.player2Id].sort().join('_');
+    }
+    return null;
+  }, [room]);
+
   const historyQuery = useMemoFirebase(() => {
-    // Generate betweenIds if missing to ensure we can still query history
-    const bid = room?.betweenIds || (room?.player1Id && room?.player2Id ? [room.player1Id, room.player2Id].sort().join('_') : null);
     if (!bid) return null;
-    
     return query(
       collection(db, "gameRooms"),
       where("betweenIds", "==", bid),
@@ -37,13 +44,13 @@ export default function ResultPage() {
       orderBy("finishedAt", "desc"),
       limit(10)
     );
-  }, [db, room?.betweenIds, room?.player1Id, room?.player2Id]);
+  }, [db, bid]);
 
   const { data: recentMatches, isLoading: isHistoryLoading } = useCollection(historyQuery);
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
-  const healthDiff = Math.max(0, Math.abs((room?.player1CurrentHealth || 0) - (room?.player2CurrentHealth || 0)));
+  const healthDiff = room ? Math.max(0, Math.abs((room.player1CurrentHealth || 0) - (room.player2CurrentHealth || 0))) : 0;
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -69,9 +76,8 @@ export default function ResultPage() {
       unsubP1();
       unsubP2();
     };
-  }, [room?.player1Id, room?.player2Id, db, user]);
+  }, [room, db, user]);
 
-  // Handle 10 Wins Quest
   useEffect(() => {
     if (user && p1Profile && isPlayer1) {
       if (p1Profile.totalWins >= 10 && !(p1Profile.unlockedEmoteIds || []).includes('ten_wins')) {
@@ -105,10 +111,8 @@ export default function ResultPage() {
     if (!roomRef || !roomId || !isPlayer1) return;
     try {
       const batch = writeBatch(db);
-      
       const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
       roundsSnap.docs.forEach(d => batch.delete(d.ref));
-      
       const emotesSnap = await getDocs(collection(db, "gameRooms", roomId as string, "emotes"));
       emotesSnap.docs.forEach(d => batch.delete(d.ref));
 
@@ -201,14 +205,13 @@ export default function ResultPage() {
                     isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
                     'bg-slate-500/20 border-slate-500 text-slate-500'
                   }`}
-                  title={isP1Win ? `${p1Profile.displayName} Won` : (isP2Win ? `${p2Profile?.displayName} Won` : 'Draw')}
                 >
                   {isP1Win ? 'W' : (isP2Win ? 'L' : 'D')}
                 </div>
               );
             })}
           </div>
-          <span className="text-[10px] font-bold text-white/30 uppercase">HEAD-TO-HEAD HISTORY</span>
+          <span className="text-[10px] font-bold text-white/30 uppercase">LAST 10 MATCHES HISTORY</span>
         </div>
         
         <div className="flex items-center justify-between gap-4">

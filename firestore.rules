@@ -11,31 +11,28 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles: Allow public reading to see rivals, but restricted creation to owner.
+    // User Profiles: Public read, owner create/update
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isOwner(userId);
       allow update: if isSignedIn();
     }
 
-    match /gameRooms/{gameRoomId} {
+    // Game Rooms and sub-collections: Publicly readable for lobbies and results
+    // Using {document=**} ensures list/get permissions cascade through subcollections
+    match /gameRooms/{document=**} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
-      
-      match /gameRounds/{roundId} {
-        allow read, write: if isSignedIn();
-      }
-
-      match /emotes/{emoteId} {
-        allow read, write: if isSignedIn();
-      }
+      allow delete: if isSignedIn();
     }
 
+    // Battle Histories: Broadened for real-time syncing
     match /battleHistories/{battleHistoryId} {
       allow read, write: if isSignedIn();
     }
 
+    // Footballers: Static data, publicly readable
     match /footballers/{footballerId} {
       allow read: if true;
     }

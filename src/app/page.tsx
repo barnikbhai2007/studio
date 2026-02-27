@@ -41,26 +41,20 @@ export default function LandingPage() {
 
   const { data: profileData } = useDoc(userProfileRef);
 
-  // Optimized query for counts to avoid fetching all documents (prevents permission/performance errors)
+  // Optimized query for counts
   const todayQuery = useMemoFirebase(() => {
     const today = startOfDay(new Date()).toISOString();
     return query(collection(db, "gameRooms"), where("createdAt", ">=", today), limit(50));
   }, [db]);
   const { data: todayRooms } = useCollection(todayQuery);
 
-  const playersQuery = useMemoFirebase(() => query(collection(db, "userProfiles"), limit(1)), [db]);
-  const { data: playersSample } = useCollection(playersQuery);
-
   const roomsToday = todayRooms?.length || 0;
-  // This is a placeholder since fetching total count is expensive without a specific aggregation field
-  const playerCount = 1240 + (playersSample?.length || 0); 
+  const playerCount = 1240 + (profileData?.totalGamesPlayed || 0);
 
   useEffect(() => {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
-      
       const now = new Date();
-      // Only allow reward during Monday 00:00 - 01:00 IST window
       const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() === 18 && now.getUTCMinutes() < 60;
       
       if (isResetWindow) {
@@ -217,50 +211,33 @@ export default function LandingPage() {
             
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">🎮 Welcome to FootyDuel!</h2>
-              
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
                   <p className="text-white text-sm leading-tight">
-                    FootyDuel is a real-time 1v1 footballer guessing battle where speed and knowledge decide the winner.
+                    FootyDuel is a real-time 1v1 footballer guessing battle.
                   </p>
-                  
                   <div className="space-y-3">
                     <h3 className="text-primary flex items-center gap-2">
-                      <ScrollText className="w-4 h-4" /> How It Works:
+                      <ScrollText className="w-4 h-4" /> Rules:
                     </h3>
                     <ul className="space-y-2 list-none">
-                      <li>1. Create a room or join one using a room code.</li>
-                      <li>2. Wait in the lobby until both players are ready.</li>
-                      <li>3. Each round, a footballer will be revealed.</li>
-                      <li>4. Correct guess = +10 points.<br/>Wrong guess = –10 points.<br/>Skip = 0 points.</li>
-                      <li>5. If both players score the same, health remains unchanged.<br/>If one gets +10 and the other –10, the second player loses 20 health.</li>
-                      <li>6. Forfeiting the match or dropping to 0 health results in defeat.</li>
+                      <li>• Correct guess = +10 HP gain potential.</li>
+                      <li>• Wrong guess = –10 HP risk.</li>
+                      <li>• Skip = 0 HP change.</li>
+                      <li>• Win 10 matches to unlock the VICTORY ROYALE emote!</li>
                     </ul>
-                  </div>
-
-                  <p className="text-primary/80 border-t border-white/10 pt-4">
-                    🔥 Stay fast. Stay sharp. Prove your football knowledge.
-                  </p>
-                  
-                  <div className="pt-2">
-                    <p className="text-white">Good luck and have fun!</p>
-                    <p className="text-[10px] text-slate-500">~ Barnik (brokenAqua)</p>
                   </div>
                 </div>
               </ScrollArea>
-
               {isSyncing ? (
                 <div className="w-full space-y-2 px-4">
                   <Progress value={syncProgress} className="h-2 bg-white/5" />
                   <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
-                    {syncProgress < 100 ? `Syncing Intelligence... ${Math.round(syncProgress)}%` : "Ready for Kickoff!"}
+                    Syncing Intelligence... {Math.round(syncProgress)}%
                   </p>
                 </div>
               ) : (
-                <Button 
-                  onClick={() => setShowManual(false)} 
-                  className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl"
-                >
+                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl">
                   GOT IT, DUELIST
                 </Button>
               )}
@@ -272,196 +249,82 @@ export default function LandingPage() {
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setShowSupport(false)} 
-              className="absolute -top-12 right-0 text-slate-500 hover:text-white"
-            >
+            <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
               <X className="w-6 h-6" />
             </Button>
-            
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-8 flex flex-col items-center">
-              <div className="space-y-3">
-                 <h2 className="text-3xl font-black uppercase text-primary tracking-tighter leading-none">SUPPORT THE DEV</h2>
-                 <p className="text-[11px] font-bold text-slate-300 uppercase leading-relaxed tracking-tight">
-                    Buy the dev a coffee. Scan the QR code and help the project to run for more days.
-                 </p>
-              </div>
-              
-              <div className="relative group">
-                 <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-3xl group-hover:bg-primary/30 transition-all animate-pulse" />
-                 <img 
-                    src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" 
-                    className="relative z-10 w-56 h-56 mx-auto rounded-3xl border-4 border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white p-2 object-contain" 
-                    alt="Support QR Code"
-                 />
-              </div>
-
-              <Button 
-                onClick={() => setShowSupport(false)} 
-                className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl hover:scale-105 transition-transform"
-              >
-                BACK TO LOBBY
-              </Button>
+              <h2 className="text-3xl font-black uppercase text-primary tracking-tighter">SUPPORT DEV</h2>
+              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2" alt="QR" />
+              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl">BACK</Button>
             </div>
           </div>
         </div>
       )}
 
-      {showAbout && (
-        <div className="fixed inset-0 z-[120] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => setShowAbout(false)} 
-              className="absolute -top-12 right-0 text-slate-500 hover:text-white"
-            >
-              <X className="w-6 h-6" />
-            </Button>
-            
-            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 text-left">
-              <h2 className="text-3xl font-black uppercase text-primary tracking-tighter text-center">About Me</h2>
-              <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
-                <p className="text-white text-base font-black">Hi, I’m Barnik 👋</p>
-                <p>I’m a passionate web developer from India who loves building interactive games and creative web projects. I enjoy creating real-time multiplayer experiences and learning new technologies every day.</p>
-                <p>For development and problem-solving, I take major guidance from Gemini, along with support from ChatGPT. For voice and song-related content, I use ElevenLabs, and for designing clean and attractive UI elements, I use Canva.</p>
-                <p className="text-primary/80 border-t border-white/10 pt-4">All ideas, planning, and final project decisions are mine — these tools simply help me work smarter and faster.</p>
-                <div className="pt-2 text-center">
-                  <p className="text-white font-black">Made with passion in India 🇮🇳</p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => setShowAbout(false)} 
-                className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl"
-              >
-                BACK TO LOBBY
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
-      
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
         <div className="text-center space-y-4">
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white leading-none font-headline uppercase">FOOTY DUEL</h1>
-          <p className="text-slate-400 font-bold tracking-[0.2em] uppercase text-[10px]">The Ultimate Football Trivia Combat</p>
+          <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
         </div>
 
         {!user ? (
-          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl overflow-hidden">
+          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-black text-white uppercase">WELCOME DUELIST</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold tracking-widest">SIGN IN TO START YOUR CAREER</CardDescription>
+              <CardTitle className="text-2xl font-black text-white uppercase">SIGN IN</CardTitle>
             </CardHeader>
             <CardContent>
-              <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black hover:bg-slate-200 font-black text-lg gap-3 rounded-2xl">
-                <LogIn className="w-5 h-5" /> SIGN IN WITH GOOGLE
+              <Button onClick={handleGoogleLogin} className="w-full h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl">
+                <LogIn className="w-5 h-5" /> GOOGLE SIGN IN
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+          <div className="space-y-6">
             <div className="flex items-center justify-between bg-white/5 p-4 rounded-3xl border border-white/5">
               <div className="flex items-center gap-4">
-                <div className="relative">
-                  <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
-                  <div className="absolute -bottom-1 -right-1 bg-secondary text-secondary-foreground rounded-full p-0.5 border-2 border-[#0a0a0b]">
-                    <Trophy className="w-2.5 h-2.5" />
-                  </div>
-                </div>
+                <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-12 h-12 rounded-full ring-2 ring-primary" alt="Profile" />
                 <div className="flex flex-col">
                   <span className="font-black text-sm uppercase truncate max-w-[120px]">{user.displayName}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] text-primary font-black tracking-widest uppercase flex items-center gap-0.5">
-                      <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0} WINS
-                    </span>
-                    <span className="text-[8px] text-slate-500 font-black tracking-widest uppercase flex items-center gap-0.5">
-                      <Swords className="w-2 h-2" /> {profileData?.totalGamesPlayed || 0} MATCHES
-                    </span>
+                    <span className="text-[8px] text-primary font-black uppercase"><Trophy className="w-2 h-2 inline mr-1" /> {profileData?.totalWins || 0} WINS</span>
+                    <span className="text-[8px] text-slate-500 font-black uppercase"><Swords className="w-2 h-2 inline mr-1" /> {profileData?.totalGamesPlayed || 0} MATCHES</span>
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl">
-                <LogOut className="w-5 h-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500"><LogOut className="w-5 h-5" /></Button>
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} disabled={isActionLoading} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 gap-3 shadow-lg rounded-2xl uppercase">
-                {isActionLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Plus className="w-7 h-7" />} CREATE NEW DUEL
-              </Button>
+              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-2xl uppercase">CREATE DUEL</Button>
               <div className="flex gap-2">
-                <Input 
-                  placeholder="ROOM" 
-                  className="h-16 bg-[#161618] border-white/10 text-center font-black tracking-[0.3em] text-2xl rounded-2xl text-white uppercase"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value)}
-                  maxLength={6}
-                />
-                <Button onClick={handleJoinRoom} disabled={isActionLoading || !roomCode} variant="secondary" className="h-16 px-8 font-black rounded-2xl uppercase">
-                  JOIN
-                </Button>
+                <Input placeholder="ROOM" className="h-16 bg-[#161618] text-center font-black tracking-[0.3em] text-2xl rounded-2xl uppercase" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
+                <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-2xl uppercase">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button 
-                onClick={() => router.push('/quests')}
-                variant="outline" 
-                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
-              >
-                <Target className="w-5 h-5 text-primary" /> QUESTS
-              </Button>
-              <Button 
-                onClick={() => router.push('/leaderboard')}
-                variant="outline" 
-                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
-              >
-                <BarChart3 className="w-5 h-5 text-yellow-500" /> LEADERBOARD
-              </Button>
-              <Button 
-                onClick={() => setShowAbout(true)}
-                variant="outline" 
-                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
-              >
-                <Info className="w-5 h-5 text-secondary" /> INFO
-              </Button>
-              <Button 
-                onClick={() => router.push('/emotes')}
-                variant="outline" 
-                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
-              >
-                <Smile className="w-5 h-5 text-green-400" /> EMOTES
-              </Button>
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase"><Target className="w-5 h-5 mr-2" /> QUESTS</Button>
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase"><BarChart3 className="w-5 h-5 mr-2" /> BOARD</Button>
             </div>
 
-            <Button 
-              onClick={() => setShowSupport(true)}
-              variant="link" 
-              className="w-full text-slate-500 font-black uppercase text-[10px] tracking-[0.3em] hover:text-primary"
-            >
-              <Heart className="w-3 h-3 mr-2" /> SUPPORT THE DEV
+            <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px]">
+              <Heart className="w-3 h-3 mr-2" /> SUPPORT DEVELOPER
             </Button>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
+           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center">
               <Trophy className="text-secondary w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span>
-              <span className="text-2xl font-black">{roomsToday.toLocaleString()}</span>
+              <span className="text-[8px] uppercase font-black text-slate-500">DUELS TODAY</span>
+              <span className="text-xl font-black">{roomsToday}</span>
            </div>
-           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center text-center space-y-1">
+           <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center">
               <Users className="text-primary w-6 h-6 mb-1" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL DUELISTS REGISTERED</span>
-              <span className="text-2xl font-black">{playerCount.toLocaleString()}</span>
+              <span className="text-[8px] uppercase font-black text-slate-500">PLAYERS</span>
+              <span className="text-xl font-black">{playerCount}</span>
            </div>
         </div>
 
@@ -471,14 +334,6 @@ export default function LandingPage() {
           </p>
         </div>
       </div>
-
-      <Button 
-        onClick={() => setShowManual(true)} 
-        size="icon" 
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-primary text-black shadow-2xl hover:scale-110 transition-transform z-50 border-4 border-[#0a0a0b]"
-      >
-        <span className="text-2xl font-black">?</span>
-      </Button>
     </div>
   );
 }
