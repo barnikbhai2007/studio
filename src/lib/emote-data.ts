@@ -12,16 +12,24 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'ronaldo_siu', name: 'FOCUS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/RONALDO_PP_w2sjfy.jpg' },
   { id: 'mbappe_cry', name: 'OKAY', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/kylian_mbappe_ty41ip.jpg' },
   { id: 'jude_hey', name: 'HEY JUDE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/Jude_Bellingham_meme_afkxet.jpg' },
-  // Locked Emotes (Planned for future Quests)
-  { id: 'trophy_gold', name: 'WORLD CUP', url: 'https://picsum.photos/seed/trophy/200/200' },
-  { id: 'fire_hot', name: 'ON FIRE', url: 'https://picsum.photos/seed/fire/200/200' },
-  { id: 'goal_text', name: 'GOAL!!', url: 'https://picsum.photos/seed/goal/200/200' },
-  { id: 'flex_power', name: 'PURE POWER', url: 'https://picsum.photos/seed/flex/200/200' },
-  { id: 'cool_shades', name: 'COOL', url: 'https://picsum.photos/seed/cool/200/200' },
-  { id: 'heart_love', name: 'LOVE', url: 'https://picsum.photos/seed/heart/200/200' },
-  { id: 'clown_meme', name: 'CLOWN', url: 'https://picsum.photos/seed/clown/200/200' },
-  { id: 'skull_dead', name: 'DEAD', url: 'https://picsum.photos/seed/skull/200/200' },
-  { id: 'magic_wand', name: 'MAGIC', url: 'https://picsum.photos/seed/magic/200/200' }
+  // Quest Reward Emotes
+  { id: 'ronaldo_platinum', name: 'PLATINUM CR7', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133455/443f2796-0210-4f04-bb5b-2c7dd4c9129d_udofod.jpg' },
+  { id: 'messi_diamond', name: 'DIAMOND LEO', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133456/cdc25250-0b8d-4107-889b-4d62d403ea90_c85cm8.jpg' },
+  { id: 'haaland_gold', name: 'GOLDEN VIKING', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133456/crop-1665076_l1aszn.jpg' },
+  { id: 'mbappe_silver', name: 'SILVER TURTLE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133455/960d6216f61adc051f8542fcacc8a37d_f2oyz5.jpg' },
+  { id: 'neymar_master', name: 'MASTER NEY', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133456/Neymar_Jr_meobwz.jpg' },
+  { id: 'ten_wins', name: 'VICTORY ROYALE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772162261/90e5cbf3-55d0-400f-8d55-85a53ac5412d_knnj7g.jpg' },
+  { id: 'rank_one', name: 'THE CROWN', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772162207/3620d2cc-ec1c-45f7-904c-51b7646f6f43_uxdxos.jpg' }
+];
+
+export const QUEST_EMOTE_IDS = [
+  'ronaldo_platinum',
+  'messi_diamond',
+  'haaland_gold',
+  'mbappe_silver',
+  'neymar_master',
+  'ten_wins',
+  'rank_one'
 ];
 
 export const UNLOCKED_EMOTE_IDS = [

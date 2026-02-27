@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -14,11 +13,11 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, collection } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, arrayUnion, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isToday } from "date-fns";
-import { DEFAULT_EQUIPPED_IDS } from "@/lib/emote-data";
+import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -46,6 +45,27 @@ export default function LandingPage() {
   }, [allRooms]);
 
   const playerCount = useMemo(() => allPlayers?.length || 0, [allPlayers]);
+
+  // Check for Rank 1 Quest
+  useEffect(() => {
+    const checkRankOne = async () => {
+      if (!user || !db) return;
+      const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty && snap.docs[0].id === user.uid) {
+        const uRef = doc(db, "userProfiles", user.uid);
+        const uSnap = await getDoc(uRef);
+        if (uSnap.exists()) {
+          const unlocked = uSnap.data().unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+          if (!unlocked.includes('rank_one')) {
+            await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('rank_one') });
+            toast({ title: "THE CROWN IS YOURS", description: "RANK 1 REWARD UNLOCKED!" });
+          }
+        }
+      }
+    };
+    checkRankOne();
+  }, [user, db, toast]);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -84,6 +104,7 @@ export default function LandingPage() {
               totalWins: 0,
               totalLosses: 0,
               equippedEmoteIds: DEFAULT_EQUIPPED_IDS,
+              unlockedEmoteIds: UNLOCKED_EMOTE_IDS,
               createdAt: new Date().toISOString(),
               lastLoginAt: new Date().toISOString()
             }, { merge: true });
@@ -376,7 +397,11 @@ export default function LandingPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10">
+              <Button 
+                onClick={() => router.push('/quests')}
+                variant="outline" 
+                className="h-14 border-white/5 bg-white/5 rounded-2xl font-black uppercase tracking-tighter gap-2 hover:bg-white/10"
+              >
                 <Target className="w-5 h-5 text-primary" /> QUESTS
               </Button>
               <Button 

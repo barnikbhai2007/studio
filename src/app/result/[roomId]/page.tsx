@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -8,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Flame } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit } from "firebase/firestore";
+import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit, arrayUnion, updateDoc } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -68,6 +67,23 @@ export default function ResultPage() {
       unsubP2();
     };
   }, [room?.player1Id, room?.player2Id, db, user]);
+
+  // Handle 10 Wins Quest
+  useEffect(() => {
+    if (user && p1Profile && isPlayer1) {
+      if (p1Profile.totalWins >= 10 && !(p1Profile.unlockedEmoteIds || []).includes('ten_wins')) {
+        updateDoc(doc(db, "userProfiles", user.uid), {
+          unlockedEmoteIds: arrayUnion('ten_wins')
+        });
+      }
+    } else if (user && p2Profile && !isPlayer1) {
+      if (p2Profile.totalWins >= 10 && !(p2Profile.unlockedEmoteIds || []).includes('ten_wins')) {
+        updateDoc(doc(db, "userProfiles", user.uid), {
+          unlockedEmoteIds: arrayUnion('ten_wins')
+        });
+      }
+    }
+  }, [p1Profile?.totalWins, p2Profile?.totalWins, user, isPlayer1, db]);
 
   const h2hStats = useMemo(() => {
     if (!recentMatches || !room) return { p1: 0, p2: 0, total: 0 };
@@ -195,7 +211,7 @@ export default function ResultPage() {
         <div className="flex items-center justify-between gap-4">
            <div className="flex-1 text-center">
               <span className="text-[3rem] font-black text-primary leading-none">
-                {h2hStats.p1}
+                {h2Stats.p1}
               </span>
               <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
            </div>

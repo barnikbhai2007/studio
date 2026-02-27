@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -17,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where, writeBatch } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
-import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, Emote } from "@/lib/emote-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, Emote } from "@/lib/emote-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
@@ -218,7 +217,7 @@ export default function GamePage() {
   }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
 
   const normalizeStr = (str: string) => 
-    str.normalize("NFD").replace(/[\u0300//\u036f]/g, "").toLowerCase().trim();
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
@@ -258,10 +257,31 @@ export default function GamePage() {
     setTimeout(() => handleRevealSequence(), 2500);
   };
 
-  const handleRevealSequence = () => {
+  const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
     
+    // Check for card-based quests
+    if (user && targetPlayer && currentRarity) {
+      const questCards = [
+        { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum" },
+        { name: "Lionel Messi", rarity: "DIAMOND", emoteId: "messi_diamond" },
+        { name: "Erling Haaland", rarity: "GOLD", emoteId: "haaland_gold" },
+        { name: "Kylian Mbappé", rarity: "SILVER", emoteId: "mbappe_silver" },
+        { name: "Neymar Jr", rarity: "MASTER", emoteId: "neymar_master" }
+      ];
+
+      const matchedQuest = questCards.find(q => q.name === targetPlayer.name && q.rarity === currentRarity.type);
+      if (matchedQuest) {
+        const currentUnlocked = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+        if (!currentUnlocked.includes(matchedQuest.emoteId)) {
+          const uRef = doc(db, "userProfiles", user.uid);
+          await updateDoc(uRef, { unlockedEmoteIds: arrayUnion(matchedQuest.emoteId) });
+          toast({ title: "QUEST COMPLETE!", description: `UNLOCKED: ${matchedQuest.emoteId.toUpperCase()}` });
+        }
+      }
+    }
+
     setTimeout(() => setRevealStep('country'), 1000); 
     setTimeout(() => setRevealStep('none'), 2200);    
     setTimeout(() => setRevealStep('position'), 2800); 
