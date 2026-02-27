@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -7,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { 
   Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, 
   SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle, LogOut, Flame,
-  ShieldAlert, Ban as ForbiddenIcon
+  ShieldAlert, Ban as ForbiddenIcon, PartyPopper, Star, Crown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -58,6 +60,7 @@ export default function GamePage() {
   const [currentRarity, setCurrentRarity] = useState<any>(null);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, createdAt: number}[]>([]);
   const [showGameOverPopup, setShowGameOverPopup] = useState(false);
+  const [completedQuest, setCompletedQuest] = useState<any>(null);
   
   const isPlayer1 = room?.player1Id === user?.uid;
   const currentRoundId = `round_${room?.currentRoundNumber || 1}`;
@@ -74,6 +77,27 @@ export default function GamePage() {
     return query(collection(db, "gameRooms", roomId as string, "emotes"), orderBy("createdAt", "desc"), limit(5));
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
+
+  // --- QUEST LOGIC ---
+  const checkAndUnlockQuest = useCallback(async (emoteId: string, questTitle: string) => {
+    if (!user || !profile) return;
+    const currentUnlocked = profile.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+    if (currentUnlocked.includes(emoteId)) return;
+
+    try {
+      const uRef = doc(db, "userProfiles", user.uid);
+      await updateDoc(uRef, { unlockedEmoteIds: arrayUnion(emoteId) });
+      const emote = ALL_EMOTES.find(e => e.id === emoteId);
+      setCompletedQuest({ title: questTitle, emote });
+    } catch (e) {}
+  }, [user, profile, db]);
+
+  // Watch for Win-based quests
+  useEffect(() => {
+    if (profile && profile.totalWins >= 10) {
+      checkAndUnlockQuest('ten_wins', 'SEASONED DUELIST (10 WINS)');
+    }
+  }, [profile?.totalWins, checkAndUnlockQuest]);
 
   useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
@@ -262,21 +286,16 @@ export default function GamePage() {
     // Check for card-based quests
     if (user && targetPlayer && currentRarity) {
       const questCards = [
-        { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum" },
-        { name: "Lionel Messi", rarity: "DIAMOND", emoteId: "messi_diamond" },
-        { name: "Erling Haaland", rarity: "GOLD", emoteId: "haaland_gold" },
-        { name: "Kylian Mbappé", rarity: "SILVER", emoteId: "mbappe_silver" },
-        { name: "Neymar Jr", rarity: "MASTER", emoteId: "neymar_master" }
+        { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum", title: "PLATINUM CR7 UNLOCKED" },
+        { name: "Lionel Messi", rarity: "DIAMOND", emoteId: "messi_diamond", title: "DIAMOND MESSI UNLOCKED" },
+        { name: "Erling Haaland", rarity: "GOLD", emoteId: "haaland_gold", title: "GOLDEN HAALAND UNLOCKED" },
+        { name: "Kylian Mbappé", rarity: "SILVER", emoteId: "mbappe_silver", title: "SILVER MBAPPE UNLOCKED" },
+        { name: "Neymar Jr", rarity: "MASTER", emoteId: "neymar_master", title: "MASTER NEYMAR UNLOCKED" }
       ];
 
       const matchedQuest = questCards.find(q => q.name === targetPlayer.name && q.rarity === currentRarity.type);
       if (matchedQuest) {
-        const currentUnlocked = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
-        if (!currentUnlocked.includes(matchedQuest.emoteId)) {
-          const uRef = doc(db, "userProfiles", user.uid);
-          await updateDoc(uRef, { unlockedEmoteIds: arrayUnion(matchedQuest.emoteId) });
-          toast({ title: "QUEST COMPLETE!", description: `UNLOCKED: ${matchedQuest.emoteId.toUpperCase()}` });
-        }
+        checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
       }
     }
 
@@ -461,6 +480,30 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {/* Quest Completion Popup */}
+      <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
+        <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
+          <div className="relative">
+            <div className="absolute inset-0 bg-primary/30 blur-[60px] animate-pulse" />
+            <PartyPopper className="w-16 h-16 text-primary relative z-10 animate-bounce" />
+          </div>
+          <div className="space-y-2 relative z-10">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">QUEST COMPLETE!</h2>
+            <p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p>
+          </div>
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-3 w-full relative z-10">
+            <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase">REWARD UNLOCKED</p>
+              <p className="text-sm font-black text-white uppercase">{completedQuest?.emote?.name}</p>
+            </div>
+          </div>
+          <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">
+            CLAIM REWARD
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <div className="fixed inset-0 pointer-events-none z-[60]">
         {activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
