@@ -26,7 +26,6 @@ export default function LandingPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
-  const [showAbout, setShowAbout] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
@@ -55,7 +54,9 @@ export default function LandingPage() {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
       const now = new Date();
-      const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() === 18 && now.getUTCMinutes() < 60;
+      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC. 
+      // Checking for a window on Monday morning IST.
+      const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() >= 18 && now.getUTCHours() <= 19;
       
       if (isResetWindow) {
         const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
@@ -85,7 +86,6 @@ export default function LandingPage() {
 
   const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
-    setShowManual(true);
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 8;
@@ -186,10 +186,11 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
+      {/* Overlays: Manual & Support */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
-            {!isSyncing && showManual && (
+            {!isSyncing && (
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -210,7 +211,9 @@ export default function LandingPage() {
             </div>
             
             <div className="w-full space-y-4">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">🎮 Welcome to FootyDuel!</h2>
+              <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">
+                {isSyncing ? "Syncing Career" : "🎮 How to Duel"}
+              </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-4 text-xs font-bold leading-relaxed text-slate-300 uppercase tracking-tight">
                   <p className="text-white text-sm leading-tight">
@@ -225,6 +228,7 @@ export default function LandingPage() {
                       <li>• Wrong guess = –10 HP risk.</li>
                       <li>• Skip = 0 HP change.</li>
                       <li>• Win 10 matches to unlock the VICTORY ROYALE emote!</li>
+                      <li>• Encounter rare cards to unlock their exclusive emotes.</li>
                     </ul>
                   </div>
                 </div>
@@ -238,7 +242,7 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl">
-                  GOT IT, DUELIST
+                  READY TO KICKOFF
                 </Button>
               )}
             </div>
@@ -262,12 +266,20 @@ export default function LandingPage() {
       )}
 
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
-        <div className="text-center space-y-4">
-          <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2">
-            <Swords className="w-12 h-12" />
+        <header className="flex justify-between items-start">
+          <Button variant="ghost" size="icon" onClick={() => setShowManual(true)} className="text-slate-500 hover:text-white">
+            <HelpCircle className="w-6 h-6" />
+          </Button>
+          <div className="text-center space-y-4">
+            <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2">
+              <Swords className="w-12 h-12" />
+            </div>
+            <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
-        </div>
+          <Button variant="ghost" size="icon" className="text-slate-500 hover:text-white" onClick={() => toast({ title: "FOOTYDUEL v1.0", description: "Season 1: The Beginning" })}>
+            <Info className="w-6 h-6" />
+          </Button>
+        </header>
 
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-3xl">
@@ -288,28 +300,44 @@ export default function LandingPage() {
                 <div className="flex flex-col">
                   <span className="font-black text-sm uppercase truncate max-w-[120px]">{user.displayName}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-[8px] text-primary font-black uppercase"><Trophy className="w-2 h-2 inline mr-1" /> {profileData?.totalWins || 0} WINS</span>
-                    <span className="text-[8px] text-slate-500 font-black uppercase"><Swords className="w-2 h-2 inline mr-1" /> {profileData?.totalGamesPlayed || 0} MATCHES</span>
+                    <span className="text-[8px] text-primary font-black uppercase flex items-center gap-1">
+                      <Trophy className="w-2 h-2" /> {profileData?.totalWins || 0} WINS
+                    </span>
+                    <span className="text-[8px] text-slate-500 font-black uppercase flex items-center gap-1">
+                      <Swords className="w-2 h-2" /> {profileData?.totalGamesPlayed || 0} MATCHES
+                    </span>
                   </div>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500"><LogOut className="w-5 h-5" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500">
+                <LogOut className="w-5 h-5" />
+              </Button>
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-2xl uppercase">CREATE DUEL</Button>
+              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-2xl uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)]">
+                CREATE DUEL
+              </Button>
               <div className="flex gap-2">
-                <Input placeholder="ROOM" className="h-16 bg-[#161618] text-center font-black tracking-[0.3em] text-2xl rounded-2xl uppercase" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
+                <Input placeholder="ROOM" className="h-16 bg-[#161618] text-center font-black tracking-[0.3em] text-2xl rounded-2xl uppercase border-white/10" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
                 <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-2xl uppercase">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase"><Target className="w-5 h-5 mr-2" /> QUESTS</Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase"><BarChart3 className="w-5 h-5 mr-2" /> BOARD</Button>
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
+                <Target className="w-5 h-5 mr-2" /> QUESTS
+              </Button>
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
+                <BarChart3 className="w-5 h-5 mr-2" /> BOARD
+              </Button>
             </div>
 
-            <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px]">
+            <Button onClick={() => router.push('/emotes')} variant="outline" className="w-full h-14 bg-white/5 rounded-2xl font-black uppercase border-white/10">
+              <Smile className="w-5 h-5 mr-2" /> EMOTE LOADOUT
+            </Button>
+
+            <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors">
               <Heart className="w-3 h-3 mr-2" /> SUPPORT DEVELOPER
             </Button>
           </div>
@@ -323,7 +351,7 @@ export default function LandingPage() {
            </div>
            <div className="bg-white/5 p-5 rounded-3xl border border-white/5 flex flex-col items-center">
               <Users className="text-primary w-6 h-6 mb-1" />
-              <span className="text-[8px] uppercase font-black text-slate-500">PLAYERS</span>
+              <span className="text-[8px] uppercase font-black text-slate-500">PLAYERS online</span>
               <span className="text-xl font-black">{playerCount}</span>
            </div>
         </div>
