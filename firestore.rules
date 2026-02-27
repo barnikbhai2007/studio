@@ -2,18 +2,27 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Global rule: Allow any authenticated user to read and write everything.
-    // This ensures that once a user is registered/logged in, they have full access.
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+    // --- Global Helper Functions ---
+
+    // Checks if the user is authenticated.
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Public Read Access: These collections MUST be publicly readable (even without auth)
-    // so that the landing page stats and result history can load correctly.
+    // --- Collection Rules ---
+
+    // Global rule: Allow any authenticated user to read and write everything.
+    // This ensures that once a user is signed in, they have full access to play and view results.
+    match /{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Public Read Access: These collections must be publicly readable (even without auth)
+    // so that the landing page stats and game setup can load correctly.
     
     match /userProfiles/{userId} {
       allow read: if true;
-      // Write is handled by the global rule above (must be signed in)
+      // Write access is handled by the global rule (must be signed in)
     }
 
     match /gameRooms/{gameRoomId} {
