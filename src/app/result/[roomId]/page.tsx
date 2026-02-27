@@ -26,15 +26,18 @@ export default function ResultPage() {
   const [p2Profile, setP2Profile] = useState<any>(null);
 
   const historyQuery = useMemoFirebase(() => {
-    if (!room?.betweenIds) return null;
+    // Generate betweenIds if missing to ensure we can still query history
+    const bid = room?.betweenIds || (room?.player1Id && room?.player2Id ? [room.player1Id, room.player2Id].sort().join('_') : null);
+    if (!bid) return null;
+    
     return query(
       collection(db, "gameRooms"),
-      where("betweenIds", "==", room.betweenIds),
+      where("betweenIds", "==", bid),
       where("status", "==", "Completed"),
       orderBy("finishedAt", "desc"),
       limit(10)
     );
-  }, [db, room?.betweenIds]);
+  }, [db, room?.betweenIds, room?.player1Id, room?.player2Id]);
 
   const { data: recentMatches, isLoading: isHistoryLoading } = useCollection(historyQuery);
 
@@ -127,14 +130,14 @@ export default function ResultPage() {
 
   if (isUserLoading || isRoomLoading || !room || !p1Profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
         <Swords className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
+    <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
       {isWinner && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {[...Array(20)].map((_, i) => (
@@ -159,7 +162,7 @@ export default function ResultPage() {
       </header>
 
       <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
-         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
             <img src={p1Profile.avatarUrl} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName}</span>
             <div className="mt-4 w-full">
@@ -167,7 +170,7 @@ export default function ResultPage() {
               <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
             </div>
          </div>
-         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+         <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
             <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "GUEST"}</span>
             <div className="mt-4 w-full">
@@ -180,7 +183,7 @@ export default function ResultPage() {
       <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
         <div className="text-center">
           <h3 className="text-[10px] font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
-            <History className="w-4 h-4" /> LAST 10 DUELS
+            <History className="w-4 h-4" /> RECENT DUEL FORM
           </h3>
           <div className="flex justify-center gap-1.5 mt-4 mb-2">
             {[...Array(10)].map((_, i) => {
@@ -193,7 +196,7 @@ export default function ResultPage() {
               return (
                 <div 
                   key={i} 
-                  className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border ${
+                  className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border transition-all ${
                     isP1Win ? 'bg-primary/20 border-primary text-primary' : 
                     isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
                     'bg-slate-500/20 border-slate-500 text-slate-500'
@@ -205,13 +208,13 @@ export default function ResultPage() {
               );
             })}
           </div>
-          <span className="text-[10px] font-bold text-white/30 uppercase">MATCH RATIO (LAST 10)</span>
+          <span className="text-[10px] font-bold text-white/30 uppercase">HEAD-TO-HEAD HISTORY</span>
         </div>
         
         <div className="flex items-center justify-between gap-4">
            <div className="flex-1 text-center">
               <span className="text-[3rem] font-black text-primary leading-none">
-                {h2Stats.p1}
+                {h2hStats.p1}
               </span>
               <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
            </div>
@@ -225,7 +228,7 @@ export default function ResultPage() {
         </div>
       </section>
 
-      <footer className="fixed bottom-0 left-0 right-0 p-6 bg-background/80 backdrop-blur-3xl border-t border-white/10 z-50">
+      <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-50">
         <div className="max-w-2xl mx-auto flex gap-3">
           <Button onClick={() => router.push('/')} className="flex-1 h-14 bg-white text-black font-black text-lg gap-3 rounded-2xl uppercase">
             <Home className="w-6 h-6" /> HOME
