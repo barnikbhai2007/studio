@@ -11,15 +11,15 @@ export interface Footballer {
 }
 
 export const RARITIES: { type: RarityType; bg: string; weight: number }[] = [
-  { type: 'IRON', bg: 'from-slate-500 to-slate-800', weight: 70 },
-  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950', weight: 55 },
-  { type: 'SILVER', bg: 'from-slate-300 to-slate-500', weight: 40 },
-  { type: 'GOLD', bg: 'from-yellow-400 via-amber-500 to-yellow-600', weight: 30 },
-  { type: 'PLATINUM', bg: 'from-cyan-400 to-blue-600', weight: 20 },
+  { type: 'IRON', bg: 'from-slate-500 to-slate-800', weight: 17 },
+  { type: 'BRONZE', bg: 'from-orange-700 to-orange-950', weight: 16 },
+  { type: 'SILVER', bg: 'from-slate-300 to-slate-500', weight: 15 },
+  { type: 'GOLD', bg: 'from-yellow-400 via-amber-500 to-yellow-600', weight: 13 },
+  { type: 'PLATINUM', bg: 'from-cyan-400 to-blue-600', weight: 12 },
   { type: 'DIAMOND', bg: 'from-blue-400 via-indigo-500 to-purple-600', weight: 10 },
-  { type: 'MASTER', bg: 'from-purple-600 to-fuchsia-900', weight: 5 },
-  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-950', weight: 3 },
-  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-orange-500', weight: 2 }
+  { type: 'MASTER', bg: 'from-purple-600 to-fuchsia-900', weight: 9 },
+  { type: 'GRANDMASTER', bg: 'from-red-600 to-red-950', weight: 5 },
+  { type: 'LEGENDARY', bg: 'from-yellow-300 via-yellow-500 to-orange-500', weight: 3 }
 ];
 
 export const getRandomRarity = () => {
