@@ -77,7 +77,7 @@ export default function LeaderboardPage() {
             <ArrowLeft className="w-6 h-6" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-4xl font-black uppercase tracking-tighter">HALL OF FAME</h1>
+            <h1 className="text-4xl font-black uppercase tracking-tighter">LEADERBOARD</h1>
             <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase flex items-center gap-2">
               <Sparkles className="w-3 h-3" /> TOP 5 ELITE DUELISTS
             </span>

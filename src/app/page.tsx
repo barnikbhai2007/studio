@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { 
   Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper, Crown
+  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper, Crown,
+  Gamepad2, Medal
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -309,7 +310,7 @@ export default function LandingPage() {
                         <ul className="space-y-3 list-none">
                           <li className="flex gap-2"><span className="text-primary">1.</span> Leaderboard resets every Monday at 00:00 IST.</li>
                           <li className="flex gap-2"><span className="text-primary">2.</span> The Rank 1 duelist wins an exclusive weekly emote.</li>
-                          <li className="flex gap-2"><span className="text-primary">3.</span> Only the top 5 elite players are shown in the Hall of Fame.</li>
+                          <li className="flex gap-2"><span className="text-primary">3.</span> Only the top 5 elite players are shown in the Leaderboard.</li>
                         </ul>
                       </div>
                       <div className="pt-4 border-t border-white/10 space-y-4">
@@ -380,26 +381,42 @@ export default function LandingPage() {
           </Card>
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between bg-white/5 p-4 rounded-[2rem] border border-white/5 backdrop-blur-md shadow-xl">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-14 h-14 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
-                  <div className="absolute -bottom-1 -right-1 bg-primary text-black rounded-full p-1 border-2 border-[#0a0a0b]">
-                    <Sparkles className="w-3 h-3" />
+            <div className="flex flex-col gap-4 bg-white/5 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-md shadow-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-14 h-14 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
+                    <div className="absolute -bottom-1 -right-1 bg-primary text-black rounded-full p-1 border-2 border-[#0a0a0b]">
+                      <Sparkles className="w-3 h-3" />
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                  <div className="flex flex-col">
+                    <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
+                    <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 w-fit">
                       <Crown className="w-2 h-2" /> {profileData?.weeklyWins || 0} WEEKLY
                     </span>
                   </div>
                 </div>
+                <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500">
+                  <LogOut className="w-5 h-5" />
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500">
-                <LogOut className="w-5 h-5" />
-              </Button>
+
+              {/* Lifetime Statistics Section */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <Gamepad2 className="w-3 h-3" /> LIFETIME MATCHES
+                  </span>
+                  <span className="text-xl font-black text-white">{profileData?.totalGamesPlayed || 0}</span>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                    <Medal className="w-3 h-3" /> LIFETIME WINS
+                  </span>
+                  <span className="text-xl font-black text-primary">{profileData?.totalWins || 0}</span>
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-3">
@@ -417,7 +434,7 @@ export default function LandingPage() {
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
               <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LADDER
+                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
               </Button>
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
