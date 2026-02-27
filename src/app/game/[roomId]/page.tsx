@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -311,6 +310,8 @@ export default function GamePage() {
        batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
        const bhId = [winnerId, loserId].sort().join('_');
+       updatePayload.betweenIds = bhId; // Ensure betweenIds is set on completion
+       
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
        if (!bhSnap.exists()) {
@@ -368,12 +369,12 @@ export default function GamePage() {
         status: 'Completed', 
         winnerId, 
         loserId,
-        finishedAt: new Date().toISOString()
+        finishedAt: new Date().toISOString(),
+        betweenIds: bhId
       });
 
       await batch.commit();
       toast({ title: "MATCH CONCEDED", description: "DUEL LOGGED AS DEFEAT." });
-      // Immediate redirect for the person who forfeited
       router.push(`/result/${roomId}`);
     } catch (error) {
       console.error("Forfeit error:", error);

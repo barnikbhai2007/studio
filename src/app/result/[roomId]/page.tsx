@@ -1,14 +1,13 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Swords, History, Home, Sparkles, RefreshCw } from "lucide-react";
-import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
+import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Flame } from "lucide-react";
+import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -25,7 +24,20 @@ export default function ResultPage() {
 
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
-  const [battleHistory, setBattleHistory] = useState<any>(null);
+
+  // Query last 10 matches for the same competitors
+  const historyQuery = useMemoFirebase(() => {
+    if (!room?.betweenIds) return null;
+    return query(
+      collection(db, "gameRooms"),
+      where("betweenIds", "==", room.betweenIds),
+      where("status", "==", "Completed"),
+      orderBy("finishedAt", "desc"),
+      limit(10)
+    );
+  }, [db, room?.betweenIds]);
+
+  const { data: recentMatches } = useCollection(historyQuery);
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
@@ -35,7 +47,6 @@ export default function ResultPage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
-  // Sync back to lobby if game is reset
   useEffect(() => {
     if (room?.status === 'Lobby') {
       router.push(`/lobby/${roomId}`);
@@ -47,35 +58,38 @@ export default function ResultPage() {
 
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
     let unsubP2 = () => {};
-    let unsubBH = () => {};
 
     if (room.player2Id) {
       unsubP2 = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
-      const bhId = [room.player1Id, room.player2Id].sort().join('_');
-      unsubBH = onSnapshot(doc(db, "battleHistories", bhId), snap => {
-        if (snap.exists()) {
-          setBattleHistory(snap.data());
-        }
-      });
     }
 
     return () => {
       unsubP1();
       unsubP2();
-      unsubBH();
     };
   }, [room?.player1Id, room?.player2Id, db, user]);
+
+  const h2hStats = useMemo(() => {
+    if (!recentMatches || !room) return { p1: 0, p2: 0, total: 0 };
+    const p1Id = room.player1Id;
+    const p2Id = room.player2Id;
+    
+    return recentMatches.reduce((acc, match) => {
+      if (match.winnerId === p1Id) acc.p1++;
+      else if (match.winnerId === p2Id) acc.p2++;
+      acc.total++;
+      return acc;
+    }, { p1: 0, p2: 0, total: 0 });
+  }, [recentMatches, room]);
 
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1) return;
     try {
       const batch = writeBatch(db);
       
-      // Clear rounds
       const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
       roundsSnap.docs.forEach(d => batch.delete(d.ref));
       
-      // Clear emotes
       const emotesSnap = await getDocs(collection(db, "gameRooms", roomId as string, "emotes"));
       emotesSnap.docs.forEach(d => batch.delete(d.ref));
 
@@ -102,10 +116,6 @@ export default function ResultPage() {
       </div>
     );
   }
-
-  // Map battle history wins correctly
-  const p1Wins = battleHistory?.player1Id === room.player1Id ? battleHistory?.player1Wins : battleHistory?.player2Wins;
-  const p2Wins = battleHistory?.player1Id === room.player2Id ? battleHistory?.player1Wins : battleHistory?.player2Wins;
 
   return (
     <div className="min-h-screen bg-background p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
@@ -151,31 +161,53 @@ export default function ResultPage() {
          </div>
       </section>
 
-      {battleHistory && (
-        <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
-          <div className="text-center">
-            <h3 className="text-[10px] font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
-              <History className="w-4 h-4" /> HEAD-TO-HEAD BATTLES
-            </h3>
-            <span className="text-[10px] font-bold text-white/30 uppercase">TOTAL DUELS: {battleHistory.totalMatches}</span>
+      <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
+        <div className="text-center">
+          <h3 className="text-[10px] font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
+            <History className="w-4 h-4" /> LAST 10 DUELS
+          </h3>
+          <div className="flex justify-center gap-1.5 mt-4 mb-2">
+            {[...Array(10)].map((_, i) => {
+              const match = recentMatches?.[i];
+              if (!match) return <div key={i} className="w-6 h-8 rounded-md bg-white/5 border border-white/5" />;
+              
+              const isP1Win = match.winnerId === room.player1Id;
+              const isP2Win = match.winnerId === room.player2Id;
+              
+              return (
+                <div 
+                  key={i} 
+                  className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border ${
+                    isP1Win ? 'bg-primary/20 border-primary text-primary' : 
+                    isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
+                    'bg-slate-500/20 border-slate-500 text-slate-500'
+                  }`}
+                  title={isP1Win ? `${p1Profile.displayName} Won` : (isP2Win ? `${p2Profile?.displayName} Won` : 'Draw')}
+                >
+                  {isP1Win ? 'W' : (isP2Win ? 'L' : 'D')}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex items-center justify-between gap-4">
-             <div className="flex-1 text-center">
-                <span className="text-[3rem] font-black text-primary leading-none">
-                  {p1Wins}
-                </span>
-                <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
-             </div>
-             <div className="w-px h-12 bg-white/10" />
-             <div className="flex-1 text-center">
-                <span className="text-[3rem] font-black text-secondary leading-none">
-                  {p2Wins}
-                </span>
-                <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "GUEST"} WINS</span>
-             </div>
-          </div>
-        </section>
-      )}
+          <span className="text-[10px] font-bold text-white/30 uppercase">MATCH RATIO (LAST 10)</span>
+        </div>
+        
+        <div className="flex items-center justify-between gap-4">
+           <div className="flex-1 text-center">
+              <span className="text-[3rem] font-black text-primary leading-none">
+                {h2hStats.p1}
+              </span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
+           </div>
+           <div className="w-px h-12 bg-white/10" />
+           <div className="flex-1 text-center">
+              <span className="text-[3rem] font-black text-secondary leading-none">
+                {h2hStats.p2}
+              </span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "GUEST"} WINS</span>
+           </div>
+        </div>
+      </section>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-background/80 backdrop-blur-3xl border-t border-white/10 z-50">
         <div className="max-w-2xl mx-auto flex gap-3">

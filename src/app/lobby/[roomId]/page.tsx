@@ -87,9 +87,14 @@ export default function LobbyPage() {
       toast({ variant: "destructive", title: "Wait!", description: "Waiting for an opponent to join." });
       return;
     }
+    
+    // Ensure betweenIds is set for history tracking
+    const betweenIds = [room.player1Id, room.player2Id].sort().join('_');
+    
     await updateDoc(roomRef, { 
       status: 'InProgress',
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      betweenIds
     });
   };
 
