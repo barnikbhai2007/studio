@@ -8,9 +8,9 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'neymar_cute', name: 'FAHHH', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/Neymar_cute_hg3e2v.jpg' },
   { id: 'messi_laugh', name: 'BOTTLED', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/2dc70f34-b7cf-45f1-9db0-7a7c667f11de_bx6ecv.jpg' },
   { id: 'shocked_meme', name: 'STUNNED', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/938ec3b5-6b90-4687-8d41-9a942b2142f6_iuitgx.jpg' },
-  { id: 'vini_dance', name: 'VINI GROOVE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/fc314786-bb10-47c8-83c0-6936cafeed57_pheirf.jpg' },
-  { id: 'ronaldo_siu', name: 'CR7 FOCUS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/RONALDO_PP_w2sjfy.jpg' },
-  { id: 'mbappe_cry', name: 'TURTLE TEARS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/kylian_mbappe_ty41ip.jpg' },
+  { id: 'vini_dance', name: 'HEHE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/fc314786-bb10-47c8-83c0-6936cafeed57_pheirf.jpg' },
+  { id: 'ronaldo_siu', name: 'FOCUS', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/RONALDO_PP_w2sjfy.jpg' },
+  { id: 'mbappe_cry', name: 'OKAY', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131958/kylian_mbappe_ty41ip.jpg' },
   { id: 'jude_hey', name: 'HEY JUDE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772131957/Jude_Bellingham_meme_afkxet.jpg' },
   // Locked Emotes (Planned for future Quests)
   { id: 'trophy_gold', name: 'WORLD CUP', url: 'https://picsum.photos/seed/trophy/200/200' },
