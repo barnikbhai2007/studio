@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -281,7 +282,7 @@ export default function LandingPage() {
 
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
+          <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
             <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
               <X className="w-6 h-6" />
             </Button>
@@ -362,18 +363,18 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
+              <Button onClick={handleCreateRoom} className="w-full h-14 text-xl font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
                 CREATE DUEL <Swords className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input 
                   placeholder="CODE" 
-                  className="h-16 bg-[#161618] text-center font-black tracking-[0.4em] text-2xl rounded-[1.2rem] uppercase border-white/10 focus:border-primary/50" 
+                  className="h-14 bg-[#161618] text-center font-black tracking-[0.4em] text-2xl rounded-[1.2rem] uppercase border-white/10 focus:border-primary/50" 
                   value={roomCode} 
                   onChange={(e) => setRoomCode(e.target.value)} 
                   maxLength={6} 
                 />
-                <Button onClick={handleJoinRoom} variant="secondary" className="h-16 px-8 font-black rounded-[1.2rem] uppercase text-lg shadow-xl">JOIN</Button>
+                <Button onClick={handleJoinRoom} variant="secondary" className="h-14 px-8 font-black rounded-[1.2rem] uppercase text-lg shadow-xl">JOIN</Button>
               </div>
             </div>
 
@@ -382,7 +383,7 @@ export default function LandingPage() {
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
               <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
-                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> BOARD
+                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
               </Button>
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
@@ -393,7 +394,7 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-2">
-              <Button onClick={() => setShowSupport(false)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest" onClick={() => setShowSupport(true)}>
+              <Button variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest" onClick={() => setShowSupport(true)}>
                 <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT THE DEV
               </Button>
             </div>

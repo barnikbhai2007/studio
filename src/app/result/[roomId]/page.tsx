@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -36,6 +37,7 @@ export default function ResultPage() {
 
   const historyQuery = useMemoFirebase(() => {
     if (!bid) return null;
+    // We strictly use status Completed to avoid listing active/broken rooms
     return query(
       collection(db, "gameRooms"),
       where("betweenIds", "==", bid),
@@ -64,11 +66,16 @@ export default function ResultPage() {
   useEffect(() => {
     if (!room || !user) return;
 
-    const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
+    // Real-time listener for both players to ensure profile data is updated
+    const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
+      if (snap.exists()) setP1Profile(snap.data());
+    });
+    
     let unsubP2 = () => {};
-
     if (room.player2Id) {
-      unsubP2 = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
+      unsubP2 = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => {
+        if (snap.exists()) setP2Profile(snap.data());
+      });
     }
 
     return () => {
@@ -78,13 +85,14 @@ export default function ResultPage() {
   }, [room, db, user]);
 
   useEffect(() => {
+    if (!user || !db || !room) return;
     const profile = isPlayer1 ? p1Profile : p2Profile;
-    if (user && profile && profile.totalWins >= 10 && !(profile.unlockedEmoteIds || []).includes('ten_wins')) {
+    if (profile && profile.totalWins >= 10 && !(profile.unlockedEmoteIds || []).includes('ten_wins')) {
       updateDoc(doc(db, "userProfiles", user.uid), {
         unlockedEmoteIds: arrayUnion('ten_wins')
       });
     }
-  }, [p1Profile, p2Profile, user, isPlayer1, db]);
+  }, [p1Profile, p2Profile, user, isPlayer1, db, room]);
 
   const h2hStats = useMemo(() => {
     if (!recentMatches || !room) return { p1: 0, p2: 0, total: 0 };
@@ -127,7 +135,10 @@ export default function ResultPage() {
   if (isUserLoading || isRoomLoading || !room || !p1Profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
-        <Swords className="w-12 h-12 text-primary animate-spin" />
+        <div className="flex flex-col items-center gap-4">
+          <Swords className="w-12 h-12 text-primary animate-spin" />
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Finalizing Intelligence...</p>
+        </div>
       </div>
     );
   }
@@ -159,7 +170,7 @@ export default function ResultPage() {
 
       <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p1Profile.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
+            <img src={p1Profile.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName || "PLAYER 1"}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player1CurrentHealth}</span></div>
@@ -167,8 +178,8 @@ export default function ResultPage() {
             </div>
          </div>
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
-            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "GUEST"}</span>
+            <img src={p2Profile?.avatarUrl || `https://picsum.photos/seed/${room.player2Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
+            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player2CurrentHealth}</span></div>
               <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
@@ -182,26 +193,30 @@ export default function ResultPage() {
             <History className="w-4 h-4" /> RECENT DUEL FORM
           </h3>
           <div className="flex justify-center gap-1.5 mt-4 mb-2">
-            {[...Array(10)].map((_, i) => {
-              const match = recentMatches?.[i];
-              if (!match) return <div key={i} className="w-6 h-8 rounded-md bg-white/5 border border-white/5" />;
-              
-              const isP1Win = match.winnerId === room.player1Id;
-              const isP2Win = match.winnerId === room.player2Id;
-              
-              return (
-                <div 
-                  key={i} 
-                  className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border transition-all ${
-                    isP1Win ? 'bg-primary/20 border-primary text-primary' : 
-                    isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
-                    'bg-slate-500/20 border-slate-500 text-slate-500'
-                  }`}
-                >
-                  {isP1Win ? 'W' : (isP2Win ? 'L' : 'D')}
-                </div>
-              );
-            })}
+            {isHistoryLoading ? (
+              <Loader2 className="w-6 h-6 animate-spin opacity-30" />
+            ) : (
+              [...Array(10)].map((_, i) => {
+                const match = recentMatches?.[i];
+                if (!match) return <div key={i} className="w-6 h-8 rounded-md bg-white/5 border border-white/5" />;
+                
+                const isP1Win = match.winnerId === room.player1Id;
+                const isP2Win = match.winnerId === room.player2Id;
+                
+                return (
+                  <div 
+                    key={i} 
+                    className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border transition-all ${
+                      isP1Win ? 'bg-primary/20 border-primary text-primary' : 
+                      isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
+                      'bg-slate-500/20 border-slate-500 text-slate-500'
+                    }`}
+                  >
+                    {isP1Win ? 'W' : (isP2Win ? 'L' : 'D')}
+                  </div>
+                );
+              })
+            )}
           </div>
           <span className="text-[10px] font-bold text-white/30 uppercase">LAST 10 MATCHES HISTORY</span>
         </div>
@@ -218,7 +233,7 @@ export default function ResultPage() {
               <span className="text-[3rem] font-black text-secondary leading-none">
                 {h2hStats.p2}
               </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "GUEST"} WINS</span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "OPPONENT"} WINS</span>
            </div>
         </div>
       </section>

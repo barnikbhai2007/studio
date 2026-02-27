@@ -18,6 +18,11 @@ service cloud.firestore {
       allow update: if isSignedIn();
     }
 
+    // Explicitly allow listing the userProfiles collection for the leaderboard
+    match /userProfiles {
+      allow list: if true;
+    }
+
     // Game Rooms: Broadened permissions to allow listing and sub-collection access
     match /gameRooms/{roomId} {
       allow read: if true;
@@ -32,7 +37,7 @@ service cloud.firestore {
       }
     }
 
-    // Explicitly allow listing the gameRooms collection (for the landing page count)
+    // Explicitly allow listing the gameRooms collection (for history and counters)
     match /gameRooms {
       allow list: if true;
     }
