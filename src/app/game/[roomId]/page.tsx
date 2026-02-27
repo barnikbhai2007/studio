@@ -101,11 +101,10 @@ export default function GamePage() {
   useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
-      // Strict emote check: only emotes created within the last 3 seconds and definitely newer than what we have
       const newEmotes = recentEmotes
         .filter(e => {
           const createdAt = e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now);
-          return now - createdAt < 3000;
+          return now - createdAt < 2000;
         })
         .map(e => ({ 
           id: e.id, 
@@ -117,7 +116,7 @@ export default function GamePage() {
         const existingIds = new Set(prev.map(p => p.id));
         const filtered = newEmotes.filter(n => !existingIds.has(n.id));
         if (filtered.length === 0) return prev;
-        return [...prev, ...filtered].slice(-10);
+        return [...prev, ...filtered].slice(-5);
       });
     }
   }, [recentEmotes]);
@@ -171,18 +170,13 @@ export default function GamePage() {
       revealTimeouts.current = [];
       
       setRevealStep('none');
+      setGameState(currentRoundNumber === 1 ? 'countdown' : 'playing');
       setGuessInput("");
       setRoundTimer(null);
       setVisibleHints(1);
       setTargetPlayer(null);
       setAutoNextRoundCountdown(null);
-
-      if (currentRoundNumber === 1) {
-        setGameState('countdown');
-        setCountdown(5);
-      } else {
-        setGameState('playing');
-      }
+      if (currentRoundNumber === 1) setCountdown(5);
     }
   }, [currentRoundNumber]);
 
@@ -318,15 +312,19 @@ export default function GamePage() {
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
     
-    // Snappy Reveal: 0.2s intervals
+    // Precise Timestamps: 
+    // 2.2s: Country In, 3.1s: Out
+    // 3.8s: Position In, 4.7s: Out
+    // 5.2s: Rarity In, 6.1s: Out
+    // 6.9s: Full Card Reveal
     const steps = [
-      { s: 'country', t: 200 },
-      { s: 'none', t: 400 },
-      { s: 'position', t: 600 },
-      { s: 'none', t: 800 },
-      { s: 'rarity', t: 1000 },
-      { s: 'none', t: 1200 },
-      { s: 'full-card', t: 1400 }
+      { s: 'country', t: 2200 },
+      { s: 'none', t: 3100 },
+      { s: 'position', t: 3800 },
+      { s: 'none', t: 4700 },
+      { s: 'rarity', t: 5200 },
+      { s: 'none', t: 6100 },
+      { s: 'full-card', t: 6900 }
     ];
 
     steps.forEach(step => {
@@ -337,7 +335,7 @@ export default function GamePage() {
     const finalT = setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
-    }, 4500); // Sequence complete faster now
+    }, 9500); 
     revealTimeouts.current.push(finalT);
   };
 
