@@ -11,22 +11,15 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isParticipant(p1, p2) {
-      return isSignedIn() && (request.auth.uid == p1 || request.auth.uid == p2);
-    }
-
-    // User Profiles: Allow public reading, but restricted creation to owner.
-    // Update is allowed for signed-in users to permit game outcome stat increments (wins/losses).
+    // User Profiles: Allow public reading to see rivals, but restricted creation to owner.
     match /userProfiles/{userId} {
-      allow get: if true;
-      allow list: if true;
+      allow read: if true;
       allow create: if isOwner(userId);
       allow update: if isSignedIn();
     }
 
     match /gameRooms/{gameRoomId} {
-      allow list: if true;
-      allow get: if true;
+      allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       

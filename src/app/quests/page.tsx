@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -18,9 +19,9 @@ export default function QuestsPage() {
   const userRef = useMemoFirebase(() => user ? doc(db, "userProfiles", user.uid) : null, [db, user]);
   const { data: profile } = useDoc(userRef);
 
-  const unlockedIds = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+  // Merge defaults to ensure base emotes are never treated as locked
+  const unlockedIds = Array.from(new Set([...UNLOCKED_EMOTE_IDS, ...(profile?.unlockedEmoteIds || [])]));
 
-  // Calculate percentages based on total weight (Total weight is ~235)
   const totalWeight = RARITIES.reduce((acc, r) => acc + r.weight, 0);
 
   const quests = [

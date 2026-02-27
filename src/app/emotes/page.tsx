@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -9,7 +10,7 @@ import { Smile, ArrowLeft, Save, CheckCircle2, Lock, Sparkles, Trophy } from "lu
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, updateDoc } from "firebase/firestore";
-import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, QUEST_EMOTE_IDS, Emote } from "@/lib/emote-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, Emote } from "@/lib/emote-data";
 
 export default function EmotesPage() {
   const router = useRouter();
@@ -26,6 +27,9 @@ export default function EmotesPage() {
   const [equippedIds, setEquippedIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Merge default free emotes with user's unlocked rewards
+  const unlockedList = Array.from(new Set([...UNLOCKED_EMOTE_IDS, ...(profile?.unlockedEmoteIds || [])]));
+
   useEffect(() => {
     if (profile) {
       setEquippedIds(profile.equippedEmoteIds || DEFAULT_EQUIPPED_IDS);
@@ -39,9 +43,7 @@ export default function EmotesPage() {
   const toggleEmote = (emoteId: string) => {
     const isCurrentlyEquipped = equippedIds.includes(emoteId);
     
-    // Check unlock status in user profile
     if (!isCurrentlyEquipped) {
-      const unlockedList = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
       if (!unlockedList.includes(emoteId)) {
         toast({
           variant: "destructive",
@@ -89,8 +91,6 @@ export default function EmotesPage() {
       </div>
     );
   }
-
-  const unlockedList = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white p-4 flex flex-col items-center">
