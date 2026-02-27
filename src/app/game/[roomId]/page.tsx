@@ -125,21 +125,30 @@ export default function GamePage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
+  // Handle Game Over Redirection
   useEffect(() => {
+    let timerId: NodeJS.Timeout;
     if (room?.status === 'Completed' && !showGameOverPopup) {
        setShowGameOverPopup(true);
-       const interval = setInterval(() => {
-         setGameOverTimer(prev => {
-           if (prev <= 1) {
-             clearInterval(interval);
-             router.push(`/result/${roomId}`);
-             return 0;
-           }
-           return prev - 1;
-         });
-       }, 1000);
-       return () => clearInterval(interval);
+       setGameOverTimer(5);
     }
+
+    if (showGameOverPopup) {
+      timerId = setInterval(() => {
+        setGameOverTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerId);
+            router.push(`/result/${roomId}`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timerId) clearInterval(timerId);
+    };
   }, [room?.status, roomId, router, showGameOverPopup]);
 
   useEffect(() => {
@@ -239,7 +248,7 @@ export default function GamePage() {
         if (rarity) setCurrentRarity(rarity);
       }
       
-      const bothGuessed = !!roundData.player1Guess && !!roundData.player2Guess;
+      const bothGuessed = (!!roundData.player1Guess || roundData.player1Guess === "SKIPPED") && (!!roundData.player2Guess || roundData.player2Guess === "SKIPPED");
       if (bothGuessed && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
@@ -341,12 +350,6 @@ export default function GamePage() {
     revealTimeouts.current.push(finalT);
   };
 
-  useEffect(() => {
-    return () => {
-      revealTimeouts.current.forEach(t => clearTimeout(t));
-    };
-  }, []);
-
   const handleNextRound = async () => {
      if (!room || !roomRef || !isPlayer1) return;
      if (room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
@@ -420,8 +423,8 @@ export default function GamePage() {
 
   if (isUserLoading || isRoomLoading || !room) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
 
-  const hasP1Guessed = !!roundData?.player1Guess;
-  const hasP2Guessed = !!roundData?.player2Guess;
+  const hasP1Guessed = !!roundData?.player1Guess || roundData?.player1Guess === "SKIPPED";
+  const hasP2Guessed = !!roundData?.player2Guess || roundData?.player2Guess === "SKIPPED";
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
