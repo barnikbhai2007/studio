@@ -26,6 +26,7 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
+  // Defensive bid calculation
   const bid = useMemo(() => {
     if (!room || !room.player1Id || !room.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
@@ -47,7 +48,7 @@ export default function ResultPage() {
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
   
-  // Defensive health calculation
+  // Defensive health calculation with safety defaults
   const p1Health = room?.player1CurrentHealth ?? 0;
   const p2Health = room?.player2CurrentHealth ?? 0;
   const healthMax = room?.healthOption ?? 100;
@@ -162,10 +163,10 @@ export default function ResultPage() {
           <div className="absolute inset-0 bg-secondary/20 blur-[60px] rounded-full animate-pulse" />
           <Trophy className="w-24 h-24 text-secondary relative z-10 mx-auto animate-in zoom-in duration-700" />
         </div>
-        <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-white">
+        <h1 className="text-5xl md:text-7xl font-black tracking-normal uppercase text-white">
           {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
         </h1>
-        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform uppercase">
+        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 uppercase">
           {healthDiff} HP DIFFERENCE
         </Badge>
       </header>

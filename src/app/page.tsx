@@ -165,7 +165,8 @@ export default function LandingPage() {
       }
       router.push(`/lobby/${roomCode.trim()}`);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Join Failed", description: "Check connection." });
+      console.error("Join error:", error);
+      toast({ variant: "destructive", title: "Join Failed", description: "Please check the room code or your connection." });
       setIsActionLoading(false);
     }
   };
@@ -206,7 +207,7 @@ export default function LandingPage() {
             </div>
             
             <div className="w-full space-y-4">
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-primary">
+              <h2 className="text-3xl font-black uppercase tracking-normal text-primary">
                 {isSyncing ? "SYNCING CAREER" : "🎮 Welcome to FootyDuel!"}
               </h2>
               <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
@@ -238,7 +239,7 @@ export default function LandingPage() {
 
                       <div className="pt-4 border-t border-white/10 space-y-4">
                         <p className="text-primary text-sm">🔥 Stay fast. Stay sharp. Prove your football knowledge.</p>
-                        <p className="text-slate-400">Good luck and have fun! ~ Barnik (brokenAqua)</p>
+                        <p className="text-slate-400 normal-case">Good luck and have fun! ~ Barnik (brokenAqua)</p>
                       </div>
                     </>
                   )}
@@ -247,12 +248,12 @@ export default function LandingPage() {
               {isSyncing ? (
                 <div className="w-full space-y-2 px-4">
                   <Progress value={syncProgress} className="h-2 bg-white/5" />
-                  <p className="text-primary text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
+                  <p className="text-primary text-[10px] font-black uppercase tracking-widest animate-pulse">
                     SETUP FILE LOADING... {Math.round(syncProgress)}%
                   </p>
                 </div>
               ) : (
-                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-[0_0_30px_rgba(255,123,0,0.3)]">
+                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
                   READY TO KICKOFF
                 </Button>
               )}
@@ -270,7 +271,7 @@ export default function LandingPage() {
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
               <div className="flex flex-col items-center gap-2">
                 <Coffee className="w-10 h-10 text-primary" />
-                <h2 className="text-2xl font-black uppercase text-primary tracking-tighter leading-tight text-center">BUY THE DEV A COFFEE</h2>
+                <h2 className="text-2xl font-black uppercase text-primary tracking-normal leading-tight text-center">BUY THE DEV A COFFEE</h2>
               </div>
               
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
@@ -301,13 +302,13 @@ export default function LandingPage() {
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black tracking-normal text-white uppercase">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-black text-white uppercase tracking-tighter">AUTHENTICATION</CardTitle>
+              <CardTitle className="text-2xl font-black text-white uppercase tracking-normal">AUTHENTICATION</CardTitle>
               <CardDescription className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Join the global duelist arena</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
@@ -344,32 +345,32 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-12 text-base font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
+              <Button onClick={handleCreateRoom} className="w-full h-12 text-sm font-black bg-primary rounded-xl uppercase shadow-lg hover:scale-[1.02] transition-all group">
                 CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-12 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input 
                   placeholder="CODE" 
-                  className="h-14 bg-[#161618] text-center font-black tracking-[0.4em] text-2xl rounded-[1.2rem] uppercase border-white/10 focus:border-primary/50" 
+                  className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl uppercase border-white/10 focus:border-primary/50" 
                   value={roomCode} 
                   onChange={(e) => setRoomCode(e.target.value)} 
                   maxLength={6} 
                 />
-                <Button onClick={handleJoinRoom} variant="secondary" className="h-14 px-8 font-black rounded-[1.2rem] uppercase text-lg shadow-xl">JOIN</Button>
+                <Button onClick={handleJoinRoom} variant="secondary" className="h-14 px-8 font-black rounded-xl uppercase text-lg shadow-xl">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
                 <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
               </Button>
-              <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
+              <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
               </Button>
-              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
+              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
                 <Info className="w-5 h-5 mr-2 text-primary" /> INFO
               </Button>
             </div>
@@ -396,7 +397,7 @@ export default function LandingPage() {
         </div>
 
         <div className="text-center pt-8 pb-4">
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center justify-center gap-2">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-center gap-2">
             MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500" /> IN INDIA
           </p>
         </div>
