@@ -469,6 +469,12 @@ export default function LandingPage() {
               <span className="text-2xl font-black">{totalPlayers}</span>
            </div>
         </div>
+
+        <footer className="text-center pt-8 opacity-40">
+          <p className="text-[10px] font-black uppercase tracking-[0.5em] flex items-center justify-center gap-2">
+            MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500" /> IN INDIA
+          </p>
+        </footer>
       </div>
     </div>
   );

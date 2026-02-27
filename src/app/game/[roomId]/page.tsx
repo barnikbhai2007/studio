@@ -154,8 +154,8 @@ export default function GamePage() {
 
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
+      // RESET ALL ROUND STATE IMMEDIATELY
       lastProcessedRound.current = currentRoundNumber;
-      
       revealTriggered.current = false;
       isInitializingRound.current = false;
       
@@ -221,15 +221,16 @@ export default function GamePage() {
   }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
-    if (roundData) {
+    if (roundData && gameState === 'playing') {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       if (roundData.rarityType) {
         const rarity = RARITIES.find(r => r.type === roundData.rarityType);
         if (rarity) setCurrentRarity(rarity);
       }
+      
       const bothGuessed = !!roundData.player1Guess && !!roundData.player2Guess;
-      if (bothGuessed && gameState === 'playing' && !revealTriggered.current) {
+      if (bothGuessed && !revealTriggered.current) {
         handleRevealTrigger();
       }
     }
