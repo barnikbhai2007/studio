@@ -23,9 +23,14 @@ export const RARITIES: { type: RarityType; bg: string; weight: number }[] = [
 ];
 
 export const getRandomRarity = () => {
-  // TEST MODE: Forced Diamond Rarity
-  const diamond = RARITIES.find(r => r.type === 'DIAMOND');
-  return diamond || RARITIES[0];
+  const totalWeight = RARITIES.reduce((acc, r) => acc + r.weight, 0);
+  let random = Math.random() * totalWeight;
+  
+  for (const rarity of RARITIES) {
+    if (random < rarity.weight) return rarity;
+    random -= rarity.weight;
+  }
+  return RARITIES[0];
 };
 
 export const FOOTBALLERS: Footballer[] = [
@@ -62,7 +67,17 @@ export const FOOTBALLERS: Footballer[] = [
 ];
 
 export function getRandomFootballer(excludeIds: string[] = [], version: string = 'All'): Footballer {
-  // TEST MODE: Forced Lionel Messi (ID: '1')
-  const messi = FOOTBALLERS.find(f => f.id === '1');
-  return messi || FOOTBALLERS[0];
+  let pool = FOOTBALLERS;
+  
+  if (version !== 'All' && version !== 'DEMO') {
+    pool = FOOTBALLERS.filter(f => f.version === version);
+  }
+
+  const available = pool.filter(f => !excludeIds.includes(f.id));
+  
+  if (available.length === 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  return available[Math.floor(Math.random() * available.length)];
 }
