@@ -46,21 +46,14 @@ export default function LandingPage() {
 
   const playerCount = useMemo(() => allPlayers?.length || 0, [allPlayers]);
 
-  // Handle Rank 1 Seasonal Reset Quest
+  // Handle Rank 1 Seasonal Reset Quest - Deliver only during the reset window
   useEffect(() => {
     const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
       
       const now = new Date();
-      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC
-      const target = new Date();
-      target.setUTCHours(18, 30, 0, 0);
-      const day = now.getUTCDay();
-      const daysUntilSunday = (7 - day) % 7;
-      target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-      
-      // We only reward if the player visits during the reset window (Monday 00:00 - 01:00 IST)
-      const isResetWindow = now.getUTCDay() === 0 && now.getUTCHours() >= 18 && now.getUTCHours() < 19;
+      // Reset Window: Monday 00:00 IST to 01:00 IST (UTC Sunday 18:30 - 19:30)
+      const isResetWindow = now.getUTCDay() === 0 && now.getUTCHours() >= 18 && now.getUTCHours() < 20;
       
       if (isResetWindow) {
         const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
@@ -281,7 +274,7 @@ export default function LandingPage() {
       {/* Support Dev Overlay */}
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
+          <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
             <Button 
               variant="ghost" 
               size="icon" 

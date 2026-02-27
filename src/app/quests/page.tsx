@@ -20,6 +20,9 @@ export default function QuestsPage() {
 
   const unlockedIds = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
 
+  // Calculate percentages based on total weight (Total weight is ~235)
+  const totalWeight = RARITIES.reduce((acc, r) => acc + r.weight, 0);
+
   const quests = [
     {
       id: "q1",
@@ -97,14 +100,17 @@ export default function QuestsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {RARITIES.map((rarity) => (
-                  <div key={rarity.type} className={`flex items-center justify-between p-3 rounded-xl bg-gradient-to-r ${rarity.bg} border border-white/10`}>
-                    <span className="text-xs font-black uppercase tracking-tighter text-white">{rarity.type}</span>
-                    <Badge variant="outline" className="bg-black/40 text-[10px] border-none text-white font-black">
-                      {rarity.weight} WEIGHT
-                    </Badge>
-                  </div>
-                ))}
+                {RARITIES.map((rarity) => {
+                  const percentage = ((rarity.weight / totalWeight) * 100).toFixed(1);
+                  return (
+                    <div key={rarity.type} className={`flex items-center justify-between p-3 rounded-xl bg-gradient-to-r ${rarity.bg} border border-white/10`}>
+                      <span className="text-xs font-black uppercase tracking-tighter text-white">{rarity.type}</span>
+                      <Badge variant="outline" className="bg-black/40 text-[10px] border-none text-white font-black">
+                        {percentage}% CHANCE
+                      </Badge>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
