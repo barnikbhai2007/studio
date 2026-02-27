@@ -1,3 +1,4 @@
+
 export type RarityType = 'IRON' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM' | 'DIAMOND' | 'MASTER' | 'GRANDMASTER' | 'LEGENDARY';
 
 export interface Footballer {
@@ -63,7 +64,17 @@ export const FOOTBALLERS: Footballer[] = [
   { id: '27', name: 'Jude Bellingham', countryCode: 'gb-eng', position: 'CAM', club: 'Real Madrid', hints: ["English golden boy.", "Golden Boy 2023.", "Real Madrid's goal-scoring midfielder.", "Ex-Dortmund & Birmingham.", "Open arms celebration."], version: 'DEMO' },
   { id: '28', name: 'Phil Foden', countryCode: 'gb-eng', position: 'RW', club: 'Man City', hints: ["Stockport Iniesta.", "PL Player of the Season 23/24.", "City homegrown hero.", "Elite technical ability.", "Three Lions creative hub."], version: 'DEMO' },
   { id: '29', name: 'Bukayo Saka', countryCode: 'gb-eng', position: 'RW', club: 'Arsenal', hints: ["Starboy.", "Arsenal's main winger.", "England's constant threat.", "Hale End graduate.", "Left-footed magician."], version: 'DEMO' },
-  { id: '30', name: 'Jamal Musiala', countryCode: 'de', position: 'CAM', club: 'Bayern', hints: ["Germany's rising gem.", "Magic Musiala.", "Bayern Munich playmaker.", "Incredible close control.", "Ex-Chelsea academy."], version: 'DEMO' }
+  { id: '30', name: 'Jamal Musiala', countryCode: 'de', position: 'CAM', club: 'Bayern', hints: ["Germany's rising gem.", "Magic Musiala.", "Bayern Munich playmaker.", "Incredible close control.", "Ex-Chelsea academy."], version: 'DEMO' },
+  { id: '31', name: 'Lamine Yamal', countryCode: 'es', position: 'RW', club: 'Barcelona', hints: ["Youngest ever Euro scorer.", "Barca's new prodigy.", "Left-footed winger.", "La Masia graduate.", "Breakout star of Euro 2024."], version: 'DEMO' },
+  { id: '32', name: 'Antoine Griezmann', countryCode: 'fr', position: 'ST', club: 'Atletico', hints: ["Atleti's all-time scorer.", "2018 World Cup winner.", "Versatile attacker.", "Ex-Barcelona.", "Known for his work rate."], version: 'DEMO' },
+  { id: '33', name: 'David Beckham', countryCode: 'gb-eng', position: 'RM', club: 'Icon', hints: ["Free-kick specialist.", "Man Utd Class of '92.", "Real Madrid Galactico.", "Global fashion icon.", "Golden balls."], version: 'DEMO' },
+  { id: '34', name: 'Diego Maradona', countryCode: 'ar', position: 'CAM', club: 'Icon', hints: ["'Hand of God' goal.", "Napoli legend.", "1986 World Cup winner.", "Dribbling genius.", "The Golden Boy of Argentina."], version: 'DEMO' },
+  { id: '35', name: 'Gianluigi Buffon', countryCode: 'it', position: 'GK', club: 'Icon', hints: ["Goalkeeping legend.", "2006 World Cup winner.", "Juventus icon.", "Longevity record holder.", "Safe hands."], version: 'DEMO' },
+  { id: '36', name: 'Luis Suarez', countryCode: 'uy', position: 'ST', club: 'Inter Miami', hints: ["Uruguay's top scorer.", "Ex-Barca & Liverpool.", "El Pistolero.", "European Golden Shoe winner.", "Plays with Messi in Miami."], version: 'DEMO' },
+  { id: '37', name: 'Virgil van Dijk', countryCode: 'nl', position: 'CB', club: 'Liverpool', hints: ["Liverpool captain.", "Dutch defensive giant.", "Ex-Celtic & Southampton.", "Ballon d'Or runner up.", "Elite positioning."], version: 'DEMO' },
+  { id: '38', name: 'Alisson Becker', countryCode: 'br', position: 'GK', club: 'Liverpool', hints: ["Brazil's number one.", "Liverpool's brick wall.", "Scored a header vs West Brom.", "Golden Glove winner.", "Ex-Roma."], version: 'DEMO' },
+  { id: '39', name: 'Angel Di Maria', countryCode: 'ar', position: 'RW', club: 'Benfica', hints: ["Scored in 2022 WC Final.", "Real Madrid UCL winner.", "The 'Noodle'.", "Left-footed playmaker.", "Ex-PSG & Man Utd."], version: 'DEMO' },
+  { id: '40', name: 'Thierry Henry', countryCode: 'fr', position: 'ST', club: 'Icon', hints: ["Arsenal's King.", "Invincibles legend.", "Top PL goalscorer.", "Vava-voom.", "Ex-Barca & Monaco."], version: 'DEMO' }
 ];
 
 export function getRandomFootballer(excludeIds: string[] = [], version: string = 'All'): Footballer {

@@ -36,6 +36,7 @@ export default function GamePage() {
   // Critical for round logic
   const revealTriggered = useRef(false);
   const isInitializingRound = useRef(false);
+  const lastProcessedRound = useRef<number>(0);
 
   const roomRef = useMemoFirebase(() => {
     if (!user) return null;
@@ -56,6 +57,7 @@ export default function GamePage() {
   const [gameState, setGameState] = useState<GameState>('countdown');
   const [revealStep, setRevealStep] = useState<RevealStep>('none');
   const [countdown, setCountdown] = useState(5);
+  const [autoNextRoundCountdown, setAutoNextRoundCountdown] = useState<number | null>(null);
   const [targetPlayer, setTargetPlayer] = useState<Footballer | null>(null);
   const [visibleHints, setVisibleHints] = useState<number>(1);
   const [guessInput, setGuessInput] = useState("");
@@ -66,7 +68,8 @@ export default function GamePage() {
   const [completedQuest, setCompletedQuest] = useState<any>(null);
   
   const isPlayer1 = room?.player1Id === user?.uid;
-  const currentRoundId = `round_${room?.currentRoundNumber || 1}`;
+  const currentRoundNumber = room?.currentRoundNumber || 1;
+  const currentRoundId = `round_${currentRoundNumber}`;
   
   const roundRef = useMemoFirebase(() => {
     if (!user || !roomId) return null;
@@ -147,61 +150,63 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
+  // Handle Round Transition & State Reset
+  useEffect(() => {
+    if (currentRoundNumber !== lastProcessedRound.current) {
+      lastProcessedRound.current = currentRoundNumber;
+      revealTriggered.current = false;
+      isInitializingRound.current = false;
+      setRevealStep('none');
+      setGuessInput("");
+      setRoundTimer(null);
+      setVisibleHints(1);
+      setTargetPlayer(null);
+      setAutoNextRoundCountdown(null);
+
+      if (currentRoundNumber > 1) {
+        setGameState('playing');
+      } else {
+        setGameState('countdown');
+        setCountdown(5);
+      }
+    }
+  }, [currentRoundNumber]);
+
   const startNewRoundLocally = useCallback(async () => {
-    if (isInitializingRound.current) return;
+    if (isInitializingRound.current || !isPlayer1 || !room || !roundRef || !roomRef) return;
     isInitializingRound.current = true;
 
-    // Reset local state for new round
-    revealTriggered.current = false;
-    setRevealStep('none');
-    setGuessInput("");
-    setRoundTimer(null);
-    setVisibleHints(1);
-    setTargetPlayer(null);
-    
-    // Skip countdown for rounds > 1 as requested
-    if (room && room.currentRoundNumber > 1) {
-       setGameState('playing');
-    } else {
-       setGameState('countdown');
-       setCountdown(5);
-    }
-    
     const pickedRarity = getRandomRarity();
     setCurrentRarity(pickedRarity);
 
-    if (isPlayer1 && room && roundRef) {
-      try {
-        const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
-        await setDoc(roundRef, {
-          id: currentRoundId,
-          gameRoomId: roomId,
-          roundNumber: room.currentRoundNumber,
-          footballerId: player.id,
-          rarityType: pickedRarity.type,
-          creatorId: room.player1Id,
-          opponentId: room.player2Id,
-          hintsRevealedCount: 1,
-          player1Guess: "",
-          player2Guess: "",
-          player1GuessedCorrectly: false,
-          player2GuessedCorrectly: false,
-          player1ScoreChange: 0,
-          player2ScoreChange: 0,
-          roundEndedAt: null,
-          timerStartedAt: null,
-        }, { merge: true });
-        
-        if (roomRef) {
-          await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
-        }
-      } catch (err) {} finally {
-        isInitializingRound.current = false;
-      }
-    } else {
+    try {
+      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
+      await setDoc(roundRef, {
+        id: currentRoundId,
+        gameRoomId: roomId,
+        roundNumber: currentRoundNumber,
+        footballerId: player.id,
+        rarityType: pickedRarity.type,
+        creatorId: room.player1Id,
+        opponentId: room.player2Id,
+        hintsRevealedCount: 1,
+        player1Guess: "",
+        player2Guess: "",
+        player1GuessedCorrectly: false,
+        player2GuessedCorrectly: false,
+        player1ScoreChange: 0,
+        player2ScoreChange: 0,
+        roundEndedAt: null,
+        timerStartedAt: null,
+      }, { merge: true });
+      
+      await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
+    } catch (err) {
+      console.error("Round init error:", err);
+    } finally {
       isInitializingRound.current = false;
     }
-  }, [isPlayer1, room, roomId, currentRoundId, roundRef, roomRef]);
+  }, [isPlayer1, room, roomId, currentRoundId, currentRoundNumber, roundRef, roomRef]);
 
   useEffect(() => {
     if (isPlayer1 && room?.status === 'InProgress' && !roundData && !isRoundLoading && !isInitializingRound.current) {
@@ -236,6 +241,21 @@ export default function GamePage() {
     }
     return () => clearTimeout(timer);
   }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
+
+  // Handle Auto-Next Round Countdown
+  useEffect(() => {
+    if (gameState === 'result' && isPlayer1 && autoNextRoundCountdown === null) {
+      setAutoNextRoundCountdown(5);
+    }
+
+    let timer: NodeJS.Timeout;
+    if (autoNextRoundCountdown !== null && autoNextRoundCountdown > 0) {
+      timer = setTimeout(() => setAutoNextRoundCountdown(autoNextRoundCountdown - 1), 1000);
+    } else if (autoNextRoundCountdown === 0 && isPlayer1) {
+      handleNextRound();
+    }
+    return () => clearTimeout(timer);
+  }, [gameState, autoNextRoundCountdown, isPlayer1]);
 
   const normalizeStr = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
@@ -299,7 +319,6 @@ export default function GamePage() {
      if (!room || !roomRef || !isPlayer1) return;
      if (room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
         await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
-        startNewRoundLocally();
      }
   };
 
@@ -312,7 +331,9 @@ export default function GamePage() {
     let p2NewHealth = room.player2CurrentHealth;
     if (diff > 0) p2NewHealth = Math.max(0, p2NewHealth - diff);
     else if (diff < 0) p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
+    
     const updatePayload: any = { player1CurrentHealth: p1NewHealth, player2CurrentHealth: p2NewHealth };
+    
     if (p1NewHealth <= 0 || p2NewHealth <= 0) {
        const winnerId = p1NewHealth > 0 ? room.player1Id : room.player2Id;
        const loserId = p1NewHealth <= 0 ? room.player1Id : room.player2Id;
@@ -449,14 +470,14 @@ export default function GamePage() {
           </div>
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] font-black truncate text-white uppercase">{p1Profile?.displayName || "PLAYER 1"}</span>
-            <div className="flex items-center gap-1 mt-0.5"><Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30" /><span className="text-[8px] font-black text-primary">{room.player1CurrentHealth}HP</span></div>
+            <div className="flex items-center gap-1 mt-0.5"><Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 transition-all duration-1000" /><span className="text-[8px] font-black text-primary">{room.player1CurrentHealth}HP</span></div>
           </div>
         </div>
         <div className="flex flex-col items-center gap-1 px-4"><Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">RD {room.currentRoundNumber}</Badge><button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button></div>
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
           <div className="flex flex-col items-end min-w-0">
             <span className="text-[10px] font-black truncate text-white uppercase">{p2Profile?.displayName || "OPPONENT"}</span>
-            <div className="flex items-center gap-1 mt-0.5"><span className="text-[8px] font-black text-secondary">{room.player2CurrentHealth}HP</span><Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 rotate-180" /></div>
+            <div className="flex items-center gap-1 mt-0.5"><span className="text-[8px] font-black text-secondary">{room.player2CurrentHealth}HP</span><Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 rotate-180 transition-all duration-1000" /></div>
           </div>
           <div className="relative shrink-0 w-10 h-10">
             <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
@@ -484,10 +505,11 @@ export default function GamePage() {
             <div className="grid grid-cols-2 gap-4 w-full">
               <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P1 PERFORMANCE</span>
-                <span className={`text-sm font-black uppercase relative z-10 truncate w-full text-center ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
-                  {roundData?.player1Guess || "NO ANSWER"}
-                </span>
+                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P1 HP</span>
+                <div className="w-full flex items-center gap-2">
+                  <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000" />
+                  <span className="text-xs font-black text-white">{room.player1CurrentHealth}</span>
+                </div>
                 <Badge className={`${roundData?.player1ScoreChange > 0 ? "bg-green-500" : (roundData?.player1ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
                   {roundData?.player1ScoreChange > 0 ? `+${roundData.player1ScoreChange}` : roundData?.player1ScoreChange} HP
                 </Badge>
@@ -495,14 +517,15 @@ export default function GamePage() {
               
               <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P2 PERFORMANCE</span>
-                <span className={`text-sm font-black uppercase relative z-10 truncate w-full text-center ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
-                  {roundData?.player2Guess || "NO ANSWER"}
-                </span>
+                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P2 HP</span>
+                <div className="w-full flex items-center gap-2">
+                  <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000 rotate-180" />
+                  <span className="text-xs font-black text-white">{room.player2CurrentHealth}</span>
+                </div>
                 <Badge className={`${roundData?.player2ScoreChange > 0 ? "bg-green-500" : (roundData?.player2ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
                   {roundData?.player2ScoreChange > 0 ? `+${roundData.player2ScoreChange}` : roundData?.player2ScoreChange} HP
                 </Badge>
-              </Card>
+              </div>
             </div>
 
             <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4 shadow-2xl">
@@ -513,16 +536,17 @@ export default function GamePage() {
               <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />
             </div>
 
-            {isPlayer1 ? (
-              <Button onClick={handleNextRound} className="w-full h-16 bg-primary text-black font-black uppercase rounded-2xl text-lg shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:scale-[1.02] transition-transform flex items-center justify-center gap-3">
-                NEXT ROUND <ChevronRight className="w-6 h-6" />
-              </Button>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 text-primary animate-spin" />
-                <p className="text-[10px] font-black text-slate-500 uppercase animate-pulse tracking-widest">Waiting for host to continue...</p>
+            <div className="w-full space-y-4">
+              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-1000 ease-linear" 
+                  style={{ width: `${(autoNextRoundCountdown || 0) * 20}%` }}
+                />
               </div>
-            )}
+              <p className="text-[10px] font-black text-center text-slate-500 uppercase tracking-widest animate-pulse">
+                NEXT ROUND IN {autoNextRoundCountdown}S...
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
