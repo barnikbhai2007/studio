@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Trophy, Swords, History, Home, Sparkles, RefreshCw, Loader2 } from "lucide-react";
-import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, onSnapshot, writeBatch, getDocs, collection, query, where, orderBy, limit } from "firebase/firestore";
+import { Trophy, Swords, Home, Sparkles, RefreshCw } from "lucide-react";
+import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
 export default function ResultPage() {
   const { roomId } = useParams();
@@ -24,25 +24,6 @@ export default function ResultPage() {
 
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
-
-  // Safely calculate the H2H composite ID
-  const bid = useMemo(() => {
-    if (!room?.player1Id || !room?.player2Id) return null;
-    return [room.player1Id, room.player2Id].sort().join('_');
-  }, [room?.player1Id, room?.player2Id]);
-
-  const historyQuery = useMemoFirebase(() => {
-    if (!bid) return null;
-    return query(
-      collection(db, "gameRooms"),
-      where("betweenIds", "==", bid),
-      where("status", "==", "Completed"),
-      orderBy("finishedAt", "desc"),
-      limit(10)
-    );
-  }, [db, bid]);
-
-  const { data: recentMatches, isLoading: isHistoryLoading } = useCollection(historyQuery);
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
@@ -82,19 +63,6 @@ export default function ResultPage() {
     };
   }, [room?.player1Id, room?.player2Id, db]);
 
-  const h2hStats = useMemo(() => {
-    if (!recentMatches || !room?.player1Id || !room?.player2Id) return { p1: 0, p2: 0, total: 0 };
-    const p1Id = room.player1Id;
-    const p2Id = room.player2Id;
-    
-    return recentMatches.reduce((acc, match) => {
-      if (match.winnerId === p1Id) acc.p1++;
-      else if (match.winnerId === p2Id) acc.p2++;
-      acc.total++;
-      return acc;
-    }, { p1: 0, p2: 0, total: 0 });
-  }, [recentMatches, room?.player1Id, room?.player2Id]);
-
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1 || !room) return;
     try {
@@ -123,7 +91,7 @@ export default function ResultPage() {
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
         <div className="flex flex-col items-center gap-4">
           <Swords className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Finalizing Duel Analysis...</p>
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Finalizing Duel Analysis...</p>
         </div>
       </div>
     );
@@ -171,57 +139,6 @@ export default function ResultPage() {
               <Progress value={(p2Health / healthMax) * 100} className="h-2 bg-black/20" />
             </div>
          </div>
-      </section>
-
-      <section className="w-full max-w-2xl bg-white/5 border border-white/10 p-6 rounded-3xl space-y-6">
-        <div className="text-center">
-          <h3 className="text-[10px] font-black text-secondary tracking-widest uppercase mb-1 flex items-center justify-center gap-2">
-            <History className="w-4 h-4" /> RECENT DUEL FORM
-          </h3>
-          <div className="flex justify-center gap-1.5 mt-4 mb-2">
-            {isHistoryLoading ? (
-              <Loader2 className="w-6 h-6 animate-spin opacity-30" />
-            ) : (
-              [...Array(10)].map((_, i) => {
-                const match = recentMatches?.[i];
-                if (!match) return <div key={i} className="w-6 h-8 rounded-md bg-white/5 border border-white/5" />;
-                
-                const isP1Win = match.winnerId === room.player1Id;
-                const isP2Win = match.winnerId === room.player2Id;
-                
-                return (
-                  <div 
-                    key={i} 
-                    className={`w-6 h-8 rounded-md flex items-center justify-center text-[10px] font-black border transition-all ${
-                      isP1Win ? 'bg-primary/20 border-primary text-primary' : 
-                      isP2Win ? 'bg-secondary/20 border-secondary text-secondary' : 
-                      'bg-slate-500/20 border-slate-500 text-slate-500'
-                    }`}
-                  >
-                    {isP1Win ? 'W' : (isP2Win ? 'L' : 'D')}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <span className="text-[10px] font-bold text-white/30 uppercase">LAST 10 MATCHES HISTORY</span>
-        </div>
-        
-        <div className="flex items-center justify-between gap-4">
-           <div className="flex-1 text-center">
-              <span className="text-[3rem] font-black text-primary leading-none">
-                {h2hStats.p1}
-              </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile?.displayName || "P1"} WINS</span>
-           </div>
-           <div className="w-px h-12 bg-white/10" />
-           <div className="flex-1 text-center">
-              <span className="text-[3rem] font-black text-secondary leading-none">
-                {h2hStats.p2}
-              </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p2Profile?.displayName || "P2"} WINS</span>
-           </div>
-        </div>
       </section>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-50">
