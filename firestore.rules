@@ -18,16 +18,26 @@ service cloud.firestore {
       allow update: if isSignedIn();
     }
 
-    // Game Rooms and sub-collections: Publicly readable for results and lobbies
-    // document=** ensures that listing the collection (for counts) is allowed.
-    match /gameRooms/{document=**} {
+    // Game Rooms: Broadened permissions to allow listing and sub-collection access
+    match /gameRooms/{roomId} {
       allow read: if true;
       allow create: if isSignedIn();
       allow update: if isSignedIn();
       allow delete: if isSignedIn();
+      
+      // Allow access to sub-collections (rounds, emotes)
+      match /{allChildren=**} {
+        allow read: if true;
+        allow write: if isSignedIn();
+      }
     }
 
-    // Battle Histories: Broadened for real-time syncing between any two players
+    // Explicitly allow listing the gameRooms collection (for the landing page count)
+    match /gameRooms {
+      allow list: if true;
+    }
+
+    // Battle Histories: Real-time syncing between players
     match /battleHistories/{battleHistoryId} {
       allow read, write: if isSignedIn();
     }
