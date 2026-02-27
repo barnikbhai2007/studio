@@ -46,25 +46,39 @@ export default function LandingPage() {
 
   const playerCount = useMemo(() => allPlayers?.length || 0, [allPlayers]);
 
-  // Check for Rank 1 Quest
+  // Handle Rank 1 Seasonal Reset Quest
   useEffect(() => {
-    const checkRankOne = async () => {
+    const checkSeasonalResetReward = async () => {
       if (!user || !db) return;
-      const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
-      const snap = await getDocs(q);
-      if (!snap.empty && snap.docs[0].id === user.uid) {
-        const uRef = doc(db, "userProfiles", user.uid);
-        const uSnap = await getDoc(uRef);
-        if (uSnap.exists()) {
-          const unlocked = uSnap.data().unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
-          if (!unlocked.includes('rank_one')) {
-            await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('rank_one') });
-            toast({ title: "THE CROWN IS YOURS", description: "RANK 1 REWARD UNLOCKED!" });
+      
+      const now = new Date();
+      // Target: Next Monday 00:00 IST = Sunday 18:30 UTC
+      const target = new Date();
+      target.setUTCHours(18, 30, 0, 0);
+      const day = now.getUTCDay();
+      const daysUntilSunday = (7 - day) % 7;
+      target.setUTCDate(now.getUTCDate() + daysUntilSunday);
+      
+      // We only reward if the player visits during the reset window (Monday 00:00 - 01:00 IST)
+      const isResetWindow = now.getUTCDay() === 0 && now.getUTCHours() >= 18 && now.getUTCHours() < 19;
+      
+      if (isResetWindow) {
+        const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty && snap.docs[0].id === user.uid) {
+          const uRef = doc(db, "userProfiles", user.uid);
+          const uSnap = await getDoc(uRef);
+          if (uSnap.exists()) {
+            const unlocked = uSnap.data().unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
+            if (!unlocked.includes('rank_one')) {
+              await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('rank_one') });
+              toast({ title: "SEASON CHAMPION", description: "RANK 1 REWARD DELIVERED!" });
+            }
           }
         }
       }
     };
-    checkRankOne();
+    checkSeasonalResetReward();
   }, [user, db, toast]);
 
   const handleGoogleLogin = async () => {

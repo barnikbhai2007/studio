@@ -22,16 +22,6 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'rank_one', name: 'THE CROWN', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772162207/3620d2cc-ec1c-45f7-904c-51b7646f6f43_uxdxos.jpg' }
 ];
 
-export const QUEST_EMOTE_IDS = [
-  'ronaldo_platinum',
-  'messi_diamond',
-  'haaland_gold',
-  'mbappe_silver',
-  'neymar_master',
-  'ten_wins',
-  'rank_one'
-];
-
 export const UNLOCKED_EMOTE_IDS = [
   'neymar_cute', 
   'messi_laugh', 
@@ -49,4 +39,14 @@ export const DEFAULT_EQUIPPED_IDS = [
   'vini_dance', 
   'ronaldo_siu', 
   'mbappe_cry'
+];
+
+export const QUEST_EMOTE_IDS = [
+  'ronaldo_platinum',
+  'messi_diamond',
+  'haaland_gold',
+  'mbappe_silver',
+  'neymar_master',
+  'ten_wins',
+  'rank_one'
 ];

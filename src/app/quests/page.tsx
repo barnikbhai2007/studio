@@ -4,12 +4,21 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Target, Sparkles, Trophy, ShieldCheck, Flame, Star, Crown } from "lucide-react";
+import { ArrowLeft, Target, Sparkles, Trophy, ShieldCheck, Flame, Star, Crown, CheckCircle2 } from "lucide-react";
 import { RARITIES } from "@/lib/footballer-data";
-import { ALL_EMOTES } from "@/lib/emote-data";
+import { ALL_EMOTES, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 export default function QuestsPage() {
   const router = useRouter();
+  const { user } = useUser();
+  const db = useFirestore();
+
+  const userRef = useMemoFirebase(() => user ? doc(db, "userProfiles", user.uid) : null, [db, user]);
+  const { data: profile } = useDoc(userRef);
+
+  const unlockedIds = profile?.unlockedEmoteIds || UNLOCKED_EMOTE_IDS;
 
   const quests = [
     {
@@ -57,7 +66,7 @@ export default function QuestsPage() {
     {
       id: "q7",
       title: "KING OF THE HILL",
-      description: "Achieve RANK 1 on the Global Leaderboard. (Exclusive Reward)",
+      description: "Achieve RANK 1 when the Global Season resets (Monday 00:00 IST).",
       rewardId: "rank_one",
       icon: <Crown className="w-5 h-5 text-secondary" />
     }
@@ -107,21 +116,28 @@ export default function QuestsPage() {
             <div className="grid gap-4">
               {quests.map((quest) => {
                 const emote = ALL_EMOTES.find(e => e.id === quest.rewardId);
+                const isUnlocked = unlockedIds.includes(quest.rewardId);
+                
                 return (
-                  <Card key={quest.id} className="bg-[#161618] border-white/5 rounded-3xl overflow-hidden hover:border-primary/20 transition-all group">
+                  <Card key={quest.id} className={`bg-[#161618] border-white/5 rounded-3xl overflow-hidden transition-all group ${isUnlocked ? 'border-primary/40 bg-primary/5' : 'hover:border-white/10'}`}>
                     <CardContent className="p-0 flex items-stretch">
-                      <div className="w-16 bg-white/5 flex items-center justify-center shrink-0">
-                        {quest.icon}
+                      <div className={`w-16 flex items-center justify-center shrink-0 ${isUnlocked ? 'bg-primary/20' : 'bg-white/5'}`}>
+                        {isUnlocked ? <CheckCircle2 className="w-6 h-6 text-primary" /> : quest.icon}
                       </div>
                       <div className="flex-1 p-5 flex flex-col md:flex-row items-center gap-4">
                         <div className="flex-1 space-y-1 text-center md:text-left">
-                          <h4 className="text-sm font-black uppercase text-white group-hover:text-primary transition-colors">{quest.title}</h4>
-                          <p className="text-[10px] font-medium text-slate-500 leading-relaxed uppercase">{quest.description}</p>
+                          <div className="flex items-center justify-center md:justify-start gap-2">
+                            <h4 className="text-sm font-black uppercase text-white">{quest.title}</h4>
+                            {isUnlocked && <Badge className="bg-primary text-black text-[8px] font-black uppercase py-0 px-2">COMPLETED</Badge>}
+                          </div>
+                          <p className={`text-[10px] font-medium leading-relaxed uppercase ${isUnlocked ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {quest.description}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-3 bg-black/40 p-2 rounded-2xl border border-white/5 shrink-0">
-                          <img src={emote?.url} className="w-12 h-12 rounded-lg object-cover" alt="reward" />
+                        <div className={`flex items-center gap-3 p-2 rounded-2xl border shrink-0 ${isUnlocked ? 'bg-primary/10 border-primary/20' : 'bg-black/40 border-white/5'}`}>
+                          <img src={emote?.url} className={`w-12 h-12 rounded-lg object-cover ${isUnlocked ? '' : 'grayscale opacity-50'}`} alt="reward" />
                           <div className="pr-2">
-                            <span className="block text-[8px] font-black text-primary uppercase">REWARD</span>
+                            <span className="block text-[8px] font-black text-primary uppercase">{isUnlocked ? 'CLAIMED' : 'REWARD'}</span>
                             <span className="block text-[10px] font-black text-white uppercase truncate max-w-[80px]">{emote?.name}</span>
                           </div>
                         </div>
