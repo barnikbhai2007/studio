@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
@@ -69,7 +70,8 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
-    const lastReset = profileData.lastWeeklyReset ? new Date(profileData.lastWeeklyReset) : new Date(0);
+    const lastResetStr = profileData.lastWeeklyReset;
+    const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
     const lastMondayIST = new Date();
     lastMondayIST.setUTCHours(18, 30, 0, 0); 
@@ -79,24 +81,29 @@ export default function LandingPage() {
     
     if (now > lastMondayIST && lastReset < lastMondayIST) {
       setIsSyncing(true);
-      const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
-      const lbSnap = await getDocs(lbQuery);
-      const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
-      
-      const updatePayload: any = {
-        weeklyWins: 0,
-        lastWeeklyReset: now.toISOString()
-      };
+      try {
+        const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
+        const lbSnap = await getDocs(lbQuery);
+        const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
+        
+        const updatePayload: any = {
+          weeklyWins: 0,
+          lastWeeklyReset: now.toISOString()
+        };
 
-      if (isWinner) {
-        updatePayload.unlockedEmoteIds = arrayUnion(SEASON_REWARD_EMOTE_ID);
-        const emote = ALL_EMOTES.find(e => e.id === SEASON_REWARD_EMOTE_ID);
-        setCompletedQuest({ title: 'THE CHAMPION (RANK 1)', emote });
+        if (isWinner) {
+          updatePayload.unlockedEmoteIds = arrayUnion(SEASON_REWARD_EMOTE_ID);
+          const emote = ALL_EMOTES.find(e => e.id === SEASON_REWARD_EMOTE_ID);
+          setCompletedQuest({ title: 'THE CHAMPION (RANK 1)', emote });
+        }
+
+        await updateDoc(doc(db, "userProfiles", user.uid), updatePayload);
+        toast({ title: "NEW SEASON STARTED", description: "WEEKLY WINS HAVE BEEN REFRESHED." });
+      } catch (err) {
+        console.error("Season reset error:", err);
+      } finally {
+        setIsSyncing(false);
       }
-
-      await updateDoc(doc(db, "userProfiles", user.uid), updatePayload);
-      setIsSyncing(false);
-      toast({ title: "NEW SEASON STARTED", description: "WEEKLY WINS HAVE BEEN REFRESHED." });
     }
   }, [user, profileData, db, toast]);
 
@@ -240,7 +247,6 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Floating Info Button */}
       <button 
         onClick={() => setShowManual(true)} 
         className="fixed top-6 right-6 z-50 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all shadow-2xl group"
@@ -402,7 +408,6 @@ export default function LandingPage() {
                 </Button>
               </div>
 
-              {/* Lifetime Statistics Section */}
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
                 <div className="flex flex-col">
                   <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">

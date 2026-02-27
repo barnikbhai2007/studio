@@ -11,15 +11,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { 
-  Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, 
-  SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle, LogOut, Flame,
-  ShieldAlert, Ban as ForbiddenIcon, PartyPopper, Star, Crown, ChevronRight
+  Trophy, Clock, Swords, CheckCircle2, AlertCircle, Loader2, 
+  SmilePlus, Sparkles, Ban, XCircle, Flame,
+  ShieldAlert, PartyPopper, Star, Crown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, where, writeBatch } from "firebase/firestore";
+import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, writeBatch } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
-import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, Emote } from "@/lib/emote-data";
+import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
@@ -27,20 +27,21 @@ type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
 const REVEAL_CARD_IMG = "https://res.cloudinary.com/speed-searches/image/upload/v1772119870/photo_2026-02-26_20-32-22_cutwwy.jpg";
 
 export default function GamePage() {
-  const { roomId } = useParams();
+  const params = useParams();
+  const roomId = params?.roomId as string;
   const router = useRouter();
   const { toast } = useToast();
   const { user, isUserLoading } = useUser();
   const db = useFirestore();
   
-  // Critical for round logic
   const revealTriggered = useRef(false);
   const isInitializingRound = useRef(false);
   const lastProcessedRound = useRef<number>(0);
+  const revealTimeouts = useRef<NodeJS.Timeout[]>([]);
 
   const roomRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(db, "gameRooms", roomId as string);
+    if (!user || !roomId) return null;
+    return doc(db, "gameRooms", roomId);
   }, [db, roomId, user]);
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
@@ -73,14 +74,14 @@ export default function GamePage() {
   
   const roundRef = useMemoFirebase(() => {
     if (!user || !roomId) return null;
-    return doc(db, "gameRooms", roomId as string, "gameRounds", currentRoundId);
+    return doc(db, "gameRooms", roomId, "gameRounds", currentRoundId);
   }, [db, roomId, currentRoundId, user]);
   
   const { data: roundData, isLoading: isRoundLoading } = useDoc(roundRef);
 
   const emotesQuery = useMemoFirebase(() => {
     if (!roomId) return null;
-    return query(collection(db, "gameRooms", roomId as string, "emotes"), orderBy("createdAt", "desc"), limit(5));
+    return query(collection(db, "gameRooms", roomId, "emotes"), orderBy("createdAt", "desc"), limit(5));
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
 
@@ -119,9 +120,10 @@ export default function GamePage() {
   useEffect(() => {
     if (room?.status === 'Completed' && !showGameOverPopup) {
        setShowGameOverPopup(true);
-       setTimeout(() => {
+       const t = setTimeout(() => {
          router.push(`/result/${roomId}`);
        }, 4000);
+       return () => clearTimeout(t);
     }
   }, [room?.status, roomId, router, showGameOverPopup]);
 
@@ -150,7 +152,6 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
-  // Handle Round Transition & State Reset
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
@@ -242,7 +243,6 @@ export default function GamePage() {
     return () => clearTimeout(timer);
   }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
 
-  // Handle Auto-Next Round Countdown
   useEffect(() => {
     if (gameState === 'result' && isPlayer1 && autoNextRoundCountdown === null) {
       setAutoNextRoundCountdown(5);
@@ -282,7 +282,8 @@ export default function GamePage() {
     if (revealTriggered.current) return;
     revealTriggered.current = true;
     setGameState('finalizing');
-    setTimeout(() => handleRevealSequence(), 2000);
+    const t = setTimeout(() => handleRevealSequence(), 2000);
+    revealTimeouts.current.push(t);
   };
 
   const handleRevealSequence = async () => {
@@ -301,19 +302,33 @@ export default function GamePage() {
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
     
-    setTimeout(() => setRevealStep('country'), 1000); 
-    setTimeout(() => setRevealStep('none'), 2200);    
-    setTimeout(() => setRevealStep('position'), 2800); 
-    setTimeout(() => setRevealStep('none'), 4000);    
-    setTimeout(() => setRevealStep('rarity'), 4600);   
-    setTimeout(() => setRevealStep('none'), 5800);    
-    setTimeout(() => setRevealStep('full-card'), 6500); 
+    const steps = [
+      { s: 'country', t: 1000 },
+      { s: 'none', t: 2200 },
+      { s: 'position', t: 2800 },
+      { s: 'none', t: 4000 },
+      { s: 'rarity', t: 4600 },
+      { s: 'none', t: 5800 },
+      { s: 'full-card', t: 6500 }
+    ];
+
+    steps.forEach(step => {
+      const t = setTimeout(() => setRevealStep(step.s as RevealStep), step.t);
+      revealTimeouts.current.push(t);
+    });
     
-    setTimeout(() => {
+    const finalT = setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
-    }, 11500); 
+    }, 11500);
+    revealTimeouts.current.push(finalT);
   };
+
+  useEffect(() => {
+    return () => {
+      revealTimeouts.current.forEach(t => clearTimeout(t));
+    };
+  }, []);
 
   const handleNextRound = async () => {
      if (!room || !roomRef || !isPlayer1) return;
@@ -342,10 +357,8 @@ export default function GamePage() {
        updatePayload.loserId = loserId;
        updatePayload.finishedAt = new Date().toISOString();
        const batch = writeBatch(db);
-       const winnerRef = doc(db, "userProfiles", winnerId);
-       const loserRef = doc(db, "userProfiles", loserId);
-       batch.update(winnerRef, { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
-       batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
+       batch.update(doc(db, "userProfiles", winnerId), { totalWins: increment(1), weeklyWins: increment(1), totalGamesPlayed: increment(1) });
+       batch.update(doc(db, "userProfiles", loserId), { totalLosses: increment(1), totalGamesPlayed: increment(1) });
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
@@ -386,7 +399,7 @@ export default function GamePage() {
 
   const sendEmote = async (emoteId: string) => {
     if (!roomId || !user) return;
-    await addDoc(collection(db, "gameRooms", roomId as string, "emotes"), { emoteId, senderId: user.uid, createdAt: serverTimestamp() });
+    await addDoc(collection(db, "gameRooms", roomId, "emotes"), { emoteId, senderId: user.uid, createdAt: serverTimestamp() });
   };
 
   if (isUserLoading || isRoomLoading || !room) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
@@ -403,19 +416,19 @@ export default function GamePage() {
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {revealStep === 'country' && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
-            {revealStep === 'position' && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer?.position}</span></div>}
+            {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-500"><img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
+            {revealStep === 'position' && targetPlayer && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer.position}</span></div>}
             {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black border-4 border-white/50 uppercase tracking-widest`}>{currentRarity.type}</Badge></div>}
           </div>
-          {revealStep === 'full-card' && currentRarity && (
+          {revealStep === 'full-card' && currentRarity && targetPlayer && (
             <div className="relative fc-card-container">
               <div className={`w-72 h-[480px] md:w-96 md:h-[600px] fc-animation-reveal rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] flex flex-col border-[10px] md:border-[14px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
                 <div className="absolute top-4 left-4 z-30"><Badge className="bg-black/80 backdrop-blur-md border-white/10 text-[10px] md:text-xs font-black px-4 py-2 uppercase tracking-tighter">{currentRarity.type}</Badge></div>
                 <img src={REVEAL_CARD_IMG} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="background" />
                 <div className="mt-auto relative z-20 p-4">
                   <div className="bg-black/90 backdrop-blur-xl p-6 rounded-[2rem] border border-white/10 shadow-2xl flex flex-col items-center text-center">
-                    <h3 className="text-3xl md:text-4xl font-black uppercase text-white leading-none mb-4">{targetPlayer?.name}</h3>
-                    <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
+                    <h3 className="text-3xl md:text-4xl font-black uppercase text-white leading-none mb-4">{targetPlayer.name}</h3>
+                    <img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
                   </div>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
@@ -510,8 +523,8 @@ export default function GamePage() {
                   <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000" />
                   <span className="text-xs font-black text-white">{room.player1CurrentHealth}</span>
                 </div>
-                <Badge className={`${roundData?.player1ScoreChange > 0 ? "bg-green-500" : (roundData?.player1ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {roundData?.player1ScoreChange > 0 ? `+${roundData.player1ScoreChange}` : roundData?.player1ScoreChange} HP
+                <Badge className={`${(roundData?.player1ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player1ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
+                  {(roundData?.player1ScoreChange ?? 0) > 0 ? `+${roundData.player1ScoreChange}` : (roundData?.player1ScoreChange ?? 0)} HP
                 </Badge>
               </Card>
               
@@ -522,10 +535,10 @@ export default function GamePage() {
                   <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000 rotate-180" />
                   <span className="text-xs font-black text-white">{room.player2CurrentHealth}</span>
                 </div>
-                <Badge className={`${roundData?.player2ScoreChange > 0 ? "bg-green-500" : (roundData?.player2ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {roundData?.player2ScoreChange > 0 ? `+${roundData.player2ScoreChange}` : roundData?.player2ScoreChange} HP
+                <Badge className={`${(roundData?.player2ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player2ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
+                  {(roundData?.player2ScoreChange ?? 0) > 0 ? `+${roundData.player2ScoreChange}` : (roundData?.player2ScoreChange ?? 0)} HP
                 </Badge>
-              </div>
+              </Card>
             </div>
 
             <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4 shadow-2xl">
@@ -533,7 +546,7 @@ export default function GamePage() {
                 <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">INTEL IDENTITY</p>
                 <p className="text-5xl font-black text-white uppercase tracking-tighter italic leading-none">{targetPlayer?.name}</p>
               </div>
-              <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />
+              {targetPlayer && <img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />}
             </div>
 
             <div className="w-full space-y-4">
@@ -550,7 +563,7 @@ export default function GamePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS</h3>{roundData?.timerStartedAt && (<Badge className="bg-red-500 text-white px-3 py-1 text-[10px] font-black uppercase animate-in zoom-in"><ForbiddenIcon className="w-3 h-3 mr-1.5" /> SCOUTING SUSPENDED</Badge>)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS</h3>{roundData?.timerStartedAt && (<Badge className="bg-red-500 text-white px-3 py-1 text-[10px] font-black uppercase animate-in zoom-in"><Ban className="w-3 h-3 mr-1.5" /> SCOUTING SUSPENDED</Badge>)}</div>
             {roundTimer !== null && (<div className="flex items-center justify-center bg-red-600/20 p-3 rounded-xl border border-red-600/30 animate-pulse"><AlertCircle className="w-5 h-5 text-red-500 mr-2" /><span className="text-base font-black text-red-500 uppercase">{roundTimer}S REMAINING</span></div>)}
             <div className="space-y-3">{!targetPlayer ? (<div className="flex flex-col items-center justify-center p-12 opacity-50"><Loader2 className="w-8 h-8 animate-spin text-primary mb-2" /><p className="text-[10px] font-black uppercase">Loading Intelligence...</p></div>) : (targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (<div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2"><p className="text-sm font-bold text-white/90 leading-relaxed">"{hint}"</p></div>)))}</div>
           </div>
