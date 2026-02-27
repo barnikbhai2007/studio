@@ -37,8 +37,9 @@ service cloud.firestore {
       }
     }
 
-    // Explicitly allow listing the gameRooms collection for history and stats
-    match /gameRooms {
+    // Explicitly allow listing/querying the gameRooms collection for history and stats
+    // This is crucial for the result page queries to work.
+    match /gameRooms/{allDocs=**} {
       allow read: if true;
     }
 

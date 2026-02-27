@@ -29,6 +29,7 @@ export default function ResultPage() {
   const bid = useMemo(() => {
     if (!room) return null;
     if (room.betweenIds) return room.betweenIds;
+    // Fallback bidirectional ID generation
     if (room.player1Id && room.player2Id) {
       return [room.player1Id, room.player2Id].sort().join('_');
     }
@@ -101,6 +102,8 @@ export default function ResultPage() {
     const p1Id = room.player1Id;
     const p2Id = room.player2Id;
     
+    if (!p1Id || !p2Id) return { p1: 0, p2: 0, total: 0 };
+
     return recentMatches.reduce((acc, match) => {
       if (match.winnerId === p1Id) acc.p1++;
       else if (match.winnerId === p2Id) acc.p2++;
