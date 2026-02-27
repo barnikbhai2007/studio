@@ -25,7 +25,7 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
-  // Memoize betweenIds strictly to prevent query loops or premature execution
+  // Memoize betweenIds strictly to prevent query loops
   const bid = useMemo(() => {
     if (!room || !room.player1Id || !room.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
@@ -90,7 +90,7 @@ export default function ResultPage() {
       if (!unlocked.includes('ten_wins')) {
         updateDoc(doc(db, "userProfiles", user.uid), {
           unlockedEmoteIds: arrayUnion('ten_wins')
-        }).catch(err => {});
+        }).catch(() => {});
       }
     }
   }, [p1Profile, p2Profile, user, isPlayer1, db, room]);

@@ -6,14 +6,15 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // User Profiles: Publicly readable for leaderboard and match results
+    // User Profiles: Publicly readable for leaderboard and results.
+    // Creation/Update allowed for authenticated users.
     match /userProfiles/{userId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isSignedIn();
+      allow create, update: if isSignedIn();
     }
 
-    // Game Rooms: Allow reading (get/list) for all to support history and stats
+    // Game Rooms: Allow public list/get for today's stats and match history.
+    // Writes restricted to authenticated users.
     match /gameRooms/{roomId} {
       allow read: if true;
       allow create, update: if isSignedIn();
@@ -24,13 +25,13 @@ service cloud.firestore {
       }
     }
 
-    // Battle Histories: Real-time syncing between players
-    match /battleHistories/{battleHistoryId} {
+    // Battle Histories: Used for H2H syncing
+    match /battleHistories/{bhId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
-    // Footballers: Static data, publicly readable
+    // Footballers: Static game data
     match /footballers/{footballerId} {
       allow read: if true;
     }
