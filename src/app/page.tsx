@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -341,6 +342,9 @@ export default function LandingPage() {
                       <div className="pt-6 border-t border-white/10 flex items-center gap-4">
                         <Smartphone className="w-8 h-8 text-primary shrink-0" />
                         <p className="text-primary text-sm font-black italic">OPTIMIZED FOR MOBILE DUELISTS.</p>
+                      </div>
+                      <div className="pt-4 text-center">
+                        <p className="text-primary text-[10px] font-black animate-pulse">VISIT THE INFO BUTTON TO KNOW HOW TO PLAY THE GAME.</p>
                       </div>
                     </>
                   )}

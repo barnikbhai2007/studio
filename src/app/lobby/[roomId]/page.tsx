@@ -178,7 +178,7 @@ export default function LobbyPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="DEMO">DEMO (Starter Pack)</SelectItem>
-                        <SelectItem value="FDv0.1">FDv0.1 (Season 1)</SelectItem>
+                        <SelectItem value="FDv1.0">FDv1.0 (Season 1)</SelectItem>
                         <SelectItem value="All">ALL PACKS</SelectItem>
                       </SelectContent>
                     </Select>
