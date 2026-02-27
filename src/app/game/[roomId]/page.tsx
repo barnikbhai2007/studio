@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -8,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Card } from "@/components/ui/card";
 import { 
   Trophy, Clock, Send, Swords, CheckCircle2, AlertCircle, Loader2, 
   SmilePlus, Sparkles, Ban, Flag, SkipForward, XCircle, LogOut, Flame,
-  ShieldAlert, Ban as ForbiddenIcon, PartyPopper, Star, Crown
+  ShieldAlert, Ban as ForbiddenIcon, PartyPopper, Star, Crown, ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -151,13 +153,19 @@ export default function GamePage() {
 
     // Reset local state for new round
     revealTriggered.current = false;
-    setGameState('countdown');
     setRevealStep('none');
-    setCountdown(5);
     setGuessInput("");
     setRoundTimer(null);
     setVisibleHints(1);
     setTargetPlayer(null);
+    
+    // Skip countdown for rounds > 1 as requested
+    if (room && room.currentRoundNumber > 1) {
+       setGameState('playing');
+    } else {
+       setGameState('countdown');
+       setCountdown(5);
+    }
     
     const pickedRarity = getRandomRarity();
     setCurrentRarity(pickedRarity);
@@ -284,13 +292,15 @@ export default function GamePage() {
     setTimeout(() => {
       setGameState('result');
       if (isPlayer1) calculateRoundResults();
-      setTimeout(async () => {
-        if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
-          if (isPlayer1 && roomRef) await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
-          startNewRoundLocally();
-        }
-      }, 5000); 
     }, 11500); 
+  };
+
+  const handleNextRound = async () => {
+     if (!room || !roomRef || !isPlayer1) return;
+     if (room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
+        await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
+        startNewRoundLocally();
+     }
   };
 
   const calculateRoundResults = async () => {
@@ -463,6 +473,56 @@ export default function GamePage() {
         ) : gameState === 'finalizing' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center">
              <div className="relative"><div className="absolute inset-0 bg-primary/30 blur-[80px] rounded-full animate-pulse" /><div className="relative z-10 space-y-4 animate-in zoom-in duration-500"><div className="flex items-center gap-3 bg-primary/20 px-8 py-4 rounded-full border border-primary/40"><Swords className="w-10 h-10 text-primary animate-bounce" /><span className="text-3xl font-black text-white uppercase">DUEL LOCKDOWN</span></div><p className="text-xs font-black text-primary uppercase tracking-widest">FINALISING INTELLIGENCE...</p></div></div>
+          </div>
+        ) : gameState === 'result' ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="text-center space-y-1">
+              <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">ROUND SUMMARY</h2>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">BATTLE REPORT</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P1 PERFORMANCE</span>
+                <span className={`text-sm font-black uppercase relative z-10 truncate w-full text-center ${roundData?.player1GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
+                  {roundData?.player1Guess || "NO ANSWER"}
+                </span>
+                <Badge className={`${roundData?.player1ScoreChange > 0 ? "bg-green-500" : (roundData?.player1ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
+                  {roundData?.player1ScoreChange > 0 ? `+${roundData.player1ScoreChange}` : roundData?.player1ScoreChange} HP
+                </Badge>
+              </Card>
+              
+              <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P2 PERFORMANCE</span>
+                <span className={`text-sm font-black uppercase relative z-10 truncate w-full text-center ${roundData?.player2GuessedCorrectly ? 'text-green-500' : 'text-red-500'}`}>
+                  {roundData?.player2Guess || "NO ANSWER"}
+                </span>
+                <Badge className={`${roundData?.player2ScoreChange > 0 ? "bg-green-500" : (roundData?.player2ScoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
+                  {roundData?.player2ScoreChange > 0 ? `+${roundData.player2ScoreChange}` : roundData?.player2ScoreChange} HP
+                </Badge>
+              </Card>
+            </div>
+
+            <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4 shadow-2xl">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">INTEL IDENTITY</p>
+                <p className="text-5xl font-black text-white uppercase tracking-tighter italic leading-none">{targetPlayer?.name}</p>
+              </div>
+              <img src={`https://flagcdn.com/w640/${targetPlayer?.countryCode}.png`} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />
+            </div>
+
+            {isPlayer1 ? (
+              <Button onClick={handleNextRound} className="w-full h-16 bg-primary text-black font-black uppercase rounded-2xl text-lg shadow-[0_20px_40px_rgba(249,115,22,0.3)] hover:scale-[1.02] transition-transform flex items-center justify-center gap-3">
+                NEXT ROUND <ChevronRight className="w-6 h-6" />
+              </Button>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                <p className="text-[10px] font-black text-slate-500 uppercase animate-pulse tracking-widest">Waiting for host to continue...</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
