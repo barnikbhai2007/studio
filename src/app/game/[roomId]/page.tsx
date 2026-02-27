@@ -136,7 +136,7 @@ export default function GamePage() {
   }, [room, db, user]);
 
   useEffect(() => {
-    if (roundData?.timerStartedAt && gameState === 'playing') {
+    if (roundData?.timerStartedAt && gameState === 'playing' && roundData.roundNumber === currentRoundNumber) {
       const startTime = new Date(roundData.timerStartedAt).getTime();
       const tick = () => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -150,15 +150,15 @@ export default function GamePage() {
       const interval = setInterval(tick, 1000);
       return () => clearInterval(interval);
     }
-  }, [roundData?.timerStartedAt, gameState]);
+  }, [roundData?.timerStartedAt, gameState, currentRoundNumber]);
 
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
-      // RESET ALL ROUND STATE IMMEDIATELY
       lastProcessedRound.current = currentRoundNumber;
+      
+      // RESET ALL ROUND STATE IMMEDIATELY
       revealTriggered.current = false;
       isInitializingRound.current = false;
-      
       revealTimeouts.current.forEach(t => clearTimeout(t));
       revealTimeouts.current = [];
       
@@ -173,6 +173,7 @@ export default function GamePage() {
         setGameState('countdown');
         setCountdown(5);
       } else {
+        // ROUND 2+ starts immediately after summary/transition
         setGameState('playing');
       }
     }
@@ -210,7 +211,7 @@ export default function GamePage() {
     } catch (err) {
       console.error("Round init error:", err);
     } finally {
-      isInitializingRound.current = false;
+      // isInitializingRound stays true until next round change handled by currentRoundNumber observer
     }
   }, [isPlayer1, room, roomId, currentRoundId, currentRoundNumber, roundRef, roomRef]);
 
@@ -221,7 +222,8 @@ export default function GamePage() {
   }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
-    if (roundData && gameState === 'playing') {
+    // SYNC GUARD: Don't process stale round data
+    if (roundData && roundData.roundNumber === currentRoundNumber && gameState === 'playing') {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       if (roundData.rarityType) {
@@ -234,7 +236,7 @@ export default function GamePage() {
         handleRevealTrigger();
       }
     }
-  }, [roundData, gameState]);
+  }, [roundData, gameState, currentRoundNumber]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -243,6 +245,8 @@ export default function GamePage() {
     } else if (gameState === 'countdown' && countdown === 0) {
       setGameState('playing');
     }
+    
+    // Hint Reveal Logic
     if (gameState === 'playing' && visibleHints < 5 && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
