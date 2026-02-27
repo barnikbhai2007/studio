@@ -126,7 +126,6 @@ export default function GamePage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
-  // Handle Game Over Redirection
   useEffect(() => {
     let timerId: NodeJS.Timeout;
     if (room?.status === 'Completed' && !showGameOverPopup) {
@@ -317,15 +316,16 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
-    if (user && targetPlayer && currentRarity) {
+    if (user && targetPlayer) {
       const questCards = [
-        { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum", title: "PLATINUM CR7 UNLOCKED" },
-        { name: "Lionel Messi", rarity: "DIAMOND", emoteId: "messi_diamond", title: "DIAMOND MESSI UNLOCKED" },
-        { name: "Erling Haaland", rarity: "GOLD", emoteId: "haaland_gold", title: "GOLDEN HAALAND UNLOCKED" },
-        { name: "Kylian Mbappé", rarity: "SILVER", emoteId: "mbappe_silver", title: "SILVER MBAPPE UNLOCKED" },
-        { name: "Neymar Jr", rarity: "MASTER", emoteId: "neymar_master", title: "MASTER NEYMAR UNLOCKED" }
+        { name: "Cristiano Ronaldo", emoteId: "ronaldo_platinum", title: "CR7 EMOTE UNLOCKED" },
+        { name: "Lionel Messi", emoteId: "messi_diamond", title: "MESSI EMOTE UNLOCKED" },
+        { name: "Erling Haaland", emoteId: "haaland_gold", title: "HAALAND EMOTE UNLOCKED" },
+        { name: "Kylian Mbappé", emoteId: "mbappe_silver", title: "MBAPPE EMOTE UNLOCKED" },
+        { name: "Neymar Jr", emoteId: "neymar_master", title: "NEYMAR EMOTE UNLOCKED" }
       ];
-      const matchedQuest = questCards.find(q => q.name === targetPlayer.name && q.rarity === currentRarity.type);
+      // simplified: any rarity counts
+      const matchedQuest = questCards.find(q => q.name === targetPlayer.name);
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
     

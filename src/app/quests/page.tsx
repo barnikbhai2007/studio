@@ -28,7 +28,7 @@ export default function QuestsPage() {
     {
       id: "q1",
       title: "PLATINUM DISCOVERY",
-      description: "Encounter a PLATINUM rarity CRISTIANO RONALDO during a duel reveal.",
+      description: "Encounter CRISTIANO RONALDO during a duel reveal.",
       rewardId: "ronaldo_platinum",
       icon: <Star className="w-5 h-5 text-cyan-400" />,
       requirementMet: false // Card based, checked in-game
@@ -36,7 +36,7 @@ export default function QuestsPage() {
     {
       id: "q2",
       title: "DIAMOND MAESTRO",
-      description: "Encounter a DIAMOND rarity LIONEL MESSI during a duel reveal.",
+      description: "Encounter LIONEL MESSI during a duel reveal.",
       rewardId: "messi_diamond",
       icon: <Sparkles className="w-5 h-5 text-indigo-400" />,
       requirementMet: false // Card based, checked in-game
@@ -44,7 +44,7 @@ export default function QuestsPage() {
     {
       id: "q3",
       title: "GOLDEN FINISHER",
-      description: "Encounter a GOLD rarity ERLING HAALAND during a duel reveal.",
+      description: "Encounter ERLING HAALAND during a duel reveal.",
       rewardId: "haaland_gold",
       icon: <Flame className="w-5 h-5 text-yellow-500" />,
       requirementMet: false // Card based, checked in-game
@@ -52,7 +52,7 @@ export default function QuestsPage() {
     {
       id: "q4",
       title: "SILVER SPEEDSTER",
-      description: "Encounter a SILVER rarity KYLIAN MBAPPÉ during a duel reveal.",
+      description: "Encounter KYLIAN MBAPPÉ during a duel reveal.",
       rewardId: "mbappe_silver",
       icon: <ShieldCheck className="w-5 h-5 text-slate-300" />,
       requirementMet: false // Card based, checked in-game
@@ -60,7 +60,7 @@ export default function QuestsPage() {
     {
       id: "q5",
       title: "MASTER SKILLER",
-      description: "Encounter a MASTER rarity NEYMAR JR during a duel reveal.",
+      description: "Encounter NEYMAR JR during a duel reveal.",
       rewardId: "neymar_master",
       icon: <Target className="w-5 h-5 text-purple-500" />,
       requirementMet: false // Card based, checked in-game
