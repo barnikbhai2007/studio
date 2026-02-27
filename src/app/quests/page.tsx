@@ -93,7 +93,7 @@ export default function QuestsPage() {
           <div className="flex flex-col">
             <h1 className="text-4xl font-black uppercase tracking-tighter">QUESTS</h1>
             <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase flex items-center gap-2">
-              <Sparkles className="w-3 h-3" /> DEMO SEASON 1 CHALLENGES
+              <Sparkles className="w-3 h-3" /> SEASON 1 CHALLENGES
             </span>
           </div>
         </header>

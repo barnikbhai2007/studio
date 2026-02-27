@@ -196,7 +196,7 @@ export default function LandingPage() {
         player2CurrentHealth: 100,
         currentRoundNumber: 1,
         usedFootballerIds: [],
-        gameVersion: 'DEMO',
+        gameVersion: 'FDv1.0',
         createdAt: new Date().toISOString(),
       });
       router.push(`/lobby/${code}`);
@@ -330,7 +330,7 @@ export default function LandingPage() {
                         <h3 className="text-primary text-sm flex items-center gap-2">
                            <Target className="w-4 h-4" /> QUESTS & REWARDS
                         </h3>
-                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Platinum CR7" or "Win 10 Duels" to unlock exclusive player cards and emotes for your loadout.</p>
+                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Cristiano Ronaldo" or "Win 10 Duels" to unlock exclusive player cards and emotes for your loadout.</p>
                       </div>
 
                       <div className="space-y-4">

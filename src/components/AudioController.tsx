@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -15,13 +16,15 @@ export function AudioController() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(MAIN_BGM);
 
+  const isGameRoute = pathname?.startsWith('/game/');
+
   useEffect(() => {
     let src = MAIN_BGM;
     
     // Silence during game, play on result
-    if (pathname.startsWith('/game/')) {
+    if (isGameRoute) {
       src = ""; 
-    } else if (pathname.startsWith('/result/')) {
+    } else if (pathname?.startsWith('/result/')) {
       src = RESULT_BGM;
     }
     
@@ -36,7 +39,7 @@ export function AudioController() {
         }
       }
     }
-  }, [pathname, currentSrc, isMuted, isPlaying]);
+  }, [pathname, currentSrc, isMuted, isPlaying, isGameRoute]);
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -57,6 +60,9 @@ export function AudioController() {
       }
     }
   };
+
+  // Hide the toggle button if we are in a game session
+  if (isGameRoute) return null;
 
   return (
     <>

@@ -172,19 +172,18 @@ export default function LobbyPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Question Pack</label>
                   {isLeader ? (
-                    <Select value={room.gameVersion || 'DEMO'} onValueChange={updateVersion}>
+                    <Select value={room.gameVersion || 'FDv1.0'} onValueChange={updateVersion}>
                       <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
                         <SelectValue placeholder="Select Pack" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DEMO">DEMO (Starter Pack)</SelectItem>
                         <SelectItem value="FDv1.0">FDv1.0 (700 Footballers)</SelectItem>
                         <SelectItem value="All">ALL PACKS</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
                     <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">
-                      {room.gameVersion === 'FDv1.0' ? 'FDv1.0 (700 Footballers)' : (room.gameVersion || 'DEMO')}
+                      {room.gameVersion === 'FDv1.0' ? 'FDv1.0 (700 Footballers)' : (room.gameVersion || 'FDv1.0')}
                     </div>
                   )}
                 </div>
