@@ -2,43 +2,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Global Helper Functions ---
-
-    // Checks if the user is authenticated.
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // --- Collection Rules ---
-
-    // Global rule: Allow any authenticated user to read and write everything.
-    // This ensures that once a user is signed in, they have full access to play and view results.
-    match /{allPaths=**} {
-      allow read, write: if isSignedIn();
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Public Read Access: These collections must be publicly readable (even without auth)
-    // so that the landing page stats and game setup can load correctly.
-    
+    function isParticipant(p1, p2) {
+      return isSignedIn() && (request.auth.uid == p1 || request.auth.uid == p2);
+    }
+
+    // Allow public listing of userProfiles and gameRooms for landing page stats and results
     match /userProfiles/{userId} {
-      allow read: if true;
-      // Write access is handled by the global rule (must be signed in)
+      allow get: if true;
+      allow list: if true;
+      allow create, update: if isOwner(userId);
     }
 
     match /gameRooms/{gameRoomId} {
-      allow read: if true;
+      allow list: if true;
+      allow get: if true; 
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
       
-      // Allow sub-collections (rounds, emotes) to be publicly readable as well
-      match /{allSubdocs=**} {
-        allow read: if true;
+      match /gameRounds/{roundId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /emotes/{emoteId} {
+        allow read, write: if isSignedIn();
       }
     }
 
-    match /footballers/{footballerId} {
-      allow read: if true;
+    match /battleHistories/{battleHistoryId} {
+      allow read, write: if isSignedIn();
     }
-    
-    match /battleHistories/{bhId} {
+
+    match /footballers/{footballerId} {
       allow read: if true;
     }
   }
