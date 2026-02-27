@@ -8,7 +8,7 @@ import {
   Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
   BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper, Crown,
-  Gamepad2, Medal
+  Gamepad2, Medal, Smartphone, Zap, Music
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -289,14 +289,14 @@ export default function LandingPage() {
               {isSyncing ? (
                 <Download className="w-12 h-12 text-primary mx-auto relative z-10 animate-bounce" />
               ) : (
-                <HelpCircle className="w-12 h-12 text-primary mx-auto relative z-10" />
+                <Smartphone className="w-12 h-12 text-primary mx-auto relative z-10" />
               )}
             </div>
             <div className="w-full space-y-4">
               <h2 className="text-3xl font-black uppercase text-primary">
-                {isSyncing ? "SYNCING SEASON" : "Welcome to FootyDuel!"}
+                {isSyncing ? "SYNCING SEASON" : "WELCOME TO ARENA"}
               </h2>
-              <ScrollArea className="h-[50vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
+              <ScrollArea className="h-[55vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
                 <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
                   {isSyncing ? (
                     <div className="space-y-4 text-center py-8">
@@ -305,21 +305,49 @@ export default function LandingPage() {
                     </div>
                   ) : (
                     <>
-                      <p className="text-white text-sm leading-tight normal-case">
-                        FootyDuel is a real-time 1v1 footballer guessing battle. Prove your knowledge and climb the weekly leaderboard!
-                      </p>
                       <div className="space-y-4">
-                        <h3 className="text-primary flex items-center gap-2 text-sm uppercase">
-                          <Crown className="w-4 h-4" /> Weekly Season:
+                        <h3 className="text-primary text-sm flex items-center gap-2">
+                           <Zap className="w-4 h-4" /> THE BASICS
                         </h3>
-                        <ul className="space-y-3 list-none">
-                          <li className="flex gap-2"><span className="text-primary">1.</span> Leaderboard resets every Monday at 00:00 IST.</li>
-                          <li className="flex gap-2"><span className="text-primary">2.</span> The Rank 1 duelist wins an exclusive weekly emote.</li>
-                          <li className="flex gap-2"><span className="text-primary">3.</span> Only the top 5 elite players are shown in the Leaderboard.</li>
+                        <p className="normal-case text-slate-400">FootyDuel is a real-time 1v1 football trivia battle. Your goal is simple: identify the footballer from 5 clues before your opponent does.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-primary text-sm flex items-center gap-2">
+                           <Heart className="w-4 h-4" /> HEALTH & SCORING
+                        </h3>
+                        <ul className="space-y-2 list-disc pl-4">
+                          <li>START WITH HP (50, 100, OR 150).</li>
+                          <li>CORRECT GUESS: +10 PTS. WRONG: -10 PTS. SKIP: 0 PTS.</li>
+                          <li>DAMAGE DEALT = DIFFERENCE IN ROUND POINTS.</li>
+                          <li>MATCH ENDS WHEN SOMEONE HITS 0 HP.</li>
                         </ul>
                       </div>
-                      <div className="pt-4 border-t border-white/10 space-y-4">
-                        <p className="text-primary text-sm uppercase">Stay fast. Stay sharp. Win the week.</p>
+
+                      <div className="space-y-4">
+                        <h3 className="text-primary text-sm flex items-center gap-2">
+                           <Smile className="w-4 h-4" /> EMOTES & TAUNTS
+                        </h3>
+                        <p className="normal-case text-slate-400">Equip up to 6 emotes. Use them during reveals to distract your rival or celebrate a win. Unlock rare emotes via Quests!</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-primary text-sm flex items-center gap-2">
+                           <Target className="w-4 h-4" /> QUESTS & REWARDS
+                        </h3>
+                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Platinum CR7" or "Win 10 Duels" to unlock exclusive player cards and emotes for your loadout.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-primary text-sm flex items-center gap-2">
+                           <Trophy className="w-4 h-4" /> LEADERBOARD
+                        </h3>
+                        <p className="normal-case text-slate-400">Weekly rankings reset every Monday (00:00 IST). Finish at Rank 1 to win "The Crown" emote.</p>
+                      </div>
+
+                      <div className="pt-6 border-t border-white/10 flex items-center gap-4">
+                        <Smartphone className="w-8 h-8 text-primary shrink-0" />
+                        <p className="text-primary text-sm font-black italic">OPTIMIZED FOR MOBILE DUELISTS.</p>
                       </div>
                     </>
                   )}
@@ -334,7 +362,7 @@ export default function LandingPage() {
                 </div>
               ) : (
                 <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
-                  READY TO DUEL
+                  ENTER ARENA
                 </Button>
               )}
             </div>
@@ -344,21 +372,39 @@ export default function LandingPage() {
 
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
-          <div className="w-full max-sm space-y-6 text-center flex flex-col items-center relative">
+          <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
             <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
               <X className="w-6 h-6" />
             </Button>
-            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
+            <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center w-full">
               <div className="flex flex-col items-center gap-2 text-center">
-                <Coffee className="w-10 h-10 text-primary" />
+                <div className="bg-primary/20 p-4 rounded-full border border-primary/20 mb-2">
+                  <Coffee className="w-10 h-10 text-primary" />
+                </div>
                 <h2 className="text-2xl font-black uppercase text-primary leading-tight">SUPPORT THE DEV</h2>
               </div>
-              <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4 text-center">
-                Scan the QR to support the project.
-              </p>
-              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
-                BACK TO ARENA
+              
+              <ScrollArea className="h-[40vh] w-full text-left pr-4">
+                <div className="space-y-6 text-xs font-bold uppercase leading-relaxed text-slate-300">
+                  <div className="space-y-2">
+                    <p className="text-primary text-sm font-black">THE CREATOR</p>
+                    <p className="normal-case text-slate-400">I’m <span className="text-white font-black">BrokenAqua</span>, an 18-year-old student and web creator from India. I started this project on 23rd February, 2026 to build a competitive and creative football-based game.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-primary text-sm font-black">AI POWERED</p>
+                    <p className="normal-case text-slate-400">AI played a huge role in this journey. <span className="text-white font-bold">Google Gemini</span> mainly helped with logic building and development structure. <span className="text-white font-bold">ChatGPT</span> supported with debugging and idea refinement. I used <span className="text-white font-bold">ElevenLabs</span> for voice features and <span className="text-white font-bold">Canva</span> for UI design. AI tools were the core support behind this project.</p>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-4 py-4 bg-white/5 rounded-2xl border border-white/5">
+                    <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-48 h-48 rounded-2xl bg-white p-2 shadow-2xl" alt="QR Code" />
+                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">SCAN TO BUY ME A COFFEE</p>
+                  </div>
+                </div>
+              </ScrollArea>
+
+              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl flex gap-2">
+                <Heart className="w-5 h-5 fill-black" /> BACK TO ARENA
               </Button>
             </div>
           </div>
