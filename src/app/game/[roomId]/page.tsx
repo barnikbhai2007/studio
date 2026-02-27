@@ -263,6 +263,10 @@ export default function GamePage() {
   const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
+    
+    // PAUSE BACKGROUND MUSIC FOR VIDEO
+    window.dispatchEvent(new CustomEvent("footy-pause-bgm"));
+
     if (user && targetPlayer && currentRarity) {
       const questCards = [
         { name: "Cristiano Ronaldo", rarity: "PLATINUM", emoteId: "ronaldo_platinum", title: "PLATINUM CR7 UNLOCKED" },
@@ -274,6 +278,7 @@ export default function GamePage() {
       const matchedQuest = questCards.find(q => q.name === targetPlayer.name && q.rarity === currentRarity.type);
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
+    
     setTimeout(() => setRevealStep('country'), 1000); 
     setTimeout(() => setRevealStep('none'), 2200);    
     setTimeout(() => setRevealStep('position'), 2800); 
@@ -281,8 +286,12 @@ export default function GamePage() {
     setTimeout(() => setRevealStep('rarity'), 4600);   
     setTimeout(() => setRevealStep('none'), 5800);    
     setTimeout(() => setRevealStep('full-card'), 6500); 
+    
     setTimeout(() => {
       setGameState('result');
+      // RESUME BACKGROUND MUSIC
+      window.dispatchEvent(new CustomEvent("footy-resume-bgm"));
+      
       if (isPlayer1) calculateRoundResults();
       setTimeout(async () => {
         if (room && room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {

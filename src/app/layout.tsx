@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AudioController } from '@/components/AudioController';
 
 export const metadata: Metadata = {
   title: 'FootyDuel - Guess the Footballer',
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background text-foreground overflow-x-hidden">
         <FirebaseClientProvider>
           {children}
+          <AudioController />
         </FirebaseClientProvider>
         <Toaster />
       </body>
