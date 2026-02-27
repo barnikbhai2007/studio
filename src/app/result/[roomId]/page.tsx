@@ -28,7 +28,6 @@ export default function ResultPage() {
 
   const bid = useMemo(() => {
     if (!room || !room.player1Id || !room.player2Id) return null;
-    if (room.betweenIds) return room.betweenIds;
     return [room.player1Id, room.player2Id].sort().join('_');
   }, [room]);
 
@@ -166,7 +165,7 @@ export default function ResultPage() {
         <h1 className="text-5xl md:text-7xl font-black tracking-tighter uppercase text-white">
           {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
         </h1>
-        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform -skew-x-12 uppercase">
+        <Badge className="bg-primary text-black font-black text-xl px-8 py-1 transform uppercase">
           {healthDiff} HP DIFFERENCE
         </Badge>
       </header>

@@ -6,15 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
-  Plus, Swords, LogIn, Loader2, Trophy, Users, Download, 
+  Plus, Swords, LogIn, Trophy, Users, Download, 
   LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, ScrollText, X, Coffee
+  BarChart3, Smile, Sparkles, X, Coffee
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, collection, arrayUnion, query, orderBy, limit, getDocs, where, getCountFromServer } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, limit, getCountFromServer } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { startOfDay } from "date-fns";

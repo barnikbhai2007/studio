@@ -11,19 +11,14 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles: Allow public reading for leaderboard and identification
+    // User Profiles: Publicly readable for leaderboard and match results
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isOwner(userId);
       allow update: if isSignedIn();
     }
 
-    // Explicitly allow listing userProfiles
-    match /userProfiles {
-      allow list: if true;
-    }
-
-    // Game Rooms: Broadened permissions for match listing and sub-collections
+    // Game Rooms: Allow listing for match history and public reading
     match /gameRooms/{roomId} {
       allow read: if true;
       allow create: if isSignedIn();
@@ -35,11 +30,6 @@ service cloud.firestore {
         allow read: if true;
         allow write: if isSignedIn();
       }
-    }
-
-    // Explicitly allow listing the gameRooms collection for match history
-    match /gameRooms {
-      allow list: if true;
     }
 
     // Battle Histories: Real-time syncing between players
