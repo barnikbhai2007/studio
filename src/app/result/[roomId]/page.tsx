@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -51,6 +52,13 @@ export default function ResultPage() {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
+  // Sync back to lobby when host resets the match
+  useEffect(() => {
+    if (room?.status === 'Lobby') {
+      router.push(`/lobby/${roomId}`);
+    }
+  }, [room?.status, roomId, router]);
+
   useEffect(() => {
     if (room?.status === 'Completed') {
       const newConfetti = Array.from({ length: 20 }).map(() => ({
@@ -101,7 +109,7 @@ export default function ResultPage() {
         finishedAt: null,
       });
       await batch.commit();
-      router.push(`/lobby/${roomId}`);
+      // Opponent will follow via useEffect observer
     } catch (e) {}
   };
 

@@ -152,11 +152,19 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState]);
 
+  // Handle Round Synchronization and Flag Reset
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
+      
+      // CRITICAL: Reset all interaction flags for the new round
       revealTriggered.current = false;
       isInitializingRound.current = false;
+      
+      // Clear timeouts from previous reveal
+      revealTimeouts.current.forEach(t => clearTimeout(t));
+      revealTimeouts.current = [];
+      
       setRevealStep('none');
       setGuessInput("");
       setRoundTimer(null);
@@ -164,11 +172,12 @@ export default function GamePage() {
       setTargetPlayer(null);
       setAutoNextRoundCountdown(null);
 
-      if (currentRoundNumber > 1) {
-        setGameState('playing');
-      } else {
+      // Start the game state for the new round
+      if (currentRoundNumber === 1) {
         setGameState('countdown');
         setCountdown(5);
+      } else {
+        setGameState('playing');
       }
     }
   }, [currentRoundNumber]);
@@ -468,7 +477,9 @@ export default function GamePage() {
               <div className="relative z-10 space-y-6">
                  <h2 className="text-7xl font-black text-white uppercase animate-bounce">{room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}</h2>
                  <div className="bg-white/5 px-8 py-4 rounded-3xl border border-white/10">
-                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">MATCH RESULTS</p>
+                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
+                      {room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0 ? "TOTAL KNOCKOUT" : "VICTORY BY FORFEIT"}
+                    </p>
                     <p className="text-lg font-black text-white uppercase">{room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON</p>
                  </div>
               </div>
@@ -518,10 +529,10 @@ export default function GamePage() {
             <div className="grid grid-cols-2 gap-4 w-full">
               <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P1 HP</span>
+                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-12 h-12 rounded-full border-2 border-primary object-cover" alt="p1" />
+                <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
                 <div className="w-full flex items-center gap-2">
                   <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000" />
-                  <span className="text-xs font-black text-white">{room.player1CurrentHealth}</span>
                 </div>
                 <Badge className={`${(roundData?.player1ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player1ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
                   {(roundData?.player1ScoreChange ?? 0) > 0 ? `+${roundData.player1ScoreChange}` : (roundData?.player1ScoreChange ?? 0)} HP
@@ -530,10 +541,10 @@ export default function GamePage() {
               
               <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="text-[10px] font-black text-slate-500 uppercase relative z-10">P2 HP</span>
+                <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-12 h-12 rounded-full border-2 border-secondary object-cover" alt="p2" />
+                <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
                 <div className="w-full flex items-center gap-2">
                   <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000 rotate-180" />
-                  <span className="text-xs font-black text-white">{room.player2CurrentHealth}</span>
                 </div>
                 <Badge className={`${(roundData?.player2ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player2ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
                   {(roundData?.player2ScoreChange ?? 0) > 0 ? `+${roundData.player2ScoreChange}` : (roundData?.player2ScoreChange ?? 0)} HP
