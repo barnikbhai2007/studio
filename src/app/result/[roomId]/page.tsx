@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -17,7 +16,7 @@ export default function ResultPage() {
   const db = useFirestore();
 
   const roomRef = useMemoFirebase(() => {
-    if (!user) return null;
+    if (!user || !roomId) return null;
     return doc(db, "gameRooms", roomId as string);
   }, [db, roomId, user]);
   
@@ -79,20 +78,13 @@ export default function ResultPage() {
   }, [room, db, user]);
 
   useEffect(() => {
-    if (user && p1Profile && isPlayer1) {
-      if (p1Profile.totalWins >= 10 && !(p1Profile.unlockedEmoteIds || []).includes('ten_wins')) {
-        updateDoc(doc(db, "userProfiles", user.uid), {
-          unlockedEmoteIds: arrayUnion('ten_wins')
-        });
-      }
-    } else if (user && p2Profile && !isPlayer1) {
-      if (p2Profile.totalWins >= 10 && !(p2Profile.unlockedEmoteIds || []).includes('ten_wins')) {
-        updateDoc(doc(db, "userProfiles", user.uid), {
-          unlockedEmoteIds: arrayUnion('ten_wins')
-        });
-      }
+    const profile = isPlayer1 ? p1Profile : p2Profile;
+    if (user && profile && profile.totalWins >= 10 && !(profile.unlockedEmoteIds || []).includes('ten_wins')) {
+      updateDoc(doc(db, "userProfiles", user.uid), {
+        unlockedEmoteIds: arrayUnion('ten_wins')
+      });
     }
-  }, [p1Profile?.totalWins, p2Profile?.totalWins, user, isPlayer1, db]);
+  }, [p1Profile, p2Profile, user, isPlayer1, db]);
 
   const h2hStats = useMemo(() => {
     if (!recentMatches || !room) return { p1: 0, p2: 0, total: 0 };
@@ -167,8 +159,8 @@ export default function ResultPage() {
 
       <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p1Profile.avatarUrl} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
-            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName}</span>
+            <img src={p1Profile.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
+            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile.displayName || "PLAYER 1"}</span>
             <div className="mt-4 w-full">
               <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player1CurrentHealth}</span></div>
               <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
@@ -219,7 +211,7 @@ export default function ResultPage() {
               <span className="text-[3rem] font-black text-primary leading-none">
                 {h2hStats.p1}
               </span>
-              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName} WINS</span>
+              <span className="block text-[8px] font-black text-white/40 uppercase mt-2">{p1Profile.displayName || "PLAYER 1"} WINS</span>
            </div>
            <div className="w-px h-12 bg-white/10" />
            <div className="flex-1 text-center">

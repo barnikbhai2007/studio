@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -14,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc, collection, arrayUnion, query, orderBy, limit, getDocs, where } from "firebase/firestore";
+import { doc, setDoc, getDoc, updateDoc, collection, arrayUnion, query, orderBy, limit, getDocs, where, getCountFromServer } from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { startOfDay } from "date-fns";
@@ -27,6 +26,7 @@ export default function LandingPage() {
   const [showManual, setShowManual] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
+  const [totalPlayers, setTotalPlayers] = useState(0);
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
@@ -47,7 +47,20 @@ export default function LandingPage() {
   const { data: todayRooms } = useCollection(todayQuery);
 
   const roomsToday = todayRooms?.length || 0;
-  const playerCount = 1240 + (profileData?.totalGamesPlayed || 0);
+
+  useEffect(() => {
+    const fetchTotalPlayers = async () => {
+      try {
+        const coll = collection(db, "userProfiles");
+        const snapshot = await getCountFromServer(coll);
+        setTotalPlayers(snapshot.data().count);
+      } catch (e) {
+        console.error("Error fetching player count:", e);
+        setTotalPlayers(1240); // Fallback
+      }
+    };
+    fetchTotalPlayers();
+  }, [db]);
 
   useEffect(() => {
     const checkSeasonalResetReward = async () => {
@@ -152,13 +165,13 @@ export default function LandingPage() {
       const roomRef = doc(db, "gameRooms", roomCode.trim());
       const roomSnap = await getDoc(roomRef);
       if (!roomSnap.exists()) {
-        toast({ variant: "destructive", title: "Not Found", description: "Invalid room code." });
+        toast({ variant: "destructive", title: "Not Found", description: "Invalid code." });
         setIsActionLoading(false);
         return;
       }
       const data = roomSnap.data();
       if (data.player2Id && data.player2Id !== user.uid && data.player1Id !== user.uid) {
-        toast({ variant: "destructive", title: "Full", description: "Match already in progress." });
+        toast({ variant: "destructive", title: "Full", description: "Match in progress." });
         setIsActionLoading(false);
         return;
       }
@@ -187,7 +200,6 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
-      {/* Manual Overlay / Setup Sync */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -244,7 +256,7 @@ export default function LandingPage() {
 
                       <div className="pt-4 border-t border-white/10 space-y-4">
                         <p className="text-primary text-sm">🔥 Stay fast. Stay sharp. Prove your football knowledge.</p>
-                        <p className="text-slate-400 italic">Good luck and have fun! ~ Barnik (brokenAqua)</p>
+                        <p className="text-slate-400">Good luck and have fun! ~ Barnik (brokenAqua)</p>
                       </div>
                     </>
                   )}
@@ -267,7 +279,6 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Support Overlay */}
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
@@ -294,11 +305,10 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Floating Help Button */}
       <div className="fixed bottom-6 right-6 z-50">
         <Button 
           onClick={() => setShowManual(true)} 
-          className="w-14 h-14 rounded-full bg-primary text-black shadow-[0_0_20px_rgba(255,123,0,0.4)] hover:scale-110 transition-transform"
+          className="w-14 h-14 rounded-2xl bg-black border border-white/10 text-primary shadow-2xl hover:scale-110 transition-transform flex items-center justify-center"
         >
           <HelpCircle className="w-8 h-8" />
         </Button>
@@ -309,7 +319,7 @@ export default function LandingPage() {
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
             <Swords className="w-12 h-12" />
           </div>
-          <h1 className="text-6xl font-black tracking-tighter text-white uppercase italic">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black tracking-tighter text-white uppercase">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
@@ -352,12 +362,12 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-20 text-2xl font-black bg-primary rounded-[1.5rem] uppercase shadow-[0_0_40px_rgba(255,123,0,0.4)] hover:scale-[1.02] transition-all group">
-                CREATE DUEL <Swords className="ml-2 w-6 h-6 group-hover:rotate-12 transition-transform" />
+              <Button onClick={handleCreateRoom} className="w-full h-16 text-xl font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
+                CREATE DUEL <Swords className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="ROOM CODE" 
+                  placeholder="CODE" 
                   className="h-16 bg-[#161618] text-center font-black tracking-[0.4em] text-2xl rounded-[1.2rem] uppercase border-white/10 focus:border-primary/50" 
                   value={roomCode} 
                   onChange={(e) => setRoomCode(e.target.value)} 
@@ -367,7 +377,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Menu Grid */}
             <div className="grid grid-cols-2 gap-3">
               <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
                 <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
@@ -384,7 +393,7 @@ export default function LandingPage() {
             </div>
 
             <div className="pt-2">
-              <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest">
+              <Button onClick={() => setShowSupport(false)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest" onClick={() => setShowSupport(true)}>
                 <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT THE DEV
               </Button>
             </div>
@@ -399,14 +408,14 @@ export default function LandingPage() {
            </div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
               <Users className="text-primary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS ONLINE</span>
-              <span className="text-2xl font-black">{playerCount}</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL REGISTERED</span>
+              <span className="text-2xl font-black">{totalPlayers}</span>
            </div>
         </div>
 
         <div className="text-center pt-8 pb-4">
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center justify-center gap-2">
-            MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500" /> IN INDIA
+            MADE WITH HEART IN INDIA
           </p>
         </div>
       </div>

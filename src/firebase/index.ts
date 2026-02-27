@@ -5,25 +5,10 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
-// IMPORTANT: Updated to handle fallback more reliably for non-Firebase Hosting (e.g. Netlify)
 export function initializeFirebase() {
   if (!getApps().length) {
-    let firebaseApp;
-    // Check if we are running on a standard Firebase Hosting environment
-    // If not (like on Netlify), we should use the config object directly
-    const isFirebaseHosting = typeof window !== 'undefined' && 
-      (window.location.hostname.endsWith('.web.app') || window.location.hostname.endsWith('.firebaseapp.com'));
-
-    if (isFirebaseHosting) {
-      try {
-        firebaseApp = initializeApp();
-      } catch (e) {
-        firebaseApp = initializeApp(firebaseConfig);
-      }
-    } else {
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-
+    // Force using the config object to ensure initialization works on Netlify/Vercel
+    const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
 
