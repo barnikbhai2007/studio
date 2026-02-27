@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -25,7 +26,6 @@ export default function ResultPage() {
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
 
-  // Query last 10 matches for the same competitors
   const historyQuery = useMemoFirebase(() => {
     if (!room?.betweenIds) return null;
     return query(
@@ -37,7 +37,7 @@ export default function ResultPage() {
     );
   }, [db, room?.betweenIds]);
 
-  const { data: recentMatches } = useCollection(historyQuery);
+  const { data: recentMatches, isLoading: isHistoryLoading } = useCollection(historyQuery);
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;

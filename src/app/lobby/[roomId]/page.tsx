@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -88,7 +89,6 @@ export default function LobbyPage() {
       return;
     }
     
-    // Ensure betweenIds is set for history tracking
     const betweenIds = [room.player1Id, room.player2Id].sort().join('_');
     
     await updateDoc(roomRef, { 

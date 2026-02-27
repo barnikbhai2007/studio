@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -217,7 +218,7 @@ export default function GamePage() {
   }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
 
   const normalizeStr = (str: string) => 
-    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    str.normalize("NFD").replace(/[\u0300//\u036f]/g, "").toLowerCase().trim();
 
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing') return;
@@ -261,13 +262,13 @@ export default function GamePage() {
     setGameState('reveal');
     setRevealStep('none');
     
-    setTimeout(() => setRevealStep('country'), 1500); 
-    setTimeout(() => setRevealStep('none'), 2400);    
-    setTimeout(() => setRevealStep('position'), 3000); 
-    setTimeout(() => setRevealStep('none'), 3900);    
-    setTimeout(() => setRevealStep('rarity'), 4400);   
-    setTimeout(() => setRevealStep('none'), 5300);    
-    setTimeout(() => setRevealStep('full-card'), 6000); 
+    setTimeout(() => setRevealStep('country'), 1000); 
+    setTimeout(() => setRevealStep('none'), 2200);    
+    setTimeout(() => setRevealStep('position'), 2800); 
+    setTimeout(() => setRevealStep('none'), 4000);    
+    setTimeout(() => setRevealStep('rarity'), 4600);   
+    setTimeout(() => setRevealStep('none'), 5800);    
+    setTimeout(() => setRevealStep('full-card'), 6500); 
     
     setTimeout(() => {
       setGameState('result');
@@ -278,7 +279,7 @@ export default function GamePage() {
           startNewRoundLocally();
         }
       }, 5000); 
-    }, 11000); 
+    }, 11500); 
   };
 
   const calculateRoundResults = async () => {
@@ -292,7 +293,12 @@ export default function GamePage() {
     if (diff > 0) p2NewHealth = Math.max(0, p2NewHealth - diff);
     else if (diff < 0) p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
     
-    const updatePayload: any = { player1CurrentHealth: p1NewHealth, player2CurrentHealth: p2NewHealth };
+    const betweenIds = [room.player1Id, room.player2Id].sort().join('_');
+    const updatePayload: any = { 
+      player1CurrentHealth: p1NewHealth, 
+      player2CurrentHealth: p2NewHealth,
+      betweenIds 
+    };
 
     if (p1NewHealth <= 0 || p2NewHealth <= 0) {
        const winnerId = p1NewHealth > 0 ? room.player1Id : room.player2Id;
@@ -303,15 +309,12 @@ export default function GamePage() {
        updatePayload.finishedAt = new Date().toISOString();
        
        const batch = writeBatch(db);
-       
        const winnerRef = doc(db, "userProfiles", winnerId);
        const loserRef = doc(db, "userProfiles", loserId);
        batch.update(winnerRef, { totalWins: increment(1), totalGamesPlayed: increment(1) });
        batch.update(loserRef, { totalLosses: increment(1), totalGamesPlayed: increment(1) });
 
-       const bhId = [winnerId, loserId].sort().join('_');
-       updatePayload.betweenIds = bhId; // Ensure betweenIds is set on completion
-       
+       const bhId = betweenIds;
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
        if (!bhSnap.exists()) {
