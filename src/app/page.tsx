@@ -246,13 +246,6 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
-      <button 
-        onClick={() => setShowManual(true)} 
-        className="fixed top-6 right-6 z-50 p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all shadow-2xl group"
-      >
-        <HelpCircle className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
-      </button>
-
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
           <div className="relative">
@@ -301,7 +294,7 @@ export default function LandingPage() {
                   {isSyncing ? (
                     <div className="space-y-4 text-center py-8">
                        <p className="text-sm">CALCULATING SEASON RANKINGS...</p>
-                       <p className="opacity-50">SYNCING COMPETITIVE LADDER...</p>
+                       <p className="opacity-50">Visit the INFO button on the home screen to know how to play the game.</p>
                     </div>
                   ) : (
                     <>
@@ -382,6 +375,7 @@ export default function LandingPage() {
                   <Coffee className="w-10 h-10 text-primary" />
                 </div>
                 <h2 className="text-2xl font-black uppercase text-primary leading-tight">SUPPORT THE DEV</h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fund if you want this project continue in future.</p>
               </div>
               
               <ScrollArea className="h-[40vh] w-full text-left pr-4">
@@ -444,7 +438,7 @@ export default function LandingPage() {
                   <div className="flex flex-col">
                     <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
                     <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 w-fit">
-                      <Crown className="w-2 h-2" /> {profileData?.weeklyWins || 0} WEEKLY
+                      <Crown className="w-2 h-2" /> {profileData?.weeklyWins || 0} WIN STREAK
                     </span>
                   </div>
                 </div>
