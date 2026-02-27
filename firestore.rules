@@ -8,27 +8,27 @@ service cloud.firestore {
     }
 
     // User Profiles: Publicly readable for leaderboard and stats.
-    // Writes restricted to signed-in users to permit profile setup and game stats.
+    // Writes restricted to signed-in users.
     match /userProfiles/{userId} {
       allow read: if true;
       allow write: if isSignedIn();
     }
 
     // Game Rooms: 
-    // Allow public read for match history, joining, and stats (fixes auth: null error).
-    // Allow write for any signed-in player to enable game logic.
+    // Allow public read (get and list) for match history, joining, and stats.
+    // This fixes the 'auth: null' permission error on the landing and result pages.
     match /gameRooms/{roomId} {
       allow read: if true;
       allow write: if isSignedIn();
       
-      // Nested collections (rounds, emotes) follow same logic
+      // Nested collections (rounds, emotes, etc.) inherit public read access
       match /{allChildren=**} {
         allow read: if true;
         allow write: if isSignedIn();
       }
     }
 
-    // Battle Histories: Collective stats between players.
+    // Battle Histories: Aggregated stats between players.
     match /battleHistories/{bhId} {
       allow read: if true;
       allow write: if isSignedIn();
