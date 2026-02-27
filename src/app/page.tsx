@@ -57,30 +57,11 @@ export default function LandingPage() {
         setTotalPlayers(snapshot.data().count);
       } catch (e) {
         console.error("Error fetching player count:", e);
-        setTotalPlayers(1240); // Fallback
+        setTotalPlayers(0);
       }
     };
     fetchTotalPlayers();
   }, [db]);
-
-  useEffect(() => {
-    const checkSeasonalResetReward = async () => {
-      if (!user || !db) return;
-      const now = new Date();
-      const isResetWindow = now.getUTCDay() === 1 && now.getUTCHours() >= 18 && now.getUTCHours() <= 19;
-      
-      if (isResetWindow) {
-        const q = query(collection(db, "userProfiles"), orderBy("totalWins", "desc"), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty && snap.docs[0].id === user.uid) {
-          const uRef = doc(db, "userProfiles", user.uid);
-          await updateDoc(uRef, { unlockedEmoteIds: arrayUnion('rank_one') });
-          toast({ title: "SEASON CHAMPION", description: "RANK 1 REWARD DELIVERED!" });
-        }
-      }
-    };
-    checkSeasonalResetReward();
-  }, [user, db, toast]);
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -100,7 +81,7 @@ export default function LandingPage() {
     setSyncProgress(0);
     let progress = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 12;
+      progress += Math.random() * 15;
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
@@ -126,10 +107,10 @@ export default function LandingPage() {
           setIsSyncing(false);
           setShowManual(true);
           toast({ title: "Duelist Ready", description: `LOGGED IN AS ${displayName?.toUpperCase()}` });
-        }, 800);
+        }, 500);
       }
       setSyncProgress(progress);
-    }, 150);
+    }, 100);
   };
 
   const handleCreateRoom = async () => {
@@ -289,12 +270,12 @@ export default function LandingPage() {
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center">
               <div className="flex flex-col items-center gap-2">
                 <Coffee className="w-10 h-10 text-primary" />
-                <h2 className="text-2xl font-black uppercase text-primary tracking-tighter leading-tight">BUY THE DEV A COFFEE</h2>
+                <h2 className="text-2xl font-black uppercase text-primary tracking-tighter leading-tight text-center">BUY THE DEV A COFFEE</h2>
               </div>
               
               <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-56 h-56 rounded-3xl bg-white p-2 shadow-2xl" alt="QR Code" />
               
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed px-4 text-center">
                 Scan the QR code and help the project to run for more days.
               </p>
 
@@ -309,7 +290,7 @@ export default function LandingPage() {
       <div className="fixed bottom-6 right-6 z-50">
         <Button 
           onClick={() => setShowManual(true)} 
-          className="w-14 h-14 rounded-2xl bg-black border border-white/10 text-primary shadow-2xl hover:scale-110 transition-transform flex items-center justify-center"
+          className="w-14 h-14 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 text-primary shadow-2xl hover:scale-110 transition-all flex items-center justify-center"
         >
           <HelpCircle className="w-8 h-8" />
         </Button>
@@ -363,8 +344,8 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-14 text-lg font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
-                CREATE DUEL <Swords className="ml-2 w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <Button onClick={handleCreateRoom} className="w-full h-12 text-base font-black bg-primary rounded-[1.2rem] uppercase shadow-[0_0_30px_rgba(255,123,0,0.3)] hover:scale-[1.02] transition-all group">
+                CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-12 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input 
@@ -404,19 +385,19 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 gap-4">
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
               <Trophy className="text-secondary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">DUELS TODAY</span>
               <span className="text-2xl font-black">{roomsToday}</span>
            </div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
               <Users className="text-primary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">TOTAL REGISTERED</span>
+              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">TOTAL REGISTERED</span>
               <span className="text-2xl font-black">{totalPlayers}</span>
            </div>
         </div>
 
         <div className="text-center pt-8 pb-4">
           <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center justify-center gap-2">
-            MADE WITH HEART IN INDIA
+            MADE WITH <Heart className="w-3 h-3 text-red-500 fill-red-500" /> IN INDIA
           </p>
         </div>
       </div>

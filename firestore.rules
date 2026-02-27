@@ -11,20 +11,19 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // User Profiles: Public read for leaderboard, owner update for stats
+    // User Profiles: Allow public reading for leaderboard and identification
     match /userProfiles/{userId} {
       allow read: if true;
       allow create: if isOwner(userId);
       allow update: if isSignedIn();
     }
 
-    // Explicitly allow listing userProfiles for the leaderboard
+    // Explicitly allow listing userProfiles
     match /userProfiles {
       allow list: if true;
     }
 
-    // Game Rooms: Broadened permissions to allow listing and sub-collection access
-    // This allows the match history and result page queries to work reliably.
+    // Game Rooms: Broadened permissions for match listing and sub-collections
     match /gameRooms/{roomId} {
       allow read: if true;
       allow create: if isSignedIn();
@@ -38,7 +37,7 @@ service cloud.firestore {
       }
     }
 
-    // Explicitly allow listing/querying the gameRooms collection for history
+    // Explicitly allow listing the gameRooms collection for match history
     match /gameRooms {
       allow list: if true;
     }

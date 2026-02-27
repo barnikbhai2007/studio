@@ -27,13 +27,9 @@ export default function ResultPage() {
   const [p2Profile, setP2Profile] = useState<any>(null);
 
   const bid = useMemo(() => {
-    if (!room) return null;
+    if (!room || !room.player1Id || !room.player2Id) return null;
     if (room.betweenIds) return room.betweenIds;
-    // Fallback bidirectional ID generation
-    if (room.player1Id && room.player2Id) {
-      return [room.player1Id, room.player2Id].sort().join('_');
-    }
-    return null;
+    return [room.player1Id, room.player2Id].sort().join('_');
   }, [room]);
 
   const historyQuery = useMemoFirebase(() => {
@@ -51,7 +47,12 @@ export default function ResultPage() {
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
-  const healthDiff = room ? Math.max(0, Math.abs((room.player1CurrentHealth || 0) - (room.player2CurrentHealth || 0))) : 0;
+  
+  // Defensive health calculation
+  const p1Health = room?.player1CurrentHealth ?? 0;
+  const p2Health = room?.player2CurrentHealth ?? 0;
+  const healthMax = room?.healthOption ?? 100;
+  const healthDiff = Math.abs(p1Health - p2Health);
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -64,7 +65,7 @@ export default function ResultPage() {
   }, [room?.status, roomId, router]);
 
   useEffect(() => {
-    if (!room || !user) return;
+    if (!room || !user || !room.player1Id) return;
 
     const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
       if (snap.exists()) setP1Profile(snap.data());
@@ -84,9 +85,8 @@ export default function ResultPage() {
   }, [room, db, user]);
 
   useEffect(() => {
-    if (!user || !db || !room) return;
+    if (!user || !db || !room || !p1Profile) return;
     const profile = isPlayer1 ? p1Profile : p2Profile;
-    // CRITICAL FIX: Ensure profile and stats exist before checking logic to prevent client-side exception
     if (profile && typeof profile.totalWins === 'number' && profile.totalWins >= 10) {
       const unlocked = profile.unlockedEmoteIds || [];
       if (!unlocked.includes('ten_wins')) {
@@ -98,12 +98,10 @@ export default function ResultPage() {
   }, [p1Profile, p2Profile, user, isPlayer1, db, room]);
 
   const h2hStats = useMemo(() => {
-    if (!recentMatches || !room) return { p1: 0, p2: 0, total: 0 };
+    if (!recentMatches || !room || !room.player1Id || !room.player2Id) return { p1: 0, p2: 0, total: 0 };
     const p1Id = room.player1Id;
     const p2Id = room.player2Id;
     
-    if (!p1Id || !p2Id) return { p1: 0, p2: 0, total: 0 };
-
     return recentMatches.reduce((acc, match) => {
       if (match.winnerId === p1Id) acc.p1++;
       else if (match.winnerId === p2Id) acc.p2++;
@@ -113,7 +111,7 @@ export default function ResultPage() {
   }, [recentMatches, room]);
 
   const handlePlayAgain = async () => {
-    if (!roomRef || !roomId || !isPlayer1) return;
+    if (!roomRef || !roomId || !isPlayer1 || !room) return;
     try {
       const batch = writeBatch(db);
       const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
@@ -178,16 +176,16 @@ export default function ResultPage() {
             <img src={p1Profile?.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
             <div className="mt-4 w-full">
-              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player1CurrentHealth}</span></div>
-              <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
+              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{p1Health}</span></div>
+              <Progress value={(p1Health / healthMax) * 100} className="h-2 bg-black/20" />
             </div>
          </div>
          <div className={`flex flex-col items-center p-6 rounded-3xl border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
             <img src={p2Profile?.avatarUrl || `https://picsum.photos/seed/${room.player2Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
             <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
             <div className="mt-4 w-full">
-              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{room.player2CurrentHealth}</span></div>
-              <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 bg-black/20" />
+              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{p2Health}</span></div>
+              <Progress value={(p2Health / healthMax) * 100} className="h-2 bg-black/20" />
             </div>
          </div>
       </section>
