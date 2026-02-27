@@ -25,6 +25,7 @@ export default function ResultPage() {
 
   const [p1Profile, setP1Profile] = useState<any>(null);
   const [p2Profile, setP2Profile] = useState<any>(null);
+  const [confetti, setConfetti] = useState<{left: string, delay: string}[]>([]);
 
   const isWinner = room?.winnerId === user?.uid;
   const isPlayer1 = room?.player1Id === user?.uid;
@@ -55,6 +56,17 @@ export default function ResultPage() {
       router.push(`/lobby/${roomId}`);
     }
   }, [room?.status, roomId, router]);
+
+  useEffect(() => {
+    // Confetti generation must happen in useEffect to avoid hydration mismatch
+    if (room?.status === 'Completed') {
+      const newConfetti = [...Array(20)].map(() => ({
+        left: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 3}s`
+      }));
+      setConfetti(newConfetti);
+    }
+  }, [room?.status]);
 
   useEffect(() => {
     if (!room?.player1Id || !db) return;
@@ -114,8 +126,8 @@ export default function ResultPage() {
     <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
       {isWinner && (
         <div className="fixed inset-0 pointer-events-none z-50">
-          {[...Array(20)].map((_, i) => (
-            <div key(i) className="absolute animate-confetti opacity-0" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 3}s` }}>
+          {confetti.map((c, i) => (
+            <div key={i} className="absolute animate-confetti opacity-0" style={{ left: c.left, animationDelay: c.delay }}>
               <Sparkles className="text-secondary w-6 h-6 fill-secondary" />
             </div>
           ))}
