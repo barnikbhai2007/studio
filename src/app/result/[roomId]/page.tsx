@@ -28,7 +28,7 @@ export default function ResultPage() {
   const bid = useMemo(() => {
     if (!room?.player1Id || !room?.player2Id) return null;
     return [room.player1Id, room.player2Id].sort().join('_');
-  }, [room]);
+  }, [room?.player1Id, room?.player2Id]);
 
   const historyQuery = useMemoFirebase(() => {
     if (!bid) return null;
@@ -92,7 +92,7 @@ export default function ResultPage() {
       acc.total++;
       return acc;
     }, { p1: 0, p2: 0, total: 0 });
-  }, [recentMatches, room]);
+  }, [recentMatches, room?.player1Id, room?.player2Id]);
 
   const handlePlayAgain = async () => {
     if (!roomRef || !roomId || !isPlayer1 || !room) return;

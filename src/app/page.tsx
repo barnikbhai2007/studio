@@ -343,7 +343,7 @@ export default function LandingPage() {
 
             <div className="grid gap-3">
               <Button onClick={handleCreateRoom} className="w-full h-12 text-sm font-black bg-primary rounded-xl uppercase shadow-lg hover:scale-[1.02] transition-all group">
-                CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-12 transition-transform" />
+                CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-0 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input 
