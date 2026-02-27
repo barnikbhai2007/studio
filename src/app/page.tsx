@@ -110,7 +110,7 @@ export default function LandingPage() {
             await updateDoc(userRef, { lastLoginAt: new Date().toISOString() });
           }
           setIsSyncing(false);
-          setShowManual(true); // Show welcome message after setup
+          setShowManual(true);
           toast({ title: "Duelist Ready", description: `LOGGED IN AS ${displayName?.toUpperCase()}` });
         }, 800);
       }
@@ -187,6 +187,7 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
+      {/* Manual Overlay / Setup Sync */}
       {(isSyncing || showManual) && (
         <div className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
@@ -229,7 +230,7 @@ export default function LandingPage() {
                       
                       <div className="space-y-4">
                         <h3 className="text-primary flex items-center gap-2 text-sm">
-                          <Plus className="w-4 h-4" /> HOW IT WORKS:
+                          <Plus className="w-4 h-4" /> ⚽ HOW IT WORKS:
                         </h3>
                         <ul className="space-y-3 list-none">
                           <li className="flex gap-2"><span className="text-primary">1.</span> Create a room or join one using a room code.</li>
@@ -266,6 +267,7 @@ export default function LandingPage() {
         </div>
       )}
 
+      {/* Support Overlay */}
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-sm space-y-6 text-center flex flex-col items-center relative">
@@ -292,20 +294,22 @@ export default function LandingPage() {
         </div>
       )}
 
+      {/* Floating Help Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button 
+          onClick={() => setShowManual(true)} 
+          className="w-14 h-14 rounded-full bg-primary text-black shadow-[0_0_20px_rgba(255,123,0,0.4)] hover:scale-110 transition-transform"
+        >
+          <HelpCircle className="w-8 h-8" />
+        </Button>
+      </div>
+
       <div className="relative z-10 w-full max-w-md space-y-10 py-8">
-        <header className="flex justify-between items-start">
-          <Button variant="ghost" size="icon" onClick={() => setShowManual(true)} className="text-slate-500 hover:text-white transition-colors">
-            <HelpCircle className="w-6 h-6" />
-          </Button>
-          <div className="text-center space-y-4">
-            <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
-              <Swords className="w-12 h-12" />
-            </div>
-            <h1 className="text-6xl font-black tracking-tighter text-white uppercase italic">FOOTY DUEL</h1>
+        <header className="text-center space-y-4">
+          <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
+            <Swords className="w-12 h-12" />
           </div>
-          <Button variant="ghost" size="icon" className="text-slate-500 hover:text-white" onClick={() => toast({ title: "FOOTYDUEL v1.0", description: "Season 1: The Beginning" })}>
-            <Info className="w-6 h-6" />
-          </Button>
+          <h1 className="text-6xl font-black tracking-tighter text-white uppercase italic">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
@@ -363,18 +367,21 @@ export default function LandingPage() {
               </div>
             </div>
 
+            {/* Menu Grid */}
             <div className="grid grid-cols-2 gap-3">
               <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-primary/30">
-                <Target className="w-6 h-6 mr-2 text-primary" /> QUESTS
+                <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
               </Button>
               <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10 hover:border-secondary/30">
-                <BarChart3 className="w-6 h-6 mr-2 text-secondary" /> BOARD
+                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> BOARD
+              </Button>
+              <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
+                <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
+              </Button>
+              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
+                <Info className="w-5 h-5 mr-2 text-primary" /> INFO
               </Button>
             </div>
-
-            <Button onClick={() => router.push('/emotes')} variant="outline" className="w-full h-16 bg-white/5 rounded-[1.2rem] font-black uppercase border-white/10 hover:bg-white/10">
-              <Smile className="w-6 h-6 mr-2 text-primary" /> EMOTE LOADOUT
-            </Button>
 
             <div className="pt-2">
               <Button onClick={() => setShowSupport(true)} variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest">
