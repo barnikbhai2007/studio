@@ -38,6 +38,7 @@ export default function GamePage() {
   const isInitializingRound = useRef(false);
   const lastProcessedRound = useRef<number>(0);
   const revealTimeouts = useRef<NodeJS.Timeout[]>([]);
+  const lastEmoteId = useRef<string | null>(null);
 
   const roomRef = useMemoFirebase(() => {
     if (!user || !roomId) return null;
@@ -99,12 +100,14 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
+  // Enhanced Emote Listener with individual cleanups
   useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
-      const newEmotes = recentEmotes
+      const freshEmotesFromDb = recentEmotes
         .filter(e => {
           const createdAt = e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now);
+          // Only accept emotes from the last 2 seconds to avoid round-carryover
           return now - createdAt < 2000;
         })
         .map(e => ({ 
@@ -115,9 +118,17 @@ export default function GamePage() {
       
       setActiveEmotes(prev => {
         const existingIds = new Set(prev.map(p => p.id));
-        const filtered = newEmotes.filter(n => !existingIds.has(n.id));
+        const filtered = freshEmotesFromDb.filter(n => !existingIds.has(n.id));
         if (filtered.length === 0) return prev;
-        return [...prev, ...filtered].slice(-5);
+        
+        // Auto-cleanup for each new emote after animation ends (6s)
+        filtered.forEach(emote => {
+          setTimeout(() => {
+            setActiveEmotes(current => current.filter(item => item.id !== emote.id));
+          }, 6000);
+        });
+
+        return [...prev, ...filtered];
       });
     }
   }, [recentEmotes]);
@@ -192,6 +203,7 @@ export default function GamePage() {
       setVisibleHints(1);
       setTargetPlayer(null);
       setAutoNextRoundCountdown(null);
+      setActiveEmotes([]); // Clear any lingering emotes on round change
       if (currentRoundNumber === 1) setCountdown(5);
     }
   }, [currentRoundNumber]);
@@ -263,7 +275,7 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    // Hint Reveal Logic
+    // Multi-Hint Reveal Logic (Loads all available hints)
     if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
@@ -316,17 +328,15 @@ export default function GamePage() {
   const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
+    setActiveEmotes([]); // Clear emotes for cinematic sequence
     
     if (user && targetPlayer) {
-      const questCards = [
-        { name: "Cristiano Ronaldo", emoteId: "ronaldo_platinum", title: "CR7 EMOTE UNLOCKED" },
-        { name: "Lionel Messi", emoteId: "messi_diamond", title: "MESSI EMOTE UNLOCKED" },
-        { name: "Erling Haaland", emoteId: "haaland_gold", title: "HAALAND EMOTE UNLOCKED" },
-        { name: "Kylian Mbappé", emoteId: "mbappe_silver", title: "MBAPPE EMOTE UNLOCKED" },
-        { name: "Neymar Jr", emoteId: "neymar_master", title: "NEYMAR EMOTE UNLOCKED" }
-      ];
-      const matchedQuest = questCards.find(q => q.name === targetPlayer.name);
-      if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
+      const questCards = ["Cristiano Ronaldo", "Lionel Messi", "Erling Haaland", "Kylian Mbappé", "Neymar Jr"];
+      const emoteIds = ["ronaldo_platinum", "messi_diamond", "haaland_gold", "mbappe_silver", "neymar_master"];
+      const titles = ["CR7 EMOTE UNLOCKED", "MESSI EMOTE UNLOCKED", "HAALAND EMOTE UNLOCKED", "MBAPPE EMOTE UNLOCKED", "NEYMAR EMOTE UNLOCKED"];
+      
+      const cardIdx = questCards.indexOf(targetPlayer.name);
+      if (cardIdx !== -1) checkAndUnlockQuest(emoteIds[cardIdx], titles[cardIdx]);
     }
     
     const steps = [
@@ -383,7 +393,6 @@ export default function GamePage() {
        const batch = writeBatch(db);
        
        if (isDraw) {
-         // Both lose streaks on draw
          batch.update(doc(db, "userProfiles", room.player1Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
          batch.update(doc(db, "userProfiles", room.player2Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
        } else {
@@ -464,6 +473,9 @@ export default function GamePage() {
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
+  // Reveal UI logic correctly handles flag loading via flagcdn
+  const getFlagUrl = (code: string) => `https://flagcdn.com/w640/${code.toLowerCase()}.png`;
+
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
@@ -471,7 +483,7 @@ export default function GamePage() {
         <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6 text-center">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-300"><img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
+            {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-300"><img src={getFlagUrl(targetPlayer.countryCode)} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
             {revealStep === 'position' && targetPlayer && <div className="animate-in fade-in slide-in-from-bottom-20 duration-300"><span className="text-[100px] md:text-[180px] font-black text-white drop-shadow-[0_0_100px_rgba(255,165,0,1)] uppercase">{targetPlayer.position}</span></div>}
             {revealStep === 'rarity' && currentRarity && <div className="animate-in fade-in zoom-in duration-400"><Badge className={`bg-gradient-to-r ${currentRarity.bg} text-white text-3xl md:text-5xl px-8 md:px-16 py-3 md:py-6 font-black border-4 border-white/50 uppercase tracking-widest`}>{currentRarity.type}</Badge></div>}
           </div>
@@ -483,7 +495,7 @@ export default function GamePage() {
                 <div className="mt-auto relative z-20 p-4">
                   <div className="bg-black/90 backdrop-blur-xl p-6 rounded-[2rem] border border-white/10 shadow-2xl flex flex-col items-center text-center">
                     <h3 className="text-3xl md:text-4xl font-black uppercase text-white leading-none mb-4">{targetPlayer.name}</h3>
-                    <img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
+                    <img src={getFlagUrl(targetPlayer.countryCode)} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
                   </div>
                 </div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
@@ -623,7 +635,7 @@ export default function GamePage() {
                 <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">INTEL IDENTITY</p>
                 <p className="text-5xl font-black text-white uppercase tracking-tighter italic leading-none">{targetPlayer?.name}</p>
               </div>
-              {targetPlayer && <img src={`https://flagcdn.com/w640/${targetPlayer.countryCode}.png`} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />}
+              {targetPlayer && <img src={getFlagUrl(targetPlayer.countryCode)} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />}
             </div>
 
             <div className="w-full space-y-4">
