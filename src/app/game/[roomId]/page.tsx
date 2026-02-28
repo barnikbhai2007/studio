@@ -204,7 +204,7 @@ export default function GamePage() {
     const r2 = getRandomRarity().type;
 
     try {
-      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'DEMO');
+      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'FDv1.0');
       await setDoc(roundRef, {
         id: currentRoundId,
         gameRoomId: roomId,
@@ -263,11 +263,12 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    if (gameState === 'playing' && visibleHints < 5 && !roundData?.timerStartedAt) {
+    // Hint Reveal Logic - Remove hard limit of 5
+    if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
     return () => clearTimeout(timer);
-  }, [gameState, countdown, visibleHints, roundData?.timerStartedAt]);
+  }, [gameState, countdown, visibleHints, roundData?.timerStartedAt, targetPlayer]);
 
   useEffect(() => {
     if (gameState === 'result' && autoNextRoundCountdown === null) {
@@ -324,7 +325,6 @@ export default function GamePage() {
         { name: "Kylian Mbappé", emoteId: "mbappe_silver", title: "MBAPPE EMOTE UNLOCKED" },
         { name: "Neymar Jr", emoteId: "neymar_master", title: "NEYMAR EMOTE UNLOCKED" }
       ];
-      // simplified: any rarity counts
       const matchedQuest = questCards.find(q => q.name === targetPlayer.name);
       if (matchedQuest) checkAndUnlockQuest(matchedQuest.emoteId, matchedQuest.title);
     }
@@ -379,18 +379,16 @@ export default function GamePage() {
        updatePayload.finishedAt = new Date().toISOString();
        
        const batch = writeBatch(db);
-       // Winner updates
        batch.update(doc(db, "userProfiles", winnerId), { 
          totalWins: increment(1), 
          weeklyWins: increment(1), 
          winStreak: increment(1),
          totalGamesPlayed: increment(1) 
        });
-       // Loser updates
        batch.update(doc(db, "userProfiles", loserId), { 
          totalLosses: increment(1), 
          totalGamesPlayed: increment(1),
-         winStreak: 0 // Reset streak on loss
+         winStreak: 0 
        });
        
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
@@ -416,18 +414,16 @@ export default function GamePage() {
     const loserId = user.uid;
     
     const batch = writeBatch(db);
-    // Winner updates
     batch.update(doc(db, "userProfiles", winnerId), { 
       totalWins: increment(1), 
       weeklyWins: increment(1), 
       winStreak: increment(1),
       totalGamesPlayed: increment(1) 
     });
-    // Loser updates
     batch.update(doc(db, "userProfiles", loserId), { 
       totalLosses: increment(1), 
       totalGamesPlayed: increment(1),
-      winStreak: 0 // Reset streak on forfeit
+      winStreak: 0 
     });
     
     const bhId = [winnerId, loserId].sort().join('_');
