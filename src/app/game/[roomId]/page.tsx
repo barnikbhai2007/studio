@@ -263,7 +263,7 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    // Hint Reveal Logic - Remove hard limit of 5
+    // Hint Reveal Logic
     if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
@@ -373,32 +373,45 @@ export default function GamePage() {
     if (p1NewHealth <= 0 || p2NewHealth <= 0) {
        const winnerId = p1NewHealth > 0 ? room.player1Id : room.player2Id;
        const loserId = p1NewHealth <= 0 ? room.player1Id : room.player2Id;
+       const isDraw = p1NewHealth <= 0 && p2NewHealth <= 0;
+
        updatePayload.status = 'Completed';
-       updatePayload.winnerId = winnerId;
-       updatePayload.loserId = loserId;
+       updatePayload.winnerId = isDraw ? null : winnerId;
+       updatePayload.loserId = isDraw ? null : loserId;
        updatePayload.finishedAt = new Date().toISOString();
        
        const batch = writeBatch(db);
-       batch.update(doc(db, "userProfiles", winnerId), { 
-         totalWins: increment(1), 
-         weeklyWins: increment(1), 
-         winStreak: increment(1),
-         totalGamesPlayed: increment(1) 
-       });
-       batch.update(doc(db, "userProfiles", loserId), { 
-         totalLosses: increment(1), 
-         totalGamesPlayed: increment(1),
-         winStreak: 0 
-       });
+       
+       if (isDraw) {
+         // Both lose streaks on draw
+         batch.update(doc(db, "userProfiles", room.player1Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
+         batch.update(doc(db, "userProfiles", room.player2Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
+       } else {
+         batch.update(doc(db, "userProfiles", winnerId), { 
+           totalWins: increment(1), 
+           weeklyWins: increment(1), 
+           winStreak: increment(1),
+           totalGamesPlayed: increment(1) 
+         });
+         batch.update(doc(db, "userProfiles", loserId), { 
+           totalLosses: increment(1), 
+           totalGamesPlayed: increment(1),
+           winStreak: 0 
+         });
+       }
        
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
        const bhRef = doc(db, "battleHistories", bhId);
        const bhSnap = await getDoc(bhRef);
        if (!bhSnap.exists()) {
-         batch.set(bhRef, { id: bhId, player1Id: [winnerId, loserId].sort()[0], player2Id: [winnerId, loserId].sort()[1], player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, totalMatches: 1 });
+         batch.set(bhRef, { id: bhId, player1Id: room.player1Id < room.player2Id ? room.player1Id : room.player2Id, player2Id: room.player1Id < room.player2Id ? room.player2Id : room.player1Id, player1Wins: winnerId === room.player1Id ? 1 : 0, player2Wins: winnerId === room.player2Id ? 1 : 0, totalMatches: 1 });
        } else {
-         const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-         batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+         if (!isDraw) {
+           const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
+           batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+         } else {
+           batch.update(bhRef, { totalMatches: increment(1) });
+         }
        }
        batch.update(roomRef, updatePayload);
        await batch.commit();
@@ -430,7 +443,7 @@ export default function GamePage() {
     const bhRef = doc(db, "battleHistories", bhId);
     const bhSnap = await getDoc(bhRef);
     if (!bhSnap.exists()) {
-      batch.set(bhRef, { id: bhId, player1Id: [winnerId, loserId].sort()[0], player2Id: [winnerId, loserId].sort()[1], player1Wins: winnerId === [winnerId, loserId].sort()[0] ? 1 : 0, player2Wins: winnerId === [winnerId, loserId].sort()[1] ? 1 : 0, totalMatches: 1 });
+      batch.set(bhRef, { id: bhId, player1Id: room.player1Id < room.player2Id ? room.player1Id : room.player2Id, player2Id: room.player1Id < room.player2Id ? room.player2Id : room.player1Id, player1Wins: winnerId === room.player1Id ? 1 : 0, player2Wins: winnerId === room.player2Id ? 1 : 0, totalMatches: 1 });
     } else {
       const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
       batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
@@ -509,14 +522,14 @@ export default function GamePage() {
               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
               <div className="relative z-10 space-y-8">
                  <h2 className="text-7xl font-black text-white uppercase animate-bounce drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-                   {room.winnerId === user?.uid ? "VICTORY" : "DEFEAT"}
+                   {room.winnerId === user?.uid ? "VICTORY" : (room.winnerId === null ? "DRAW" : "DEFEAT")}
                  </h2>
                  <div className="bg-white/5 px-8 py-6 rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
                     <p className="text-xs font-black text-primary uppercase tracking-[0.3em] mb-2">
                       {room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0 ? "TOTAL KNOCKOUT" : "VICTORY BY FORFEIT"}
                     </p>
                     <p className="text-xl font-black text-white uppercase tracking-tight">
-                      {room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName} HAS WON
+                      {room.winnerId ? (room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName) : "BOTH DUELISTS KNOCKED OUT"} HAS WON
                     </p>
                  </div>
                  
@@ -546,7 +559,11 @@ export default function GamePage() {
             <div className="flex items-center gap-1 mt-0.5"><Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 transition-all duration-1000" /><span className="text-[8px] font-black text-primary">{room.player1CurrentHealth}HP</span></div>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-1 px-4"><Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">RD {room.currentRoundNumber}</Badge><button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button></div>
+        <div className="flex flex-col items-center gap-1 px-4">
+          <Badge variant="outline" className="border-primary/30 text-[8px] font-black text-primary px-2 py-0 uppercase">ROOM: {roomId}</Badge>
+          <Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">RD {room.currentRoundNumber}</Badge>
+          <button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button>
+        </div>
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
           <div className="flex flex-col items-end min-w-0">
             <span className="text-[10px] font-black truncate text-white uppercase">{p2Profile?.displayName || "OPPONENT"}</span>
