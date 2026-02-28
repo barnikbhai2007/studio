@@ -38,7 +38,6 @@ export default function GamePage() {
   const isInitializingRound = useRef(false);
   const lastProcessedRound = useRef<number>(0);
   const revealTimeouts = useRef<NodeJS.Timeout[]>([]);
-  const lastEmoteId = useRef<string | null>(null);
 
   const roomRef = useMemoFirebase(() => {
     if (!user || !roomId) return null;
@@ -100,14 +99,12 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
-  // Enhanced Emote Listener with individual cleanups
   useEffect(() => {
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
       const freshEmotesFromDb = recentEmotes
         .filter(e => {
           const createdAt = e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now);
-          // Only accept emotes from the last 2 seconds to avoid round-carryover
           return now - createdAt < 2000;
         })
         .map(e => ({ 
@@ -121,7 +118,6 @@ export default function GamePage() {
         const filtered = freshEmotesFromDb.filter(n => !existingIds.has(n.id));
         if (filtered.length === 0) return prev;
         
-        // Auto-cleanup for each new emote after animation ends (6s)
         filtered.forEach(emote => {
           setTimeout(() => {
             setActiveEmotes(current => current.filter(item => item.id !== emote.id));
@@ -203,7 +199,7 @@ export default function GamePage() {
       setVisibleHints(1);
       setTargetPlayer(null);
       setAutoNextRoundCountdown(null);
-      setActiveEmotes([]); // Clear any lingering emotes on round change
+      setActiveEmotes([]); 
       if (currentRoundNumber === 1) setCountdown(5);
     }
   }, [currentRoundNumber]);
@@ -275,7 +271,6 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    // Multi-Hint Reveal Logic (Loads all available hints)
     if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length && !roundData?.timerStartedAt) {
       timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
     }
@@ -328,10 +323,10 @@ export default function GamePage() {
   const handleRevealSequence = async () => {
     setGameState('reveal');
     setRevealStep('none');
-    setActiveEmotes([]); // Clear emotes for cinematic sequence
+    setActiveEmotes([]); 
     
     if (user && targetPlayer) {
-      const questCards = ["Cristiano Ronaldo", "Lionel Messi", "Erling Haaland", "Kylian Mbappé", "Neymar Jr"];
+      const questCards = ["Cristiano Ronaldo", "Lionel Messi", "Erling Haaland", "Kylian Mbappe", "Neymar Jr"];
       const emoteIds = ["ronaldo_platinum", "messi_diamond", "haaland_gold", "mbappe_silver", "neymar_master"];
       const titles = ["CR7 EMOTE UNLOCKED", "MESSI EMOTE UNLOCKED", "HAALAND EMOTE UNLOCKED", "MBAPPE EMOTE UNLOCKED", "NEYMAR EMOTE UNLOCKED"];
       
@@ -381,8 +376,8 @@ export default function GamePage() {
     const updatePayload: any = { player1CurrentHealth: p1NewHealth, player2CurrentHealth: p2NewHealth };
     
     if (p1NewHealth <= 0 || p2NewHealth <= 0) {
-       const winnerId = p1NewHealth > 0 ? room.player1Id : room.player2Id;
-       const loserId = p1NewHealth <= 0 ? room.player1Id : room.player2Id;
+       const winnerId = p1NewHealth > 0 ? room.player1Id : (p2NewHealth > 0 ? room.player2Id : null);
+       const loserId = p1NewHealth <= 0 ? room.player1Id : (p2NewHealth <= 0 ? room.player2Id : null);
        const isDraw = p1NewHealth <= 0 && p2NewHealth <= 0;
 
        updatePayload.status = 'Completed';
@@ -396,17 +391,21 @@ export default function GamePage() {
          batch.update(doc(db, "userProfiles", room.player1Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
          batch.update(doc(db, "userProfiles", room.player2Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
        } else {
-         batch.update(doc(db, "userProfiles", winnerId), { 
-           totalWins: increment(1), 
-           weeklyWins: increment(1), 
-           winStreak: increment(1),
-           totalGamesPlayed: increment(1) 
-         });
-         batch.update(doc(db, "userProfiles", loserId), { 
-           totalLosses: increment(1), 
-           totalGamesPlayed: increment(1),
-           winStreak: 0 
-         });
+         if (winnerId) {
+           batch.update(doc(db, "userProfiles", winnerId), { 
+             totalWins: increment(1), 
+             weeklyWins: increment(1), 
+             winStreak: increment(1),
+             totalGamesPlayed: increment(1) 
+           });
+         }
+         if (loserId) {
+           batch.update(doc(db, "userProfiles", loserId), { 
+             totalLosses: increment(1), 
+             totalGamesPlayed: increment(1),
+             winStreak: 0 
+           });
+         }
        }
        
        const bhId = [room.player1Id, room.player2Id].sort().join('_');
@@ -435,6 +434,8 @@ export default function GamePage() {
     const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
     const loserId = user.uid;
     
+    if (!winnerId) return;
+
     const batch = writeBatch(db);
     batch.update(doc(db, "userProfiles", winnerId), { 
       totalWins: increment(1), 
@@ -473,7 +474,6 @@ export default function GamePage() {
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
-  // Reveal UI logic correctly handles flag loading via flagcdn
   const getFlagUrl = (code: string) => `https://flagcdn.com/w640/${code.toLowerCase()}.png`;
 
   if (gameState === 'reveal') {
