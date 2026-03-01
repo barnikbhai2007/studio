@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info, CheckCircle2, Trophy, Clock } from "lucide-react";
+import { 
+  Copy, Users, Play, ShieldAlert, Crown, Swords, 
+  UserX, Settings2, Info, CheckCircle2, Trophy, 
+  Clock, Heart, Zap 
+} from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -153,7 +157,7 @@ export default function LobbyPage() {
                   </label>
                   {isLeader ? (
                     <Select value={room.mode || '1v1'} onValueChange={(val) => updateSetting('mode', val)}>
-                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                         <SelectValue placeholder="Select Mode" />
                       </SelectTrigger>
                       <SelectContent>
@@ -175,7 +179,7 @@ export default function LobbyPage() {
                       </label>
                       {isLeader ? (
                         <Select value={room.maxRounds?.toString() || '10'} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
-                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                             <SelectValue placeholder="Select Rounds" />
                           </SelectTrigger>
                           <SelectContent>
@@ -199,7 +203,7 @@ export default function LobbyPage() {
                           const h = parseInt(val);
                           updateDoc(roomRef!, { healthOption: h, player1CurrentHealth: h, player2CurrentHealth: h });
                         }}>
-                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                             <SelectValue placeholder="Select Health" />
                           </SelectTrigger>
                           <SelectContent>
@@ -223,7 +227,7 @@ export default function LobbyPage() {
                   </label>
                   {isLeader ? (
                     <Select value={room.timePerRound?.toString() || '60'} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
-                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                         <SelectValue placeholder="Select Time" />
                       </SelectTrigger>
                       <SelectContent>
