@@ -357,6 +357,7 @@ export default function GamePage() {
     const correctParts = (targetPlayer?.name || "").split(/\s+/).map(normalizeStr);
     let isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
     
+    // AI CHECK if manual match fails
     if (!isCorrect && targetPlayer) {
       try {
         const aiCheck = await validateAnswer({ correctName: targetPlayer.name, userGuess: guessInput });

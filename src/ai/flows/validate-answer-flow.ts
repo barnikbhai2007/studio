@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A Genkit flow that validates user guesses for footballer names.
- * It allows for common misspellings and abbreviations.
+ * It is extremely lenient with misspellings, typos, and partial names.
  *
  * - validateAnswer - A function that handles the validation process.
  */
@@ -26,22 +26,20 @@ const prompt = ai.definePrompt({
   name: 'validateAnswerPrompt',
   input: { schema: ValidateAnswerInputSchema },
   output: { schema: ValidateAnswerOutputSchema },
-  prompt: `You are an expert football trivia judge.
-Your task is to determine if a user's guess for a footballer's name is correct, even if there are minor misspellings or common variations.
+  prompt: `You are an elite football trivia judge. 
+Your task is to determine if a user's guess for a footballer's name is correct, even if it has typos or is only a partial name.
 
-Correct Name: {{{correctName}}}
-User Guess: {{{userGuess}}}
+Correct Name: "{{{correctName}}}"
+User's Guess: "{{{userGuess}}}"
 
-Consider:
-1. Minor typos (e.g., "Messy" instead of "Messi").
-2. Phonetic similarities (e.g., "Leonel" instead of "Lionel").
-3. Common nicknames or identifiers (e.g., "CR7" for "Cristiano Ronaldo").
-4. Partial names if they are unique enough (e.g., "Ronaldo" for "Cristiano Ronaldo", but be careful with names like "James" or "Silva").
+Rules for Validation (Be VERY LENIENT):
+1. TYPOS: Accept guesses with missing or wrong letters (e.g., "Sures" for "Suresh", "Leonel" for "Lionel", "Messy" for "Messi").
+2. PARTIAL NAMES: Accept single names if they are iconic (e.g., "Klose" for "Miroslav Klose", "Ronaldo" for "Cristiano Ronaldo").
+3. PHONETIC: If it sounds like the player, it is CORRECT.
+4. ACCENTS: Ignore all special characters and accents.
 
-If the user guess clearly refers to the correct footballer, set isCorrect to true.
-Otherwise, set it to false.
-
-Response format MUST be a JSON object with the key "isCorrect".`,
+Is the guess "{{{userGuess}}}" a valid attempt at identifying "{{{correctName}}}"? 
+Response MUST be a JSON object with the key "isCorrect".`,
 });
 
 const validateAnswerFlow = ai.defineFlow(
@@ -51,6 +49,15 @@ const validateAnswerFlow = ai.defineFlow(
     outputSchema: ValidateAnswerOutputSchema,
   },
   async (input) => {
+    // If exact or very simple match, return true immediately to save tokens
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCorrect = normalize(input.correctName);
+    const normGuess = normalize(input.userGuess);
+    
+    if (normCorrect.includes(normGuess) && normGuess.length > 3) {
+      return { isCorrect: true };
+    }
+
     const { output } = await prompt(input);
     if (!output) {
       return { isCorrect: false };
