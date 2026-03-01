@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -5,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info, CheckCircle2 } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info, CheckCircle2, Trophy, Clock } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -26,10 +27,8 @@ export default function LobbyPage() {
   
   const { data: room, isLoading } = useDoc(roomRef);
 
-  const [p1Profile, setP1Profile] = useState<any>(null);
-  const [p2Profile, setP2Profile] = useState<any>(null);
-
-  const isLeader = room?.player1Id === user?.uid;
+  const [participants, setParticipants] = useState<any[]>([]);
+  const isLeader = room?.creatorId === user?.uid;
 
   useEffect(() => {
     if (!isUserLoading && !user) {
@@ -40,62 +39,62 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!room || !user) return;
 
-    const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), (snap) => {
-      setP1Profile(snap.data());
-    });
-
-    let p2Unsub = () => {};
-    if (room.player2Id) {
-      p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), (snap) => {
-        setP2Profile(snap.data());
+    const unsubs: (() => void)[] = [];
+    
+    // Subscribe to all participant profiles
+    const ids = room.participantIds || [];
+    ids.forEach((uid: string) => {
+      const unsub = onSnapshot(doc(db, "userProfiles", uid), (snap) => {
+        const data = snap.data();
+        if (data) {
+          setParticipants(prev => {
+            const others = prev.filter(p => p.id !== uid);
+            return [...others, { ...data, id: uid }].sort((a, b) => {
+              if (a.id === room.creatorId) return -1;
+              if (b.id === room.creatorId) return 1;
+              return 0;
+            });
+          });
+        }
       });
-    } else {
-      setP2Profile(null);
-    }
+      unsubs.push(unsub);
+    });
 
     if (room.status === 'InProgress') {
       router.push(`/game/${roomIdStr}`);
     }
 
-    return () => {
-      p1Unsub();
-      p2Unsub();
-    };
-  }, [room, db, roomIdStr, router, user]);
+    return () => unsubs.forEach(u => u());
+  }, [room?.participantIds, room?.status, db, roomIdStr, router, user, room?.creatorId]);
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomIdStr);
     toast({ title: "Copied!", description: "Room code copied to clipboard." });
   };
 
-  const updateHealth = async (val: string) => {
+  const updateSetting = async (field: string, val: any) => {
     if (!isLeader || !roomRef) return;
-    await updateDoc(roomRef, { 
-      healthOption: parseInt(val),
-      player1CurrentHealth: parseInt(val),
-      player2CurrentHealth: parseInt(val)
-    });
-  };
-
-  const updateVersion = async (val: string) => {
-    if (!isLeader || !roomRef) return;
-    await updateDoc(roomRef, { gameVersion: val });
+    await updateDoc(roomRef, { [field]: val });
   };
 
   const startGame = async () => {
-    if (!room?.player2Id || !roomRef) {
-      toast({ variant: "destructive", title: "Wait!", description: "Waiting for an opponent to join." });
+    if ((room.participantIds?.length || 0) < 2) {
+      toast({ variant: "destructive", title: "Wait!", description: "Need at least 2 players to start." });
       return;
     }
     
-    const betweenIds = [room.player1Id, room.player2Id].sort().join('_');
-    
-    await updateDoc(roomRef, { 
+    const update: any = { 
       status: 'InProgress',
       startedAt: new Date().toISOString(),
-      betweenIds,
       lastActionAt: new Date().toISOString()
-    });
+    };
+
+    // Reset scores for everyone
+    const scores: Record<string, number> = {};
+    room.participantIds.forEach((id: string) => scores[id] = 0);
+    update.scores = scores;
+
+    await updateDoc(roomRef, update);
   };
 
   if (isUserLoading || isLoading || !room) {
@@ -117,32 +116,27 @@ export default function LobbyPage() {
         <Card className="bg-card border-none shadow-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg font-black flex items-center gap-2 uppercase">
-              <Users className="w-5 h-5 text-secondary" /> LOBBY STATUS
+              <Users className="w-5 h-5 text-secondary" /> LOBBY ({room.participantIds?.length}/10)
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1 font-bold uppercase">
               <Copy className="w-3 h-3" /> COPY CODE
             </Button>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-primary/20 relative">
-                <Crown className="w-4 h-4 text-yellow-500 absolute -top-2 left-1/2 -translate-x-1/2" />
-                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-primary object-cover" alt="P1" />
-                <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p1Profile?.displayName || "Player 1"}</span>
-              </div>
-              <div className="flex flex-col items-center p-4 rounded-xl bg-muted/50 border-2 border-dashed border-muted-foreground/30 min-h-[140px] justify-center">
-                {room.player2Id ? (
-                  <>
-                    <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-16 h-16 rounded-full mb-2 border-2 border-secondary object-cover" alt="P2" />
-                    <span className="font-bold text-sm truncate w-full text-center uppercase tracking-tight">{p2Profile?.displayName || "Player 2"}</span>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center animate-pulse">
-                    <UserX className="w-8 h-8 text-muted-foreground mb-2" />
-                    <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Awaiting Rival</span>
-                  </div>
-                )}
-              </div>
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+              {participants.map((p) => (
+                <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 border border-white/5 relative group animate-in fade-in zoom-in">
+                  {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2" />}
+                  <img src={p.avatarUrl || "https://picsum.photos/seed/p/100/100"} className="w-10 h-10 rounded-full border-2 border-primary/20 object-cover" alt={p.displayName} />
+                  <span className="text-[8px] font-black truncate w-full text-center uppercase tracking-tight">{p.displayName}</span>
+                </div>
+              ))}
+              {Array.from({ length: Math.max(0, 5 - participants.length) }).map((_, i) => (
+                <div key={`empty-${i}`} className="flex flex-col items-center justify-center p-2 rounded-xl bg-muted/20 border border-dashed border-white/5 opacity-30">
+                  <UserX className="w-6 h-6 mb-1" />
+                  <span className="text-[6px] font-black uppercase">WAITING</span>
+                </div>
+              ))}
             </div>
 
             <div className="space-y-4 pt-4 border-t border-white/5">
@@ -150,41 +144,105 @@ export default function LobbyPage() {
                 <Settings2 className="w-4 h-4 text-primary" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Match Settings</span>
               </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Mode Selection */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Match Health</label>
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                    <Swords className="w-3 h-3" /> Game Mode
+                  </label>
                   {isLeader ? (
-                    <Select value={room.healthOption.toString()} onValueChange={updateHealth}>
+                    <Select value={room.mode || '1v1'} onValueChange={(val) => updateSetting('mode', val)}>
                       <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
-                        <SelectValue placeholder="Select Health" />
+                        <SelectValue placeholder="Select Mode" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="50">50 HP (Fast)</SelectItem>
-                        <SelectItem value="100">100 HP (Normal)</SelectItem>
-                        <SelectItem value="150">150 HP (Pro)</SelectItem>
-                        <SelectItem value="200">200 HP (Endurance)</SelectItem>
+                        <SelectItem value="1v1">1v1 DUEL</SelectItem>
+                        <SelectItem value="Party">PARTY ARENA</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
+                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.mode || '1v1'}</div>
                   )}
                 </div>
+
+                {/* Dynamic Setting based on Mode */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Question Pack</label>
+                  {room.mode === 'Party' ? (
+                    <>
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                        <Trophy className="w-3 h-3" /> Total Rounds
+                      </label>
+                      {isLeader ? (
+                        <Select value={room.maxRounds?.toString() || '10'} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
+                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                            <SelectValue placeholder="Select Rounds" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 Rounds</SelectItem>
+                            <SelectItem value="10">10 Rounds</SelectItem>
+                            <SelectItem value="15">15 Rounds</SelectItem>
+                            <SelectItem value="20">20 Rounds</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.maxRounds} Rounds</div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                        <Heart className="w-3 h-3" /> Match Health
+                      </label>
+                      {isLeader ? (
+                        <Select value={room.healthOption?.toString() || '100'} onValueChange={(val) => {
+                          const h = parseInt(val);
+                          updateDoc(roomRef!, { healthOption: h, player1CurrentHealth: h, player2CurrentHealth: h });
+                        }}>
+                          <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
+                            <SelectValue placeholder="Select Health" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="50">50 HP (Fast)</SelectItem>
+                            <SelectItem value="100">100 HP (Normal)</SelectItem>
+                            <SelectItem value="150">150 HP (Pro)</SelectItem>
+                            <SelectItem value="200">200 HP (Endurance)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Round Time Setting */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> Time per Round
+                  </label>
                   {isLeader ? (
-                    <Select value={room.gameVersion || 'FDv1.0'} onValueChange={updateVersion}>
+                    <Select value={room.timePerRound?.toString() || '60'} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
                       <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase">
-                        <SelectValue placeholder="Select Pack" />
+                        <SelectValue placeholder="Select Time" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="FDv1.0">FDv1.0 (700 Footballers)</SelectItem>
+                        <SelectItem value="60">1 Minute</SelectItem>
+                        <SelectItem value="120">2 Minutes</SelectItem>
+                        <SelectItem value="180">3 Minutes</SelectItem>
+                        <SelectItem value="300">5 Minutes</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">
-                      {room.gameVersion === 'FDv1.0' ? 'FDv1.0 (700 Footballers)' : (room.gameVersion || 'FDv1.0')}
-                    </div>
+                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{(room.timePerRound || 60) / 60} Min</div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Question Pack
+                  </label>
+                  <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">FDv1.0 (700 PLAYERS)</div>
                 </div>
               </div>
             </div>
@@ -195,16 +253,16 @@ export default function LobbyPage() {
                 <span className="text-[10px] font-black uppercase text-primary">Intelligent Guessing Active</span>
               </div>
               <p className="text-[10px] font-bold uppercase leading-tight text-muted-foreground">
-                Our AI-Normalization system allows for minor typos and accented letters (e.g., 'Pele' works for 'Pelé'). 
-                <span className="text-white block mt-1">1-4 Letters: 1 Typo allowed | 5-9 Letters: 2 Typos allowed | 10+ Letters: 3 Typos allowed.</span>
-                <span className="text-secondary block mt-1 italic">Try to get the correct spelling if possible for guaranteed points!</span>
+                Our AI-Normalization system allows for minor typos and accented letters.
+                <span className="text-white block mt-1">1-4 Letters: 1 Typo | 5-9 Letters: 2 Typos | 10+ Letters: 3 Typos.</span>
+                <span className="text-secondary block mt-1 italic">Correct answers earn max points based on SPEED.</span>
               </p>
             </div>
           </CardContent>
         </Card>
 
         {isLeader ? (
-          <Button onClick={startGame} disabled={!room.player2Id} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl uppercase">
+          <Button onClick={startGame} disabled={participants.length < 2} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl uppercase">
             <Play className="w-6 h-6 mr-2" /> START MATCH
           </Button>
         ) : (

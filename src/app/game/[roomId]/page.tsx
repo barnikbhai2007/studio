@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -12,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { 
   Trophy, Clock, Swords, CheckCircle2, AlertCircle, Loader2, 
   SmilePlus, Sparkles, Ban, XCircle, Flame,
-  ShieldAlert, PartyPopper, Star, Crown
+  ShieldAlert, PartyPopper, Star, Crown, Users
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -56,9 +57,7 @@ export default function GamePage() {
     return ALL_EMOTES.filter(e => ids.includes(e.id));
   }, [profile]);
 
-  const [p1Profile, setP1Profile] = useState<any>(null);
-  const [p2Profile, setP2Profile] = useState<any>(null);
-
+  const [participantProfiles, setParticipantProfiles] = useState<Record<string, any>>({});
   const [gameState, setGameState] = useState<GameState>('countdown');
   const [revealStep, setRevealStep] = useState<RevealStep>('none');
   const [countdown, setCountdown] = useState(5);
@@ -74,7 +73,6 @@ export default function GamePage() {
   const [gameOverTimer, setGameOverTimer] = useState(5);
   const [completedQuest, setCompletedQuest] = useState<any>(null);
   
-  const isPlayer1 = room?.player1Id === user?.uid;
   const currentRoundNumber = room?.currentRoundNumber || 1;
   const currentRoundId = `round_${currentRoundNumber}`;
   
@@ -104,6 +102,18 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
+  // Load participant profiles
+  useEffect(() => {
+    if (!room?.participantIds || !db) return;
+    const unsubs = room.participantIds.map((uid: string) => 
+      onSnapshot(doc(db, "userProfiles", uid), snap => {
+        if (snap.exists()) setParticipantProfiles(prev => ({ ...prev, [uid]: snap.data() }));
+      })
+    );
+    return () => unsubs.forEach((u: any) => u());
+  }, [room?.participantIds, db]);
+
+  // Inactivity watchdog
   useEffect(() => {
     if (room?.status !== 'InProgress' || !room.lastActionAt) return;
     
@@ -128,6 +138,7 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [room?.status, room?.lastActionAt, roomRef]);
 
+  // Emote logic
   useEffect(() => {
     if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
       if (activeEmotes.length > 0) setActiveEmotes([]);
@@ -163,10 +174,7 @@ export default function GamePage() {
     }
   }, [recentEmotes, gameState]);
 
-  useEffect(() => {
-    if (!isUserLoading && !user) router.push('/');
-  }, [user, isUserLoading, router]);
-
+  // Game over popup
   useEffect(() => {
     let timerId: NodeJS.Timeout;
     if (room?.status === 'Completed' && !showGameOverPopup) {
@@ -187,25 +195,17 @@ export default function GamePage() {
       }, 1000);
     }
 
-    return () => {
-      if (timerId) clearInterval(timerId);
-    };
+    return () => { if (timerId) clearInterval(timerId); };
   }, [room?.status, roomId, router, showGameOverPopup]);
 
-  useEffect(() => {
-    if (!room || !user) return;
-    const p1Unsub = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => setP1Profile(snap.data()));
-    let p2Unsub = () => {};
-    if (room.player2Id) p2Unsub = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => setP2Profile(snap.data()));
-    return () => { p1Unsub(); p2Unsub(); };
-  }, [room, db, user]);
-
+  // Round Timer
   useEffect(() => {
     if (roundData?.timerStartedAt && gameState === 'playing' && roundData.roundNumber === currentRoundNumber) {
       const startTime = new Date(roundData.timerStartedAt).getTime();
+      const maxTime = room?.timePerRound || 60;
       const tick = () => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const remaining = Math.max(0, 15 - elapsed);
+        const remaining = Math.max(0, maxTime - elapsed);
         setRoundTimer(remaining);
         if (remaining === 0 && !revealTriggered.current) {
           handleRevealTrigger();
@@ -215,17 +215,16 @@ export default function GamePage() {
       const interval = setInterval(tick, 1000);
       return () => clearInterval(interval);
     }
-  }, [roundData?.timerStartedAt, gameState, currentRoundNumber]);
+  }, [roundData?.timerStartedAt, gameState, currentRoundNumber, room?.timePerRound]);
 
+  // Reset round state
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
-      
       revealTriggered.current = false;
       isInitializingRound.current = false;
       revealTimeouts.current.forEach(t => clearTimeout(t));
       revealTimeouts.current = [];
-      
       setRevealStep('none');
       setGameState(currentRoundNumber === 1 ? 'countdown' : 'playing');
       setGuessInput("");
@@ -252,23 +251,16 @@ export default function GamePage() {
         const roomData = roomSnap.data();
 
         const player = getRandomFootballer(roomData.usedFootballerIds || [], roomData.gameVersion || 'FDv1.0');
-        const r1 = getRandomRarity().type;
-        const r2 = getRandomRarity().type;
+        const rarity = getRandomRarity();
 
         transaction.set(roundRef, {
           id: currentRoundId,
           gameRoomId: roomId,
           roundNumber: currentRoundNumber,
           footballerId: player.id,
-          player1Rarity: r1,
-          player2Rarity: r2,
+          rarity: rarity.type,
           hintsRevealedCount: 1,
-          player1Guess: "",
-          player2Guess: "",
-          player1GuessedCorrectly: false,
-          player2GuessedCorrectly: false,
-          player1ScoreChange: 0,
-          player2ScoreChange: 0,
+          guesses: {},
           roundEndedAt: null,
           timerStartedAt: null,
           resultsProcessed: false
@@ -297,18 +289,18 @@ export default function GamePage() {
       const player = FOOTBALLERS.find(f => f.id === roundData.footballerId);
       setTargetPlayer(player || null);
       
-      const pRarityType = isPlayer1 ? roundData.player1Rarity : roundData.player2Rarity;
-      if (pRarityType) {
-        const rarity = RARITIES.find(r => r.type === pRarityType);
-        if (rarity) setCurrentRarity(rarity);
-      }
+      const r = RARITIES.find(rarity => rarity.type === roundData.rarity);
+      if (r) setCurrentRarity(r);
       
-      const bothGuessed = (!!roundData.player1Guess || roundData.player1Guess === "SKIPPED") && (!!roundData.player2Guess || roundData.player2Guess === "SKIPPED");
-      if (bothGuessed && !revealTriggered.current && gameState === 'playing') {
+      const allParticipants = room?.participantIds || [];
+      const guesses = roundData.guesses || {};
+      const everyoneVoted = allParticipants.every(uid => !!guesses[uid]);
+      
+      if (everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
     }
-  }, [roundData, gameState, currentRoundNumber, isPlayer1]);
+  }, [roundData, gameState, currentRoundNumber, room?.participantIds]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -339,7 +331,7 @@ export default function GamePage() {
   }, [gameState, autoNextRoundCountdown]);
 
   const handleGuess = async () => {
-    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current || isGuessing) return;
+    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current || isGuessing || !user) return;
     
     setIsGuessing(true);
     let isCorrect = false;
@@ -353,24 +345,25 @@ export default function GamePage() {
       }
     }
     
-    const update: any = isPlayer1 ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect } : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
-    if (!roundData.timerStartedAt) update.timerStartedAt = new Date().toISOString();
+    const now = new Date().toISOString();
+    const update: any = { [`guesses.${user.uid}`]: { text: guessInput, isCorrect, guessedAt: now } };
+    if (!roundData.timerStartedAt) update.timerStartedAt = now;
     
     await updateDoc(roundRef, update);
-    await updateDoc(roomRef!, { lastActionAt: new Date().toISOString() });
+    await updateDoc(roomRef!, { lastActionAt: now });
     
     toast({ title: "DECISION LOCKED", description: `GUESS: ${guessInput.toUpperCase()}` });
     setIsGuessing(false);
   };
 
   const handleSkip = async () => {
-    if (!roundRef || gameState !== 'playing' || revealTriggered.current) return;
-    const update: any = isPlayer1 ? { player1Guess: "SKIPPED", player1GuessedCorrectly: false } : { player2Guess: "SKIPPED", player2GuessedCorrectly: false };
-    if (!roundData?.timerStartedAt) update.timerStartedAt = new Date().toISOString();
+    if (!roundRef || gameState !== 'playing' || revealTriggered.current || !user) return;
+    const now = new Date().toISOString();
+    const update: any = { [`guesses.${user.uid}`]: { text: "SKIPPED", isCorrect: false, guessedAt: now } };
+    if (!roundData?.timerStartedAt) update.timerStartedAt = now;
     
     await updateDoc(roundRef, update);
-    await updateDoc(roomRef!, { lastActionAt: new Date().toISOString() });
-    
+    await updateDoc(roomRef!, { lastActionAt: now });
     toast({ title: "ROUND SKIPPED" });
   };
 
@@ -413,7 +406,6 @@ export default function GamePage() {
     
     const finalT = setTimeout(() => {
       setGameState('result');
-      setActiveEmotes([]); 
       calculateRoundResults(); 
     }, 9500); 
     revealTimeouts.current.push(finalT);
@@ -421,7 +413,13 @@ export default function GamePage() {
 
   const handleNextRound = async () => {
      if (!room || !roomRef) return;
-     if (room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0) return;
+     const maxRounds = room.mode === 'Party' ? (room.maxRounds || 10) : 999;
+     const isGameOver = room.mode === 'Party' ? (currentRoundNumber >= maxRounds) : (room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0);
+
+     if (isGameOver) {
+       await updateDoc(roomRef, { status: 'Completed', finishedAt: new Date().toISOString() });
+       return;
+     }
 
      await runTransaction(db, async (transaction) => {
        const freshRoomSnap = await transaction.get(roomRef);
@@ -450,123 +448,82 @@ export default function GamePage() {
 
       if (rData.resultsProcessed) return;
 
-      let s1 = rData.player1GuessedCorrectly ? 10 : (rData.player1Guess?.toUpperCase() === "SKIPPED" || !rData.player1Guess ? 0 : -10);
-      let s2 = rData.player2GuessedCorrectly ? 10 : (rData.player2Guess?.toUpperCase() === "SKIPPED" || !rData.player2Guess ? 0 : -10);
+      const guesses = rData.guesses || {};
+      const timerStart = new Date(rData.timerStartedAt || 0).getTime();
+      const maxTime = (rmData.timePerRound || 60) * 1000;
       
-      const diff = s1 - s2;
-      let p1NewHealth = rmData.player1CurrentHealth;
-      let p2NewHealth = rmData.player2CurrentHealth;
-      
-      if (diff > 0) p2NewHealth = Math.max(0, p2NewHealth - diff);
-      else if (diff < 0) p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
-      
-      const updatePayload: any = { 
-        player1CurrentHealth: p1NewHealth, 
-        player2CurrentHealth: p2NewHealth,
-        lastActionAt: new Date().toISOString()
-      };
-      
-      if (p1NewHealth <= 0 || p2NewHealth <= 0) {
-         const winnerId = p1NewHealth > 0 ? rmData.player1Id : (p2NewHealth > 0 ? rmData.player2Id : null);
-         const loserId = p1NewHealth <= 0 ? rmData.player1Id : (p2NewHealth <= 0 ? rmData.player2Id : null);
-         const isDraw = p1NewHealth <= 0 && p2NewHealth <= 0;
+      const updates: any = { lastActionAt: new Date().toISOString() };
+      const roundScoreChanges: Record<string, number> = {};
 
-         updatePayload.status = 'Completed';
-         updatePayload.winnerId = isDraw ? null : winnerId;
-         updatePayload.loserId = isDraw ? null : loserId;
-         updatePayload.finishedAt = new Date().toISOString();
-         
-         const p1ProfileRef = doc(db, "userProfiles", rmData.player1Id);
-         const p2ProfileRef = doc(db, "userProfiles", rmData.player2Id);
+      if (rmData.mode === 'Party') {
+        const scores = { ...(rmData.scores || {}) };
+        rmData.participantIds.forEach((uid: string) => {
+          const g = guesses[uid];
+          let pts = 0;
+          if (g?.isCorrect) {
+            const guessedAt = new Date(g.guessedAt).getTime();
+            const elapsed = Math.max(0, guessedAt - timerStart);
+            // Points = Max 100, min 10. Decreases over time.
+            pts = Math.max(10, Math.round(100 * (1 - (elapsed / maxTime))));
+          }
+          scores[uid] = (scores[uid] || 0) + pts;
+          roundScoreChanges[uid] = pts;
+        });
+        updates.scores = scores;
+      } else {
+        // 1v1 Mode
+        const p1 = rmData.participantIds[0];
+        const p2 = rmData.participantIds[1];
+        const g1 = guesses[p1];
+        const g2 = guesses[p2];
 
-         if (isDraw) {
-           transaction.update(p1ProfileRef, { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
-           transaction.update(p2ProfileRef, { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
-         } else {
-           if (winnerId) {
-             const winnerRef = winnerId === rmData.player1Id ? p1ProfileRef : p2ProfileRef;
-             transaction.update(winnerRef, { 
-               totalWins: increment(1), 
-               weeklyWins: increment(1), 
-               winStreak: increment(1),
-               totalGamesPlayed: increment(1) 
-             });
-           }
-           if (loserId) {
-             const loserRef = loserId === rmData.player1Id ? p1ProfileRef : p2ProfileRef;
-             transaction.update(loserRef, { 
-               totalLosses: increment(1), 
-               totalGamesPlayed: increment(1),
-               winStreak: 0 
-             });
-           }
-         }
-         
-         const bhId = [rmData.player1Id, rmData.player2Id].sort().join('_');
-         const bhRef = doc(db, "battleHistories", bhId);
-         const bhSnap = await transaction.get(bhRef);
-         
-         if (!bhSnap.exists()) {
-           transaction.set(bhRef, { 
-             id: bhId, 
-             player1Id: rmData.player1Id < rmData.player2Id ? rmData.player1Id : rmData.player2Id, 
-             player2Id: rmData.player1Id < rmData.player2Id ? rmData.player1Id : rmData.player2Id, 
-             player1Wins: winnerId === rmData.player1Id ? 1 : 0, 
-             player2Wins: winnerId === rmData.player2Id ? 1 : 0, 
-             totalMatches: 1 
-           });
-         } else {
-           const bhData = bhSnap.data();
-           if (!isDraw) {
-             const winnerKey = winnerId === bhData.player1Id ? 'player1Wins' : 'player2Wins';
-             transaction.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
-           } else {
-             transaction.update(bhRef, { totalMatches: increment(1) });
-           }
-         }
+        let s1 = g1?.isCorrect ? 10 : (g1?.text === "SKIPPED" || !g1 ? 0 : -10);
+        let s2 = g2?.isCorrect ? 10 : (g2?.text === "SKIPPED" || !g2 ? 0 : -10);
+        
+        const diff = s1 - s2;
+        let p1Health = rmData.player1CurrentHealth;
+        let p2Health = rmData.player2CurrentHealth;
+        
+        if (diff > 0) p2Health = Math.max(0, p2Health - diff);
+        else if (diff < 0) p1Health = Math.max(0, p1Health - Math.abs(diff));
+        
+        updates.player1CurrentHealth = p1Health;
+        updates.player2CurrentHealth = p2Health;
+        roundScoreChanges[p1] = s1;
+        roundScoreChanges[p2] = s2;
+
+        if (p1Health <= 0 || p2Health <= 0) {
+          updates.status = 'Completed';
+          updates.finishedAt = new Date().toISOString();
+          const winnerId = p1Health > 0 ? p1 : (p2Health > 0 ? p2 : null);
+          updates.winnerId = winnerId;
+          
+          // Update win streaks
+          rmData.participantIds.forEach((uid: string) => {
+            const pRef = doc(db, "userProfiles", uid);
+            if (winnerId === uid) {
+              transaction.update(pRef, { totalWins: increment(1), weeklyWins: increment(1), winStreak: increment(1), totalGamesPlayed: increment(1) });
+            } else if (winnerId === null) {
+              transaction.update(pRef, { totalLosses: increment(1), winStreak: 0, totalGamesPlayed: increment(1) });
+            } else {
+              transaction.update(pRef, { totalLosses: increment(1), winStreak: 0, totalGamesPlayed: increment(1) });
+            }
+          });
+        }
       }
       
-      transaction.update(roomRef, updatePayload);
+      transaction.update(roomRef, updates);
       transaction.update(roundRef, { 
-        player1ScoreChange: s1, 
-        player2ScoreChange: s2, 
-        roundEndedAt: new Date().toISOString(),
-        resultsProcessed: true
+        scoreChanges: roundScoreChanges,
+        resultsProcessed: true,
+        roundEndedAt: new Date().toISOString()
       });
     });
   };
 
   const handleForfeit = async () => {
     if (!roomRef || !user || !room || room.status !== 'InProgress') return;
-    const winnerId = isPlayer1 ? room.player2Id : room.player1Id;
-    const loserId = user.uid;
-    
-    if (!winnerId) return;
-
-    const batch = writeBatch(db);
-    batch.update(doc(db, "userProfiles", winnerId), { 
-      totalWins: increment(1), 
-      weeklyWins: increment(1), 
-      winStreak: increment(1),
-      totalGamesPlayed: increment(1) 
-    });
-    batch.update(doc(db, "userProfiles", loserId), { 
-      totalLosses: increment(1), 
-      totalGamesPlayed: increment(1),
-      winStreak: 0 
-    });
-    
-    const bhId = [winnerId, loserId].sort().join('_');
-    const bhRef = doc(db, "battleHistories", bhId);
-    const bhSnap = await getDoc(bhRef);
-    if (!bhSnap.exists()) {
-      batch.set(bhRef, { id: bhId, player1Id: room.player1Id < room.player2Id ? room.player1Id : room.player2Id, player2Id: room.player1Id < room.player2Id ? room.player2Id : room.player1Id, player1Wins: winnerId === room.player1Id ? 1 : 0, player2Wins: winnerId === room.player2Id ? 1 : 0, totalMatches: 1 });
-    } else {
-      const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-      batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
-    }
-    batch.update(roomRef, { status: 'Completed', winnerId, loserId, finishedAt: new Date().toISOString() });
-    await batch.commit();
+    await updateDoc(roomRef, { status: 'Completed', finishedAt: new Date().toISOString(), winnerId: null, drawReason: 'FORFEIT' });
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -576,27 +533,20 @@ export default function GamePage() {
 
   if (isUserLoading || isRoomLoading || !room) return <div className="min-h-screen flex items-center justify-center bg-background"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
 
-  const hasP1Guessed = !!roundData?.player1Guess || roundData?.player1Guess === "SKIPPED";
-  const hasP2Guessed = !!roundData?.player2Guess || roundData?.player2Guess === "SKIPPED";
-  const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
-  const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
+  const myGuess = roundData?.guesses?.[user?.uid || ""] || null;
+  const iHaveGuessed = !!myGuess;
+  const participantIds = room.participantIds || [];
+  const guessedCount = Object.keys(roundData?.guesses || {}).length;
 
   const getFlagUrl = (code: string) => {
-    const map: Record<string, string> = { 
-      'en': 'gb-eng', 'eng': 'gb-eng',
-      'sc': 'gb-sct', 'sco': 'gb-sct',
-      'wa': 'gb-wls', 'wal': 'gb-wls',
-      'ni': 'gb-nir' 
-    };
-    const finalCode = map[code.toLowerCase()] || code.toLowerCase();
-    return `https://flagcdn.com/w640/${finalCode}.png`;
+    const map: Record<string, string> = { 'en': 'gb-eng', 'eng': 'gb-eng', 'sc': 'gb-sct', 'sco': 'gb-sct', 'wa': 'gb-wls', 'wal': 'gb-wls', 'ni': 'gb-nir' };
+    return `https://flagcdn.com/w640/${map[code.toLowerCase()] || code.toLowerCase()}.png`;
   };
 
   if (gameState === 'reveal') {
     return (
       <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center overflow-hidden">
         <video className="absolute inset-0 w-full h-full object-cover opacity-60" playsInline autoPlay src="https://res.cloudinary.com/speed-searches/video/upload/v1772079954/round_xxbuaq.mp4" />
-        <div className="absolute inset-0 bg-white/5 fc-flash-overlay pointer-events-none z-10" />
         <div className="relative z-20 flex flex-col items-center justify-center w-full h-full p-6 text-center">
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {revealStep === 'country' && targetPlayer && <div className="animate-in fade-in zoom-in duration-300"><img src={getFlagUrl(targetPlayer.countryCode)} className="w-48 md:w-80 filter drop-shadow-[0_0_60px_rgba(255,255,255,0.9)]" alt="flag" /></div>}
@@ -606,7 +556,6 @@ export default function GamePage() {
           {revealStep === 'full-card' && currentRarity && targetPlayer && (
             <div className="relative fc-card-container">
               <div className={`w-72 h-[480px] md:w-96 md:h-[600px] fc-animation-reveal rounded-[2rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] flex flex-col border-[10px] md:border-[14px] overflow-hidden relative bg-gradient-to-br ${currentRarity.bg} border-white/20`}>
-                <div className="absolute top-4 left-4 z-30"><Badge className="bg-black/80 backdrop-blur-md border-white/10 text-[10px] md:text-xs font-black px-4 py-2 uppercase tracking-tighter">{currentRarity.type}</Badge></div>
                 <img src={REVEAL_CARD_IMG} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="background" />
                 <div className="mt-auto relative z-20 p-4">
                   <div className="bg-black/90 backdrop-blur-xl p-6 rounded-[2rem] border border-white/10 shadow-2xl flex flex-col items-center text-center">
@@ -614,7 +563,6 @@ export default function GamePage() {
                     <img src={getFlagUrl(targetPlayer.countryCode)} className="w-16 md:w-24 shadow-2xl rounded-sm border border-white/20" alt="flag" />
                   </div>
                 </div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
               </div>
             </div>
           )}
@@ -627,160 +575,89 @@ export default function GamePage() {
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/30 blur-[60px] animate-pulse" /><PartyPopper className="w-16 h-16 text-primary relative z-10 animate-bounce" />
-          </div>
-          <div className="space-y-2 relative z-10"><h2 className="text-2xl font-black text-white uppercase tracking-tighter">QUEST COMPLETE!</h2><p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p></div>
-          <div className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-3 w-full relative z-10">
-            <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
-            <div><p className="text-[10px] font-black text-slate-500 uppercase">REWARD UNLOCKED</p><p className="text-sm font-black text-white uppercase">{completedQuest?.emote?.name}</p></div>
-          </div>
+          <PartyPopper className="w-16 h-16 text-primary animate-bounce" />
+          <h2 className="text-2xl font-black text-white uppercase">QUEST COMPLETE!</h2>
+          <p className="text-primary text-sm font-black uppercase">{completedQuest?.title}</p>
           <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">CLAIM REWARD</Button>
         </DialogContent>
       </Dialog>
       
-      <div className="fixed inset-0 pointer-events-none z-[60]">
-        {(gameState !== 'result' && gameState !== 'reveal' && gameState !== 'finalizing') && activeEmotes.map((e) => {
-          const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
-          return (<div key={e.id} className="absolute bottom-24 right-8 emote-float"><img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" /></div>);
-        })}
-      </div>
-
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
-           <div className="relative w-full max-md">
-              <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
-              <div className="relative z-10 space-y-8">
-                 <h2 className="text-7xl font-black text-white uppercase animate-bounce drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-                   {room.winnerId === user?.uid ? "VICTORY" : (room.winnerId === null ? "DRAW" : "DEFEAT")}
-                 </h2>
-                 <div className="bg-white/5 px-8 py-6 rounded-[2.5rem] border border-white/10 backdrop-blur-xl shadow-2xl">
-                    <p className="text-xs font-black text-primary uppercase tracking-[0.3em] mb-2">
-                      {room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0 ? "TOTAL KNOCKOUT" : "VICTORY BY FORFEIT"}
-                    </p>
-                    <p className="text-xl font-black text-white uppercase tracking-tight">
-                      {room.winnerId ? (room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName) : "DRAW MATCH"}
-                    </p>
-                 </div>
-                 
-                 <div className="w-full space-y-4 px-8">
-                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                       <div 
-                         className="h-full bg-primary transition-all duration-1000 ease-linear" 
-                         style={{ width: `${(gameOverTimer / 5) * 100}%` }}
-                       />
-                    </div>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest animate-pulse">
-                      REDIRECTING TO RESULTS IN {gameOverTimer}S...
-                    </p>
-                 </div>
-              </div>
-           </div>
+           <h2 className="text-7xl font-black text-white uppercase mb-8">MATCH ENDED</h2>
+           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">REDIRECTING TO RESULTS IN {gameOverTimer}S...</p>
         </div>
       )}
+
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="relative shrink-0 w-10 h-10">
-            <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-full h-full rounded-full border-2 border-primary shadow-lg object-cover" alt="P1" />
-            {hasP1Guessed && <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5 ring-1 ring-white"><CheckCircle2 className="w-3 h-3 text-white" /></div>}
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[10px] font-black truncate text-white uppercase">{p1Profile?.displayName || "PLAYER 1"}</span>
-            <div className="flex items-center gap-1 mt-0.5"><Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 transition-all duration-1000" /><span className="text-[8px] font-black text-primary">{room.player1CurrentHealth}HP</span></div>
-          </div>
-        </div>
-        <div className="flex flex-col items-center gap-1 px-4">
           <Badge variant="outline" className="border-primary/30 text-[8px] font-black text-primary px-2 py-0 uppercase">ROOM: {roomId}</Badge>
-          <Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">RD {room.currentRoundNumber}</Badge>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">
+            RD {currentRoundNumber} {room.mode === 'Party' ? `/ ${room.maxRounds || 10}` : ''}
+          </Badge>
           <button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button>
         </div>
-        <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
-          <div className="flex flex-col items-end min-w-0">
-            <span className="text-[10px] font-black truncate text-white uppercase">{p2Profile?.displayName || "OPPONENT"}</span>
-            <div className="flex items-center gap-1 mt-0.5"><span className="text-[8px] font-black text-secondary">{room.player2CurrentHealth}HP</span><Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-1.5 w-16 bg-muted/30 rotate-180 transition-all duration-1000" /></div>
+        <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex -space-x-2">
+            {participantIds.map(uid => (
+              <img key={uid} src={participantProfiles[uid]?.avatarUrl} className={`w-6 h-6 rounded-full border border-white/20 object-cover ${roundData?.guesses?.[uid] ? 'ring-2 ring-green-500' : ''}`} alt="p" />
+            ))}
           </div>
-          <div className="relative shrink-0 w-10 h-10">
-            <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-full h-full rounded-full border-2 border-secondary shadow-lg object-cover" alt="P2" />
-            {hasP2Guessed && <div className="absolute -top-1 -left-1 bg-green-500 rounded-full p-0.5 ring-1 ring-white"><CheckCircle2 className="w-3 h-3 text-white" /></div>}
-          </div>
+          <Badge variant="secondary" className="text-[8px] font-black">{guessedCount}/{participantIds.length}</Badge>
         </div>
       </header>
+
       <main className="flex-1 p-4 flex flex-col gap-6 max-w-lg mx-auto w-full pb-48">
         {gameState === 'countdown' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-4 p-4 text-center">
-             <div className="relative"><div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" /><div className="text-[10rem] font-black text-primary animate-ping leading-none relative z-10">{countdown}</div></div>
-             <p className="text-2xl font-black uppercase tracking-widest text-white/90 animate-pulse">PREPARE TO DUEL</p>
+             <div className="text-[10rem] font-black text-primary animate-ping leading-none">{countdown}</div>
+             <p className="text-2xl font-black uppercase tracking-widest text-white/90">PREPARE TO DUEL</p>
           </div>
         ) : gameState === 'finalizing' ? (
           <div className="flex-1 flex flex-col items-center justify-center space-y-6 text-center">
-             <div className="relative"><div className="absolute inset-0 bg-primary/30 blur-[80px] rounded-full animate-pulse" /><div className="relative z-10 space-y-4 animate-in zoom-in duration-500"><div className="flex items-center gap-3 bg-primary/20 px-8 py-4 rounded-full border border-primary/40"><Swords className="w-10 h-10 text-primary animate-bounce" /><span className="text-3xl font-black text-white uppercase">DUEL LOCKDOWN</span></div><p className="text-xs font-black text-primary uppercase tracking-widest">FINALISING INTELLIGENCE...</p></div></div>
+             <Swords className="w-16 h-16 text-primary animate-bounce" />
+             <span className="text-3xl font-black text-white uppercase">DUEL LOCKDOWN</span>
+             <p className="text-xs font-black text-primary uppercase tracking-widest">FINALISING INTELLIGENCE...</p>
           </div>
         ) : gameState === 'result' ? (
           <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 animate-in fade-in zoom-in duration-500">
-            <div className="text-center space-y-1">
-              <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">ROUND SUMMARY</h2>
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.3em]">BATTLE REPORT</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 w-full">
-              <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <img src={p1Profile?.avatarUrl || "https://picsum.photos/seed/p1/100/100"} className="w-12 h-12 rounded-full border-2 border-primary object-cover" alt="p1" />
-                <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
-                <div className="w-full flex items-center gap-2">
-                  <Progress value={(room.player1CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000" />
-                </div>
-                <Badge className={`${(roundData?.player1ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player1ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {(roundData?.player1ScoreChange ?? 0) > 0 ? `+${roundData.player1ScoreChange}` : (roundData?.player1ScoreChange ?? 0)} pts
-                </Badge>
-              </Card>
-              
-              <Card className="bg-white/5 border-white/10 p-6 rounded-[2rem] flex flex-col items-center gap-4 shadow-2xl relative overflow-hidden group">
-                <div className="absolute inset-0 bg-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <img src={p2Profile?.avatarUrl || "https://picsum.photos/seed/p2/100/100"} className="w-12 h-12 rounded-full border-2 border-secondary object-cover" alt="p2" />
-                <span className="text-[10px] font-black text-slate-500 uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
-                <div className="w-full flex items-center gap-2">
-                  <Progress value={(room.player2CurrentHealth / room.healthOption) * 100} className="h-2 flex-1 transition-all duration-1000 rotate-180" />
-                </div>
-                <Badge className={`${(roundData?.player2ScoreChange ?? 0) > 0 ? "bg-green-500" : ((roundData?.player2ScoreChange ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black px-4 py-1 relative z-10`}>
-                  {(roundData?.player2ScoreChange ?? 0) > 0 ? `+${roundData.player2ScoreChange}` : (roundData?.player2ScoreChange ?? 0)} pts
-                </Badge>
-              </Card>
-            </div>
-
-            <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4 shadow-2xl">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">INTEL IDENTITY</p>
-                <p className="text-5xl font-black text-white uppercase tracking-tighter italic leading-none">{targetPlayer?.name}</p>
+            <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">ROUND SUMMARY</h2>
+            <ScrollArea className="w-full max-h-[40vh] bg-white/5 p-4 rounded-3xl border border-white/10">
+              <div className="space-y-3">
+                {participantIds.map(uid => (
+                  <div key={uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex items-center gap-3">
+                      <img src={participantProfiles[uid]?.avatarUrl} className="w-8 h-8 rounded-full border border-primary/20" alt="p" />
+                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{participantProfiles[uid]?.displayName}</span>
+                    </div>
+                    <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : "bg-slate-700"} text-white font-black`}>
+                      +{(roundData?.scoreChanges?.[uid] ?? 0)} PTS
+                    </Badge>
+                  </div>
+                ))}
               </div>
+            </ScrollArea>
+            <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4">
+              <p className="text-5xl font-black text-white uppercase tracking-tighter italic">{targetPlayer?.name}</p>
               {targetPlayer && <img src={getFlagUrl(targetPlayer.countryCode)} className="w-16 h-10 shadow-lg border border-white/20 rounded-md" alt="flag" />}
             </div>
-
-            <div className="w-full space-y-4">
-              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-1000 ease-linear" 
-                  style={{ width: `${(autoNextRoundCountdown || 0) * 20}%` }}
-                />
-              </div>
-              <p className="text-[10px] font-black text-center text-slate-500 uppercase tracking-widest animate-pulse">
-                NEXT ROUND IN {autoNextRoundCountdown}S...
-              </p>
+            <div className="w-full space-y-2">
+              <Progress value={(autoNextRoundCountdown || 0) * 20} className="h-1.5 bg-white/10" />
+              <p className="text-[8px] font-black text-center text-slate-500 uppercase tracking-widest">NEXT ROUND IN {autoNextRoundCountdown}S...</p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS</h3>{roundData?.timerStartedAt && (<Badge className="bg-red-500 text-white px-3 py-1 text-[10px] font-black uppercase animate-in zoom-in"><Ban className="w-3 h-3 mr-1.5" /> SCOUTING SUSPENDED</Badge>)}</div>
-            {roundTimer !== null && (<div className="flex items-center justify-center bg-red-600/20 p-3 rounded-xl border border-red-600/30 animate-pulse"><AlertCircle className="w-5 h-5 text-red-500 mr-2" /><span className="text-base font-black text-red-500 uppercase">{roundTimer}S REMAINING</span></div>)}
+            <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS</h3>{roundTimer !== null && (<Badge className="bg-red-500 text-white font-black">{roundTimer}S</Badge>)}</div>
             <div className="space-y-3">{!targetPlayer ? (<div className="flex flex-col items-center justify-center p-12 opacity-50"><Loader2 className="w-8 h-8 animate-spin text-primary mb-2" /><p className="text-[10px] font-black uppercase">Loading Intelligence...</p></div>) : (targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (<div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2"><p className="text-sm font-bold text-white/90 leading-relaxed">"{hint}"</p></div>)))}</div>
           </div>
         )}
       </main>
-      <div className="fixed bottom-24 right-4 z-50">
-        <Popover><PopoverTrigger asChild><Button size="icon" className="h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-2xl hover:scale-110 border-4 border-white/20"><SmilePlus className="w-7 h-7" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{equippedEmotes.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.name} /></button>))}</div></PopoverContent></Popover>
-      </div>
+
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
-        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} />{isGuessing && <div className="flex items-center justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" /><span className="text-[8px] font-black uppercase text-primary">AI VALIDATING GUESS...</span></div>}<div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim() || isGuessing} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
+        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">WAITING FOR OTHERS...</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} />{isGuessing && <div className="flex items-center justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" /><span className="text-[8px] font-black uppercase text-primary">VALIDATING...</span></div>}<div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim() || isGuessing} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
       </footer>
     </div>
   );

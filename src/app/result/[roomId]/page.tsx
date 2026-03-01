@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Users } from "lucide-react";
+import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Users, Medal, Crown } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
@@ -24,35 +24,15 @@ export default function ResultPage() {
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
 
-  const [p1Profile, setP1Profile] = useState<any>(null);
-  const [p2Profile, setP2Profile] = useState<any>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
   const [confetti, setConfetti] = useState<{left: string, delay: string}[]>([]);
 
-  const isWinner = room?.winnerId === user?.uid;
-  const isPlayer1 = room?.player1Id === user?.uid;
-  
-  const p1Health = room?.player1CurrentHealth ?? 0;
-  const p2Health = room?.player2CurrentHealth ?? 0;
-  const healthMax = room?.healthOption ?? 100;
-  const healthDiff = Math.abs(p1Health - p2Health);
-
-  const betweenIds = useMemo(() => {
-    if (!room?.player1Id || !room?.player2Id) return null;
-    return [room.player1Id, room.player2Id].sort().join('_');
-  }, [room?.player1Id, room?.player2Id]);
-
-  const battleHistoryRef = useMemoFirebase(() => {
-    if (!betweenIds) return null;
-    return doc(db, "battleHistories", betweenIds);
-  }, [db, betweenIds]);
-
-  const { data: battleHistory, isLoading: isHistoryLoading } = useDoc(battleHistoryRef);
+  const isLeader = room?.creatorId === user?.uid;
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
   }, [user, isUserLoading, router]);
 
-  // Sync back to lobby when host resets the match
   useEffect(() => {
     if (room?.status === 'Lobby') {
       router.push(`/lobby/${roomId}`);
@@ -71,26 +51,23 @@ export default function ResultPage() {
 
   useEffect(() => {
     if (!room || !db) return;
-
-    const unsubP1 = onSnapshot(doc(db, "userProfiles", room.player1Id), snap => {
-      if (snap.exists()) setP1Profile(snap.data());
-    });
-    
-    let unsubP2 = () => {};
-    if (room.player2Id) {
-      unsubP2 = onSnapshot(doc(db, "userProfiles", room.player2Id), snap => {
-        if (snap.exists()) setP2Profile(snap.data());
-      });
-    }
-
-    return () => {
-      unsubP1();
-      unsubP2();
-    };
+    const ids = room.participantIds || [];
+    const unsubs = ids.map((uid: string) => 
+      onSnapshot(doc(db, "userProfiles", uid), snap => {
+        if (snap.exists()) {
+          setParticipants(prev => {
+            const others = prev.filter(p => p.id !== uid);
+            const score = room.mode === 'Party' ? (room.scores?.[uid] || 0) : (uid === room.player1Id ? room.player1CurrentHealth : room.player2CurrentHealth);
+            return [...others, { ...snap.data(), id: uid, score }].sort((a, b) => b.score - a.score);
+          });
+        }
+      })
+    );
+    return () => unsubs.forEach((u: any) => u());
   }, [room, db]);
 
   const handlePlayAgain = async () => {
-    if (!roomRef || !roomId || !isPlayer1 || !room) return;
+    if (!roomRef || !isLeader || !room) return;
     try {
       const batch = writeBatch(db);
       const roundsSnap = await getDocs(collection(db, "gameRooms", roomId as string, "gameRounds"));
@@ -98,35 +75,43 @@ export default function ResultPage() {
       const emotesSnap = await getDocs(collection(db, "gameRooms", roomId as string, "emotes"));
       emotesSnap.docs.forEach(d => batch.delete(d.ref));
 
-      batch.update(roomRef, {
+      const reset: any = {
         status: 'Lobby',
-        player1CurrentHealth: room.healthOption,
-        player2CurrentHealth: room.healthOption,
         currentRoundNumber: 1,
         usedFootballerIds: [],
         winnerId: null,
         loserId: null,
         finishedAt: null,
-      });
+      };
+
+      if (room.mode === 'Party') {
+        const scores: any = {};
+        room.participantIds.forEach((id: string) => scores[id] = 0);
+        reset.scores = scores;
+      } else {
+        reset.player1CurrentHealth = room.healthOption;
+        reset.player2CurrentHealth = room.healthOption;
+      }
+
+      batch.update(roomRef, reset);
       await batch.commit();
-      // Opponent will follow via useEffect observer
     } catch (e) {}
   };
 
-  if (isUserLoading || isRoomLoading || !room || !p1Profile) {
+  if (isUserLoading || isRoomLoading || !room || participants.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
-        <div className="flex flex-col items-center gap-4">
-          <RefreshCw className="w-12 h-12 text-primary animate-spin" />
-          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest text-center">Syncing Career Statistics...</p>
-        </div>
+        <RefreshCw className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
   }
 
+  const sortedParticipants = [...participants].sort((a, b) => b.score - a.score);
+  const myRank = sortedParticipants.findIndex(p => p.id === user?.uid) + 1;
+
   return (
     <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center gap-8 pb-32 overflow-x-hidden relative">
-      {isWinner && (
+      {myRank === 1 && (
         <div className="fixed inset-0 pointer-events-none z-50">
           {confetti.map((c, i) => (
             <div key={i} className="absolute animate-confetti opacity-0" style={{ left: c.left, animationDelay: c.delay }}>
@@ -137,81 +122,93 @@ export default function ResultPage() {
       )}
 
       <header className="w-full max-w-2xl text-center space-y-4 pt-8">
-        <div className="relative inline-block">
-          <div className="absolute inset-0 bg-secondary/20 blur-[60px] rounded-full animate-pulse" />
-          <Trophy className="w-24 h-24 text-secondary relative z-10 mx-auto animate-in zoom-in duration-700" />
-        </div>
+        <Trophy className="w-20 h-20 text-secondary mx-auto animate-bounce" />
         <h1 className="text-5xl md:text-7xl font-black uppercase text-white leading-tight">
-          {isWinner ? "VICTORY" : (room.winnerId ? "DEFEAT" : "MATCH ENDED")}
+          {myRank === 1 ? "CHAMPION" : `RANK #${myRank}`}
         </h1>
         <Badge className="bg-primary text-black font-black text-xl px-8 py-1 uppercase rounded-xl">
-          {healthDiff} HP DIFFERENCE
+          {room.mode === 'Party' ? 'PARTY ARENA' : 'DUEL RESULT'}
         </Badge>
       </header>
 
-      <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
-         <div className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${room.winnerId === room.player1Id ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p1Profile?.avatarUrl || `https://picsum.photos/seed/${room.player1Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-primary mb-3 object-cover" alt="p1" />
-            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p1Profile?.displayName || "PLAYER 1"}</span>
-            <div className="mt-4 w-full">
-              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{p1Health}</span></div>
-              <Progress value={(p1Health / healthMax) * 100} className="h-2 bg-black/20" />
-            </div>
-         </div>
-         <div className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${room.winnerId === room.player2Id ? 'border-secondary bg-secondary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-            <img src={p2Profile?.avatarUrl || `https://picsum.photos/seed/${room.player2Id}/100/100`} className="w-20 h-20 rounded-full border-4 border-secondary mb-3 object-cover" alt="p2" />
-            <span className="font-black text-sm text-white uppercase truncate w-full text-center">{p2Profile?.displayName || "OPPONENT"}</span>
-            <div className="mt-4 w-full">
-              <div className="flex justify-between text-[10px] font-black text-white/50 mb-1 uppercase"><span>HP</span><span>{p2Health}</span></div>
-              <Progress value={(p2Health / healthMax) * 100} className="h-2 bg-black/20" />
-            </div>
-         </div>
-      </section>
-
-      <section className="w-full max-w-2xl space-y-4">
-        <div className="flex items-center gap-2 px-2">
-          <History className="w-5 h-5 text-primary" />
-          <h2 className="text-xl font-black uppercase text-white">LIFETIME HEAD-TO-HEAD</h2>
-        </div>
-        
-        {isHistoryLoading ? (
-          <div className="p-12 text-center bg-white/5 rounded-[2.5rem] border border-white/5">
-            <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto mb-2" />
-            <p className="text-[10px] font-black uppercase text-slate-500">Syncing Career Records...</p>
+      {room.mode === 'Party' ? (
+        <section className="w-full max-w-2xl space-y-6">
+          <div className="flex items-end justify-center gap-4 h-64 mb-12">
+            {/* 2nd Place */}
+            {sortedParticipants[1] && (
+              <div className="flex flex-col items-center gap-2 w-24">
+                <Medal className="text-slate-300 w-8 h-8" />
+                <div className="relative">
+                  <img src={sortedParticipants[1].avatarUrl} className="w-16 h-16 rounded-full border-4 border-slate-300 object-cover" alt="2nd" />
+                  <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-300 text-black font-black">2ND</Badge>
+                </div>
+                <div className="h-24 w-full bg-slate-300/20 rounded-t-xl mt-2 flex flex-col items-center justify-center p-2 text-center">
+                  <span className="text-[8px] font-black text-white truncate w-full uppercase">{sortedParticipants[1].displayName}</span>
+                  <span className="text-lg font-black text-white">{sortedParticipants[1].score}</span>
+                </div>
+              </div>
+            )}
+            {/* 1st Place */}
+            {sortedParticipants[0] && (
+              <div className="flex flex-col items-center gap-2 w-28 scale-110">
+                <Crown className="text-yellow-500 w-10 h-10 animate-pulse" />
+                <div className="relative">
+                  <img src={sortedParticipants[0].avatarUrl} className="w-20 h-20 rounded-full border-4 border-yellow-500 object-cover" alt="1st" />
+                  <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-yellow-500 text-black font-black">1ST</Badge>
+                </div>
+                <div className="h-32 w-full bg-yellow-500/20 rounded-t-xl mt-2 flex flex-col items-center justify-center p-2 text-center">
+                  <span className="text-[10px] font-black text-white truncate w-full uppercase">{sortedParticipants[0].displayName}</span>
+                  <span className="text-2xl font-black text-white">{sortedParticipants[0].score}</span>
+                </div>
+              </div>
+            )}
+            {/* 3rd Place */}
+            {sortedParticipants[2] && (
+              <div className="flex flex-col items-center gap-2 w-24">
+                <Medal className="text-orange-600 w-8 h-8" />
+                <div className="relative">
+                  <img src={sortedParticipants[2].avatarUrl} className="w-16 h-16 rounded-full border-4 border-orange-600 object-cover" alt="3rd" />
+                  <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-orange-600 text-black font-black">3RD</Badge>
+                </div>
+                <div className="h-20 w-full bg-orange-600/20 rounded-t-xl mt-2 flex flex-col items-center justify-center p-2 text-center">
+                  <span className="text-[8px] font-black text-white truncate w-full uppercase">{sortedParticipants[2].displayName}</span>
+                  <span className="text-lg font-black text-white">{sortedParticipants[2].score}</span>
+                </div>
+              </div>
+            )}
           </div>
-        ) : battleHistory ? (
-          <Card className="bg-white/5 border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-md">
-            <CardContent className="p-8">
-              <div className="grid grid-cols-3 gap-6 items-center">
-                <div className="text-center space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase truncate px-1">{p1Profile?.displayName}</p>
-                  <p className="text-5xl font-black text-primary tracking-tighter">
-                    {room.player1Id === battleHistory.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
-                  </p>
-                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">WINS</p>
-                </div>
-                <div className="text-center border-x border-white/10 py-4 space-y-2 bg-white/5 rounded-3xl">
-                  <p className="text-[10px] font-black text-slate-500 uppercase">TOTAL</p>
-                  <p className="text-3xl font-black text-white tracking-tighter">{battleHistory.totalMatches}</p>
-                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">BATTLES</p>
-                </div>
-                <div className="text-center space-y-2">
-                  <p className="text-[10px] font-black text-slate-500 uppercase truncate px-1">{p2Profile?.displayName}</p>
-                  <p className="text-5xl font-black text-secondary tracking-tighter">
-                    {room.player2Id === battleHistory.player1Id ? battleHistory.player1Wins : battleHistory.player2Wins}
-                  </p>
-                  <p className="text-[8px] font-black text-white/30 uppercase tracking-[0.3em]">WINS</p>
-                </div>
+
+          <Card className="bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden">
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {sortedParticipants.slice(3).map((p, i) => (
+                  <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                    <div className="flex items-center gap-4">
+                      <span className="text-xl font-black text-slate-500">#{i + 4}</span>
+                      <img src={p.avatarUrl} className="w-10 h-10 rounded-full object-cover" alt={p.displayName} />
+                      <span className="font-black text-white uppercase">{p.displayName}</span>
+                    </div>
+                    <span className="text-2xl font-black text-primary">{p.score}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="p-12 text-center bg-white/5 rounded-[2.5rem] border border-white/5">
-            <Users className="w-10 h-10 text-slate-700 mx-auto mb-2" />
-            <p className="text-[10px] font-black uppercase text-slate-500">FIRST TIME RIVALS</p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : (
+        <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
+           {sortedParticipants.map((p, i) => (
+             <div key={p.id} className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${i === 0 ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+                <div className="relative">
+                  {i === 0 && <Crown className="w-6 h-6 text-yellow-500 absolute -top-4 left-1/2 -translate-x-1/2" />}
+                  <img src={p.avatarUrl} className={`w-20 h-20 rounded-full border-4 ${i === 0 ? 'border-primary' : 'border-slate-500'} object-cover`} alt="p" />
+                </div>
+                <span className="mt-4 font-black text-sm text-white uppercase">{p.displayName}</span>
+                <span className="text-2xl font-black text-primary">{p.score} HP</span>
+             </div>
+           ))}
+        </section>
+      )}
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-50">
         <div className="max-w-2xl mx-auto flex gap-4">
@@ -220,7 +217,7 @@ export default function ResultPage() {
           </Button>
           <Button 
             variant="outline" 
-            disabled={!isPlayer1} 
+            disabled={!isLeader} 
             onClick={handlePlayAgain} 
             className="h-14 px-8 border-white/10 bg-white/5 font-black uppercase rounded-2xl gap-2 shadow-2xl"
           >

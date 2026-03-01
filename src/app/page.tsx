@@ -214,10 +214,14 @@ export default function LandingPage() {
         creatorId: user.uid,
         player1Id: user.uid,
         player2Id: null,
+        participantIds: [user.uid],
         status: 'Lobby',
+        mode: '1v1',
         healthOption: 100,
         player1CurrentHealth: 100,
         player2CurrentHealth: 100,
+        maxRounds: 10,
+        timePerRound: 60,
         currentRoundNumber: 1,
         usedFootballerIds: [],
         gameVersion: 'FDv1.0',
@@ -243,18 +247,38 @@ export default function LandingPage() {
         return;
       }
       const data = roomSnap.data();
-      if (data.player2Id && data.player2Id !== user.uid && data.player1Id !== user.uid) {
+      
+      if (data.status !== 'Lobby' && !data.participantIds.includes(user.uid)) {
         toast({ variant: "destructive", title: "Full", description: "Match in progress." });
         setIsActionLoading(false);
         return;
       }
-      if (!data.player2Id && data.player1Id !== user.uid) {
-        await updateDoc(roomRef, { 
-          player2Id: user.uid,
-          player2CurrentHealth: data.healthOption,
-          lastActionAt: new Date().toISOString()
-        });
+
+      if (data.mode === '1v1' && data.participantIds.length >= 2 && !data.participantIds.includes(user.uid)) {
+        toast({ variant: "destructive", title: "Full", description: "This room is for 1v1 only." });
+        setIsActionLoading(false);
+        return;
       }
+
+      if (data.participantIds.length >= 10 && !data.participantIds.includes(user.uid)) {
+        toast({ variant: "destructive", title: "Full", description: "Party is at max capacity." });
+        setIsActionLoading(false);
+        return;
+      }
+
+      if (!data.participantIds.includes(user.uid)) {
+        const update: any = {
+          participantIds: arrayUnion(user.uid),
+          lastActionAt: new Date().toISOString()
+        };
+        // Backwards compatibility for legacy 1v1 fields
+        if (data.mode === '1v1' && !data.player2Id) {
+          update.player2Id = user.uid;
+          update.player2CurrentHealth = data.healthOption;
+        }
+        await updateDoc(roomRef, update);
+      }
+      
       router.push(`/lobby/${roomCode.trim()}`);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Join Failed", description: "Check connection or permissions." });
@@ -330,33 +354,31 @@ export default function LandingPage() {
                         <h3 className="text-primary text-sm flex items-center gap-2">
                            <Zap className="w-4 h-4" /> THE BASICS
                         </h3>
-                        <p className="normal-case text-slate-400">FootyDuel is a real-time 1v1 football trivia battle. Your goal is simple: identify the footballer from career clues before your opponent does.</p>
+                        <p className="normal-case text-slate-400">FootyDuel is a real-time football trivia battle. Identify the footballer from career clues before your opponents do.</p>
                       </div>
 
                       <div className="space-y-4">
                         <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Heart className="w-4 h-4" /> HEALTH & SCORING
+                           <Heart className="w-4 h-4" /> MODES & SCORING
                         </h3>
-                        <ul className="space-y-2 list-disc pl-4">
-                          <li>START WITH HP (50, 100, OR 150).</li>
-                          <li>CORRECT GUESS: +10 PTS. WRONG: -10 PTS. SKIP: 0 PTS.</li>
-                          <li>DAMAGE DEALT = DIFFERENCE IN ROUND POINTS.</li>
-                          <li>MATCH ENDS WHEN SOMEONE HITS 0 HP.</li>
-                        </ul>
+                        <div className="normal-case text-slate-400 space-y-4">
+                          <p><strong className="text-white uppercase">1v1 Duel:</strong> Start with HP. Correct guesses deal damage based on points. Last one standing wins.</p>
+                          <p><strong className="text-white uppercase">Party Arena:</strong> Up to 10 players. No health, just points. Faster correct guesses earn higher scores. High points at the end wins.</p>
+                        </div>
                       </div>
 
                       <div className="space-y-4">
                         <h3 className="text-primary text-sm flex items-center gap-2">
                            <Smile className="w-4 h-4" /> EMOTES & TAUNTS
                         </h3>
-                        <p className="normal-case text-slate-400">Equip up to 6 emotes. Use them during reveals to distract your rival or celebrate a win. Unlock rare emotes via Quests!</p>
+                        <p className="normal-case text-slate-400">Equip up to 6 emotes. Use them during reveals to distract rivals or celebrate a win. Unlock rare emotes via Quests!</p>
                       </div>
 
                       <div className="space-y-4">
                         <h3 className="text-primary text-sm flex items-center gap-2">
                            <Target className="w-4 h-4" /> QUESTS & REWARDS
                         </h3>
-                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Cristiano Ronaldo" or "Win 10 Duels" to unlock exclusive player cards and emotes for your loadout.</p>
+                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Cristiano Ronaldo" or "Win 10 Duels" to unlock exclusive player cards and emotes.</p>
                       </div>
 
                       <div className="space-y-4">
@@ -493,7 +515,7 @@ export default function LandingPage() {
 
             <div className="grid gap-3">
               <Button onClick={handleCreateRoom} className="w-full h-12 text-sm font-black bg-primary rounded-xl uppercase shadow-lg hover:scale-[1.02] transition-all group">
-                CREATE DUEL <Swords className="ml-2 w-4 h-4 group-hover:rotate-0 transition-transform" />
+                CREATE ARENA <Plus className="ml-2 w-4 h-4 group-hover:rotate-90 transition-transform" />
               </Button>
               <div className="flex gap-2">
                 <Input placeholder="CODE" className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl uppercase border-white/10 focus:border-primary/50" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
