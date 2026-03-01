@@ -100,6 +100,12 @@ export default function GamePage() {
   }, [user, profile, db]);
 
   useEffect(() => {
+    // Explicitly ignore and clear emotes if in summary state to fix the bug
+    if (gameState === 'result' || gameState === 'finalizing') {
+      if (activeEmotes.length > 0) setActiveEmotes([]);
+      return;
+    }
+
     if (recentEmotes && recentEmotes.length > 0) {
       const now = Date.now();
       const freshEmotesFromDb = recentEmotes
@@ -127,7 +133,7 @@ export default function GamePage() {
         return [...prev, ...filtered];
       });
     }
-  }, [recentEmotes]);
+  }, [recentEmotes, gameState]);
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -351,6 +357,7 @@ export default function GamePage() {
     
     const finalT = setTimeout(() => {
       setGameState('result');
+      setActiveEmotes([]); // Extra safety: clear emotes when summary starts
       if (isPlayer1) calculateRoundResults();
     }, 9500); 
     revealTimeouts.current.push(finalT);
@@ -463,7 +470,7 @@ export default function GamePage() {
   };
 
   const sendEmote = async (emoteId: string) => {
-    if (!roomId || !user) return;
+    if (!roomId || !user || gameState === 'result') return; // Don't send emotes in summary
     await addDoc(collection(db, "gameRooms", roomId, "emotes"), { emoteId, senderId: user.uid, createdAt: serverTimestamp() });
   };
 
@@ -474,7 +481,12 @@ export default function GamePage() {
   const iHaveGuessed = isPlayer1 ? hasP1Guessed : hasP2Guessed;
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
-  const getFlagUrl = (code: string) => `https://flagcdn.com/w640/${code.toLowerCase()}.png`;
+  const getFlagUrl = (code: string) => {
+    // Map internal codes to flagcdn standards
+    const map: Record<string, string> = { 'en': 'gb-eng', 'sc': 'gb-sct', 'wa': 'gb-wls', 'ni': 'gb-nir' };
+    const finalCode = map[code.toLowerCase()] || code.toLowerCase();
+    return `https://flagcdn.com/w640/${finalCode}.png`;
+  };
 
   if (gameState === 'reveal') {
     return (
@@ -522,12 +534,15 @@ export default function GamePage() {
           <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">CLAIM REWARD</Button>
         </DialogContent>
       </Dialog>
+      
+      {/* Emote Overlay: Hidden in Result screen to prevent repeating summary bug */}
       <div className="fixed inset-0 pointer-events-none z-[60]">
-        {activeEmotes.map((e) => {
+        {gameState !== 'result' && activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
           return (<div key={e.id} className="absolute bottom-24 right-8 emote-float"><img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" /></div>);
         })}
       </div>
+
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
            <div className="relative w-full max-w-md">
@@ -662,7 +677,7 @@ export default function GamePage() {
         <Popover><PopoverTrigger asChild><Button size="icon" className="h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-2xl hover:scale-110 border-4 border-white/20"><SmilePlus className="w-7 h-7" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{equippedEmotes.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.name} /></button>))}</div></PopoverContent></Popover>
       </div>
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
-        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} /><div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim()} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK IN GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
+        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} /><div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim()} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
       </footer>
     </div>
   );
