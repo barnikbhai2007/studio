@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Copy, Users, Play, ShieldAlert, Crown, Swords, 
   UserX, Settings2, Info, Heart, Zap, BookOpen, 
-  Target, Clock, AlertTriangle
+  Target, Clock, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";

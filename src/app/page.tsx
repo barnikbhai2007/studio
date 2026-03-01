@@ -74,18 +74,15 @@ export default function LandingPage() {
     // Monday 00:00 IST is Sunday 18:30 UTC
     const recentReset = new Date(now);
     const day = recentReset.getUTCDay(); // 0=Sun, 1=Mon...
-    recentReset.setUTCDate(recentReset.getUTCDate() - day); // Move to this Sunday
-    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC
+    
+    // Find how many days to subtract to get to last Sunday
+    const daysSinceSunday = day; 
+    recentReset.setUTCDate(recentReset.getUTCDate() - daysSinceSunday);
+    recentReset.setUTCHours(18, 30, 0, 0); // Reset point is Sunday 18:30 UTC
 
     // If it's currently Sunday before 18:30 UTC, the reset was the Sunday before
-    const hours = now.getUTCHours();
-    const mins = now.getUTCMinutes();
-    if (day === 0 && (hours < 18 || (hours === 18 && mins < 30))) {
+    if (day === 0 && (now.getUTCHours() < 18 || (now.getUTCHours() === 18 && now.getUTCMinutes() < 30))) {
       recentReset.setUTCDate(recentReset.getUTCDate() - 7);
-    } else if (day > 0) {
-      // If it's Monday-Saturday, Sunday 18:30 is the reset point
-    } else {
-      // It's Sunday after 18:30
     }
 
     const lastResetStr = profileData.lastWeeklyReset;
