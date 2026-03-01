@@ -247,50 +247,60 @@ export default function GamePage() {
     }
   }, [currentRoundNumber]);
 
+  // Decentralized Hosting: Any active player can initialize the round if it doesn't exist
   const startNewRoundLocally = useCallback(async () => {
-    if (isInitializingRound.current || !isPlayer1 || !room || !roundRef || !roomRef) return;
+    if (isInitializingRound.current || !room || !roundRef || !roomRef) return;
     isInitializingRound.current = true;
 
-    const r1 = getRandomRarity().type;
-    const r2 = getRandomRarity().type;
-
     try {
-      const player = getRandomFootballer(room.usedFootballerIds || [], room.gameVersion || 'FDv1.0');
-      await setDoc(roundRef, {
-        id: currentRoundId,
-        gameRoomId: roomId,
-        roundNumber: currentRoundNumber,
-        footballerId: player.id,
-        player1Rarity: r1,
-        player2Rarity: r2,
-        creatorId: room.player1Id,
-        opponentId: room.player2Id,
-        hintsRevealedCount: 1,
-        player1Guess: "",
-        player2Guess: "",
-        player1GuessedCorrectly: false,
-        player2GuessedCorrectly: false,
-        player1ScoreChange: 0,
-        player2ScoreChange: 0,
-        roundEndedAt: null,
-        timerStartedAt: null,
-        resultsProcessed: false
-      }, { merge: true });
-      
-      await updateDoc(roomRef, { 
-        usedFootballerIds: arrayUnion(player.id),
-        lastActionAt: new Date().toISOString()
+      await runTransaction(db, async (transaction) => {
+        const roundSnap = await transaction.get(roundRef);
+        if (roundSnap.exists()) return; // Already initialized by someone else
+
+        const roomSnap = await transaction.get(roomRef);
+        if (!roomSnap.exists()) return;
+        const roomData = roomSnap.data();
+
+        const player = getRandomFootballer(roomData.usedFootballerIds || [], roomData.gameVersion || 'FDv1.0');
+        const r1 = getRandomRarity().type;
+        const r2 = getRandomRarity().type;
+
+        transaction.set(roundRef, {
+          id: currentRoundId,
+          gameRoomId: roomId,
+          roundNumber: currentRoundNumber,
+          footballerId: player.id,
+          player1Rarity: r1,
+          player2Rarity: r2,
+          hintsRevealedCount: 1,
+          player1Guess: "",
+          player2Guess: "",
+          player1GuessedCorrectly: false,
+          player2GuessedCorrectly: false,
+          player1ScoreChange: 0,
+          player2ScoreChange: 0,
+          roundEndedAt: null,
+          timerStartedAt: null,
+          resultsProcessed: false
+        });
+        
+        transaction.update(roomRef, { 
+          usedFootballerIds: arrayUnion(player.id),
+          lastActionAt: new Date().toISOString()
+        });
       });
     } catch (err) {
       console.error("Round init error:", err);
+    } finally {
+      isInitializingRound.current = false;
     }
-  }, [isPlayer1, room, roomId, currentRoundId, currentRoundNumber, roundRef, roomRef]);
+  }, [db, room, roomId, currentRoundId, currentRoundNumber, roundRef, roomRef]);
 
   useEffect(() => {
-    if (isPlayer1 && room?.status === 'InProgress' && !roundData && !isRoundLoading && !isInitializingRound.current) {
+    if (room?.status === 'InProgress' && !roundData && !isRoundLoading && !isInitializingRound.current) {
       startNewRoundLocally();
     }
-  }, [isPlayer1, room?.status, roundData, isRoundLoading, startNewRoundLocally]);
+  }, [room?.status, roundData, isRoundLoading, startNewRoundLocally]);
 
   useEffect(() => {
     if (roundData && roundData.roundNumber === currentRoundNumber && (gameState === 'playing' || gameState === 'reveal')) {
