@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -387,7 +386,7 @@ export default function LandingPage() {
                 <div className="space-y-6 text-xs font-bold uppercase leading-relaxed text-slate-300">
                   <div className="space-y-2">
                     <p className="text-primary text-sm font-black">THE CREATOR</p>
-                    <p className="normal-case text-slate-400">I’m <span className="text-white font-black">BrokenAqua</span>, an 18-year-old student and web creator from India. I started this project on 23rd February, 2026 to build a competitive and creative football-based game.</p>
+                    <p className="normal-case text-slate-400">I’m <span className="text-white font-black">Barnik (BrokenAqua)</span>, an 18-year-old student and web creator from India. I started this project on 23rd February, 2026 to build a competitive and creative football-based game.</p>
                   </div>
 
                   <div className="space-y-2">
