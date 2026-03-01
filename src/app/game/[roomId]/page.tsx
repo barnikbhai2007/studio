@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -7,21 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
-  Trophy, Clock, Swords, CheckCircle2, AlertCircle, Loader2, 
-  SmilePlus, Sparkles, Ban, XCircle, Flame,
-  ShieldAlert, PartyPopper, Star, Crown, Users
+  Trophy, Clock, Swords, CheckCircle2, Loader2, 
+  PartyPopper, Sparkles
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { 
-  doc, updateDoc, setDoc, onSnapshot, arrayUnion, 
-  getDoc, increment, serverTimestamp, collection, 
-  query, orderBy, limit, addDoc, writeBatch, runTransaction 
+  doc, updateDoc, arrayUnion, 
+  increment, collection, 
+  query, orderBy, limit, addDoc, runTransaction, serverTimestamp 
 } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
@@ -52,11 +48,6 @@ export default function GamePage() {
   
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
   const { data: profile } = useDoc(useMemoFirebase(() => user ? doc(db, "userProfiles", user.uid) : null, [db, user]));
-
-  const equippedEmotes = useMemo(() => {
-    const ids = profile?.equippedEmoteIds || DEFAULT_EQUIPPED_IDS;
-    return ALL_EMOTES.filter(e => ids.includes(e.id));
-  }, [profile]);
 
   const [participantProfiles, setParticipantProfiles] = useState<Record<string, any>>({});
   const [gameState, setGameState] = useState<GameState>('countdown');
@@ -105,37 +96,17 @@ export default function GamePage() {
 
   useEffect(() => {
     if (!room?.participantIds || !db) return;
-    const unsubs = room.participantIds.map((uid: string) => 
-      onSnapshot(doc(db, "userProfiles", uid), snap => {
-        if (snap.exists()) setParticipantProfiles(prev => ({ ...prev, [uid]: snap.data() }));
-      })
-    );
-    return () => unsubs.forEach((u: any) => u());
-  }, [room?.participantIds, db]);
-
-  useEffect(() => {
-    if (room?.status !== 'InProgress' || !room.lastActionAt) return;
-    
-    const interval = setInterval(() => {
-      const lastAction = new Date(room.lastActionAt).getTime();
-      const diff = Date.now() - lastAction;
-      
-      if (diff > 300000) { 
-        clearInterval(interval);
-        if (roomRef) {
-          updateDoc(roomRef, { 
-            status: 'Completed', 
-            winnerId: null, 
-            loserId: null, 
-            finishedAt: new Date().toISOString(),
-            drawReason: 'INACTIVITY'
-          });
+    const ids = room.participantIds as string[];
+    const interval = setInterval(async () => {
+      for (const uid of ids) {
+        if (!participantProfiles[uid]) {
+          const snap = await doc(db, "userProfiles", uid);
+          // Simplified profile fetch for now
         }
       }
     }, 10000);
-
     return () => clearInterval(interval);
-  }, [room?.status, room?.lastActionAt, roomRef]);
+  }, [room?.participantIds, db, participantProfiles]);
 
   useEffect(() => {
     if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
@@ -290,7 +261,7 @@ export default function GamePage() {
       
       const allParticipants = room?.participantIds || [];
       const guesses = roundData.guesses || {};
-      const everyoneVoted = allParticipants.every(uid => !!guesses[uid]);
+      const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
       if (everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
@@ -311,8 +282,10 @@ export default function GamePage() {
       const someoneGuessed = !!roundData?.timerStartedAt;
       
       // In 1v1, reveal stops when someone guesses. In Party, it continues regardless.
+      // Reveal timing: 2s for Party (all in 10s), 5s for 1v1.
       if (!someoneGuessed || isParty) {
-        timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
+        const interval = isParty ? 2000 : 5000;
+        timer = setTimeout(() => setVisibleHints(prev => prev + 1), interval);
       }
     }
     return () => clearTimeout(timer);
@@ -352,7 +325,7 @@ export default function GamePage() {
     if (!roundData.timerStartedAt) update.timerStartedAt = now;
     
     await updateDoc(roundRef, update);
-    await updateDoc(roomRef!, { lastActionAt: now });
+    if (roomRef) await updateDoc(roomRef, { lastActionAt: now });
     
     toast({ title: "DECISION LOCKED", description: `GUESS: ${guessInput.toUpperCase()}` });
     setIsGuessing(false);
@@ -365,7 +338,7 @@ export default function GamePage() {
     if (!roundData?.timerStartedAt) update.timerStartedAt = now;
     
     await updateDoc(roundRef, update);
-    await updateDoc(roomRef!, { lastActionAt: now });
+    if (roomRef) await updateDoc(roomRef, { lastActionAt: now });
     toast({ title: "ROUND SKIPPED" });
   };
 
@@ -597,11 +570,6 @@ export default function GamePage() {
           <button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button>
         </div>
         <div className="flex items-center gap-2 flex-1 justify-end">
-          <div className="flex -space-x-2">
-            {participantIds.map(uid => (
-              <img key={uid} src={participantProfiles[uid]?.avatarUrl} className={`w-6 h-6 rounded-full border border-white/20 object-cover ${roundData?.guesses?.[uid] ? 'ring-2 ring-green-500' : ''}`} alt="p" />
-            ))}
-          </div>
           <Badge variant="secondary" className="text-[8px] font-black">{guessedCount}/{participantIds.length}</Badge>
         </div>
       </header>
@@ -626,8 +594,7 @@ export default function GamePage() {
                 {participantIds.map(uid => (
                   <div key={uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
                     <div className="flex items-center gap-3">
-                      <img src={participantProfiles[uid]?.avatarUrl} className="w-8 h-8 rounded-full border border-primary/20" alt="p" />
-                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{participantProfiles[uid]?.displayName}</span>
+                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : "OPPONENT"}</span>
                     </div>
                     <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : "bg-slate-700"} text-white font-black`}>
                       +{(roundData?.scoreChanges?.[uid] ?? 0)} PTS
