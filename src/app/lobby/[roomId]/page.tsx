@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Copy, Users, Play, ShieldAlert, Crown, Swords, 
-  UserX, Settings2, Info, CheckCircle2, Trophy, 
-  Clock, Heart, Zap 
+  UserX, Settings2, Info, Heart, Zap, BookOpen, 
+  Target, Clock, AlertTriangle
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +46,6 @@ export default function LobbyPage() {
 
     const unsubs: (() => void)[] = [];
     
-    // Subscribe to all participant profiles
     const ids = room.participantIds || [];
     ids.forEach((uid: string) => {
       const unsub = onSnapshot(doc(db, "userProfiles", uid), (snap) => {
@@ -93,7 +93,6 @@ export default function LobbyPage() {
       lastActionAt: new Date().toISOString()
     };
 
-    // Reset scores for everyone
     const scores: Record<string, number> = {};
     room.participantIds.forEach((id: string) => scores[id] = 0);
     update.scores = scores;
@@ -116,33 +115,35 @@ export default function LobbyPage() {
     <div className="min-h-screen bg-background p-4 flex flex-col items-center">
       <div className="w-full max-w-lg space-y-6">
         <header className="flex justify-between items-center py-4">
-          <h1 className="text-2xl font-black font-headline text-primary uppercase">FOOTY DUEL</h1>
-          <Badge variant="outline" className="text-xs font-bold border-primary text-primary">ROOM: {roomIdStr}</Badge>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-black font-headline text-primary uppercase leading-tight">FOOTY DUEL</h1>
+            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">VERSION 1.0 • ARENA</span>
+          </div>
+          <Badge variant="outline" className="text-xs font-black border-primary text-primary px-3 py-1">ROOM: {roomIdStr}</Badge>
         </header>
 
-        <Card className="bg-card border-none shadow-xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-black flex items-center gap-2 uppercase">
-              <Users className="w-5 h-5 text-secondary" /> {isPartyMode ? 'PARTY' : 'DUEL'} LOBBY ({room.participantIds?.length}/{maxSlots})
+        <Card className="bg-card border-none shadow-xl rounded-[2rem] overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 bg-white/5">
+            <CardTitle className="text-lg font-black flex items-center gap-2 uppercase italic">
+              <Users className="w-5 h-5 text-secondary" /> {isPartyMode ? 'PARTY' : 'DUEL'} LOBBY
             </CardTitle>
-            <Button variant="ghost" size="sm" onClick={copyCode} className="text-xs text-muted-foreground gap-1 font-bold uppercase">
-              <Copy className="w-3 h-3" /> COPY CODE
+            <Button variant="ghost" size="sm" onClick={copyCode} className="text-[10px] text-muted-foreground gap-1 font-black uppercase hover:bg-white/5">
+              <Copy className="w-3 h-3" /> {roomIdStr}
             </Button>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Conditional Participant Display */}
+          <CardContent className="space-y-6 pt-6">
             <div className={`grid ${isPartyMode ? 'grid-cols-3 md:grid-cols-5' : 'grid-cols-2'} gap-3`}>
               {participants.slice(0, maxSlots).map((p) => (
-                <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 border border-white/5 relative group animate-in fade-in zoom-in">
-                  {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2" />}
-                  <img src={p.avatarUrl || "https://picsum.photos/seed/p/100/100"} className="w-10 h-10 rounded-full border-2 border-primary/20 object-cover" alt={p.displayName} />
-                  <span className="text-[8px] font-black truncate w-full text-center uppercase tracking-tight">{p.displayName}</span>
+                <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-2xl bg-white/5 border border-white/5 relative group animate-in fade-in zoom-in">
+                  {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2 drop-shadow-md" />}
+                  <img src={p.avatarUrl || "https://picsum.photos/seed/p/100/100"} className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover shadow-lg" alt={p.displayName} />
+                  <span className="text-[8px] font-black truncate w-full text-center uppercase tracking-tight text-white/80">{p.displayName}</span>
                 </div>
               ))}
               {Array.from({ length: Math.max(0, maxSlots - participants.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="flex flex-col items-center justify-center p-2 rounded-xl bg-muted/20 border border-dashed border-white/5 opacity-30">
-                  <UserX className="w-6 h-6 mb-1" />
-                  <span className="text-[6px] font-black uppercase">WAITING</span>
+                <div key={`empty-${i}`} className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/5 border border-dashed border-white/10 opacity-30">
+                  <UserX className="w-6 h-6 mb-1 text-slate-500" />
+                  <span className="text-[6px] font-black uppercase">EMPTY</span>
                 </div>
               ))}
             </div>
@@ -150,14 +151,13 @@ export default function LobbyPage() {
             <div className="space-y-4 pt-4 border-t border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <Settings2 className="w-4 h-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Match Settings</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Match Configuration</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Mode Selection */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                    <Swords className="w-3 h-3" /> Mode
+                    <Swords className="w-3 h-3 text-primary" /> Game Mode
                   </label>
                   {isLeader ? (
                     <Select value={room.mode || '1v1'} onValueChange={(val) => updateSetting('mode', val)}>
@@ -174,11 +174,10 @@ export default function LobbyPage() {
                   )}
                 </div>
 
-                {/* Health Setting - Only for 1v1 */}
                 {!isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Heart className="w-3 h-3" /> Match Health
+                      <Heart className="w-3 h-3 text-red-500" /> Match Health
                     </label>
                     {isLeader ? (
                       <Select value={room.healthOption?.toString() || '100'} onValueChange={(val) => {
@@ -189,10 +188,10 @@ export default function LobbyPage() {
                           <SelectValue placeholder="Select Health" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="50">50 HP (Fast)</SelectItem>
-                          <SelectItem value="100">100 HP (Normal)</SelectItem>
+                          <SelectItem value="50">50 HP (Blitz)</SelectItem>
+                          <SelectItem value="100">100 HP (Standard)</SelectItem>
                           <SelectItem value="150">150 HP (Pro)</SelectItem>
-                          <SelectItem value="200">200 HP (Endurance)</SelectItem>
+                          <SelectItem value="200">200 HP (Elite)</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
@@ -201,11 +200,10 @@ export default function LobbyPage() {
                   </div>
                 )}
 
-                {/* Rounds Setting - Only for Party */}
                 {isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Trophy className="w-3 h-3" /> Total Rounds
+                      <Zap className="w-3 h-3 text-yellow-500" /> Total Rounds
                     </label>
                     {isLeader ? (
                       <Select value={room.maxRounds?.toString() || '10'} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
@@ -225,11 +223,10 @@ export default function LobbyPage() {
                   </div>
                 )}
 
-                {/* Round Time Setting - Only for Party */}
                 {isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> Time per Round
+                      <Clock className="w-3 h-3 text-cyan-500" /> Time Limit
                     </label>
                     {isLeader ? (
                       <Select value={room.timePerRound?.toString() || '60'} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
@@ -248,39 +245,67 @@ export default function LobbyPage() {
                     )}
                   </div>
                 )}
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                    <Zap className="w-3 h-3" /> Pack
-                  </label>
-                  <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">FDv1.0 (700)</div>
-                </div>
               </div>
             </div>
 
-            <div className="pt-4 space-y-3 bg-primary/5 p-4 rounded-2xl border border-primary/10">
-              <div className="flex items-center gap-2">
-                <Info className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-[10px] font-black uppercase text-primary">Intelligent Guessing Active</span>
+            <div className="space-y-4 pt-4 border-t border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="w-4 h-4 text-secondary" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rules & How to Play</span>
               </div>
-              <p className="text-[10px] font-bold uppercase leading-tight text-muted-foreground">
-                Our algorithm allows for minor typos.
-                <span className="text-white block mt-1">1-4 Letters: 1 Typo | 5-9 Letters: 2 Typos | 10+ Letters: 3 Typos.</span>
-                <span className="text-secondary block mt-1 italic">Aim for correct spelling to ensure max speed points!</span>
-              </p>
+              
+              <ScrollArea className="h-32 rounded-2xl bg-white/5 p-4 border border-white/5">
+                <div className="space-y-4 text-[10px] font-bold uppercase leading-relaxed text-slate-300">
+                  {isPartyMode ? (
+                    <>
+                      <div className="flex items-start gap-2">
+                        <Target className="w-3 h-3 text-primary shrink-0" />
+                        <p>Score max <span className="text-white">100 points</span> per round. Points decrease the longer you take to guess.</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Zap className="w-3 h-3 text-primary shrink-0" />
+                        <p>All <span className="text-white">5 hints reveal in 10 seconds</span> (one every 2s). Be fast!</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
+                        <p>No penalties for wrong guesses. Keep guessing until the time runs out.</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
+                        <p>Wrong answers deduct <span className="text-red-500">10 HP</span>. Reaching 0 HP ends the match.</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Clock className="w-3 h-3 text-primary shrink-0" />
+                        <p>Hints reveal every <span className="text-white">5 seconds</span> until someone locks a guess.</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Info className="w-3 h-3 text-primary shrink-0" />
+                        <p>Skipping awards 0 points but ends your turn for the round.</p>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex items-start gap-2 border-t border-white/10 pt-2">
+                    <Info className="w-3 h-3 text-secondary shrink-0" />
+                    <p className="normal-case italic text-slate-400">Intelligent system: Minor typos are allowed based on name length.</p>
+                  </div>
+                </div>
+              </ScrollArea>
             </div>
           </CardContent>
         </Card>
 
         {isLeader ? (
-          <Button onClick={startGame} disabled={participants.length < 2} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl uppercase">
-            <Play className="w-6 h-6 mr-2" /> START MATCH
+          <Button onClick={startGame} disabled={participants.length < 2} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-2xl rounded-2xl uppercase group">
+            <Play className="w-6 h-6 mr-2 group-hover:scale-110 transition-transform" /> START MATCH
           </Button>
         ) : (
-          <div className="p-6 bg-muted/50 rounded-2xl flex items-center gap-4 text-muted-foreground border border-dashed border-white/5">
+          <div className="p-6 bg-muted/50 rounded-[2rem] flex items-center gap-4 text-muted-foreground border border-dashed border-white/10">
             <ShieldAlert className="w-8 h-8 text-primary animate-pulse" />
             <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
-              Waiting for the Party Leader to kickoff the duel...
+              Waiting for the Duel Leader to initiate the match...
             </p>
           </div>
         )}

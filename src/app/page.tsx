@@ -71,16 +71,27 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
+    // Monday 00:00 IST is Sunday 18:30 UTC
+    const recentReset = new Date(now);
+    const day = recentReset.getUTCDay(); // 0=Sun, 1=Mon...
+    recentReset.setUTCDate(recentReset.getUTCDate() - day); // Move to this Sunday
+    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC
+
+    // If it's currently Sunday before 18:30 UTC, the reset was the Sunday before
+    const hours = now.getUTCHours();
+    const mins = now.getUTCMinutes();
+    if (day === 0 && (hours < 18 || (hours === 18 && mins < 30))) {
+      recentReset.setUTCDate(recentReset.getUTCDate() - 7);
+    } else if (day > 0) {
+      // If it's Monday-Saturday, Sunday 18:30 is the reset point
+    } else {
+      // It's Sunday after 18:30
+    }
+
     const lastResetStr = profileData.lastWeeklyReset;
     const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
-    const lastMondayIST = new Date();
-    lastMondayIST.setUTCHours(18, 30, 0, 0); 
-    const day = now.getUTCDay();
-    const daysSinceMonday = (day + 6) % 7;
-    lastMondayIST.setUTCDate(now.getUTCDate() - daysSinceMonday);
-    
-    if (now > lastMondayIST && lastReset < lastMondayIST) {
+    if (lastReset < recentReset) {
       setIsSyncing(true);
       try {
         const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
@@ -271,7 +282,6 @@ export default function LandingPage() {
           participantIds: arrayUnion(user.uid),
           lastActionAt: new Date().toISOString()
         };
-        // Backwards compatibility for legacy 1v1 fields
         if (data.mode === '1v1' && !data.player2Id) {
           update.player2Id = user.uid;
           update.player2CurrentHealth = data.healthOption;
