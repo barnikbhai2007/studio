@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info } from "lucide-react";
+import { Copy, Users, Play, ShieldAlert, Crown, Swords, UserX, Settings2, Info, CheckCircle2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
@@ -94,7 +93,8 @@ export default function LobbyPage() {
     await updateDoc(roomRef, { 
       status: 'InProgress',
       startedAt: new Date().toISOString(),
-      betweenIds
+      betweenIds,
+      lastActionAt: new Date().toISOString()
     });
   };
 
@@ -178,7 +178,6 @@ export default function LobbyPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FDv1.0">FDv1.0 (700 Footballers)</SelectItem>
-                        <SelectItem value="All">ALL PACKS</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
@@ -190,10 +189,15 @@ export default function LobbyPage() {
               </div>
             </div>
 
-            <div className="pt-4 mt-2 flex items-center gap-2 text-muted-foreground/60 border-t border-white/5">
-              <Info className="w-3 h-3 text-secondary shrink-0" />
-              <p className="text-[9px] font-bold uppercase tracking-tight leading-tight">
-                Note: Questions can repeat in this version. Pardon for that!
+            <div className="pt-4 space-y-3 bg-primary/5 p-4 rounded-2xl border border-primary/10">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-[10px] font-black uppercase text-primary">Intelligent Guessing Active</span>
+              </div>
+              <p className="text-[10px] font-bold uppercase leading-tight text-muted-foreground">
+                Our AI-Normalization system allows for minor typos and accented letters (e.g., 'Pele' works for 'Pelé'). 
+                <span className="text-white block mt-1">1-4 Letters: 1 Typo allowed | 5-9 Letters: 2 Typos allowed | 10+ Letters: 3 Typos allowed.</span>
+                <span className="text-secondary block mt-1 italic">Try to get the correct spelling if possible for guaranteed points!</span>
               </p>
             </div>
           </CardContent>

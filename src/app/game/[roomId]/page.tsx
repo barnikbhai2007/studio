@@ -104,15 +104,6 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
-  const normalizeStr = (str: string) => {
-    return str
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, "")
-      .trim();
-  };
-
   useEffect(() => {
     if (room?.status !== 'InProgress' || !room.lastActionAt) return;
     
@@ -351,19 +342,14 @@ export default function GamePage() {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current || isGuessing) return;
     
     setIsGuessing(true);
-    const correctFull = normalizeStr(targetPlayer?.name || "");
-    const guessNormalized = normalizeStr(guessInput);
+    let isCorrect = false;
     
-    const correctParts = (targetPlayer?.name || "").split(/\s+/).map(normalizeStr);
-    let isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
-    
-    // AI CHECK if manual match fails
-    if (!isCorrect && targetPlayer) {
+    if (targetPlayer) {
       try {
-        const aiCheck = await validateAnswer({ correctName: targetPlayer.name, userGuess: guessInput });
-        isCorrect = aiCheck.isCorrect;
+        const result = await validateAnswer({ correctName: targetPlayer.name, userGuess: guessInput });
+        isCorrect = result.isCorrect;
       } catch (err) {
-        console.error("AI check failed:", err);
+        console.error("Answer check failed:", err);
       }
     }
     
