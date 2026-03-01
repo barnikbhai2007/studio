@@ -103,7 +103,6 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
-  // Aggressive Normalization for Spelling Fix
   const normalizeStr = (str: string) => {
     return str
       .normalize("NFD")
@@ -113,7 +112,7 @@ export default function GamePage() {
       .trim();
   };
 
-  // Heartbeat/Inactivity Finisher: Ends match if no response for 2 minutes
+  // 5-Minute Inactivity Watchdog
   useEffect(() => {
     if (room?.status !== 'InProgress' || !room.lastActionAt) return;
     
@@ -121,7 +120,7 @@ export default function GamePage() {
       const lastAction = new Date(room.lastActionAt).getTime();
       const diff = Date.now() - lastAction;
       
-      if (diff > 120000) { // 2 Minutes
+      if (diff > 300000) { // 5 Minutes
         clearInterval(interval);
         if (roomRef) {
           updateDoc(roomRef, { 
@@ -139,7 +138,7 @@ export default function GamePage() {
   }, [room?.status, room?.lastActionAt, roomRef]);
 
   useEffect(() => {
-    if (gameState === 'result' || gameState === 'finalizing') {
+    if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
       if (activeEmotes.length > 0) setActiveEmotes([]);
       return;
     }
@@ -334,7 +333,6 @@ export default function GamePage() {
     if (autoNextRoundCountdown !== null && autoNextRoundCountdown > 0) {
       timer = setTimeout(() => setAutoNextRoundCountdown(autoNextRoundCountdown - 1), 1000);
     } else if (autoNextRoundCountdown === 0) {
-      // Decentralized trigger for next round
       handleNextRound();
     }
     return () => clearTimeout(timer);
@@ -346,7 +344,6 @@ export default function GamePage() {
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
-    // Check if guess matches full name or any word within the name
     const correctParts = (targetPlayer?.name || "").split(/\s+/).map(normalizeStr);
     const isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
     
@@ -410,7 +407,7 @@ export default function GamePage() {
     const finalT = setTimeout(() => {
       setGameState('result');
       setActiveEmotes([]); 
-      calculateRoundResults(); // Decentralized result processing
+      calculateRoundResults(); 
     }, 9500); 
     revealTimeouts.current.push(finalT);
   };
@@ -419,7 +416,6 @@ export default function GamePage() {
      if (!room || !roomRef) return;
      if (room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0) return;
 
-     // Use transaction to avoid double increment
      await runTransaction(db, async (transaction) => {
        const freshRoomSnap = await transaction.get(roomRef);
        if (!freshRoomSnap.exists()) return;
@@ -437,7 +433,6 @@ export default function GamePage() {
   const calculateRoundResults = async () => {
     if (!roundData || !targetPlayer || !room || !roomRef || !roundRef) return;
 
-    // Use transaction to ensure calculation happens exactly once
     await runTransaction(db, async (transaction) => {
       const freshRoundSnap = await transaction.get(roundRef);
       const freshRoomSnap = await transaction.get(roomRef);
@@ -448,7 +443,6 @@ export default function GamePage() {
 
       if (rData.resultsProcessed) return;
 
-      // Scoring logic (Strictly 0 for skipping)
       let s1 = rData.player1GuessedCorrectly ? 10 : (rData.player1Guess?.toUpperCase() === "SKIPPED" || !rData.player1Guess ? 0 : -10);
       let s2 = rData.player2GuessedCorrectly ? 10 : (rData.player2Guess?.toUpperCase() === "SKIPPED" || !rData.player2Guess ? 0 : -10);
       
@@ -475,7 +469,6 @@ export default function GamePage() {
          updatePayload.loserId = isDraw ? null : loserId;
          updatePayload.finishedAt = new Date().toISOString();
          
-         // Update Profiles (Global stats + Streaks)
          const p1ProfileRef = doc(db, "userProfiles", rmData.player1Id);
          const p2ProfileRef = doc(db, "userProfiles", rmData.player2Id);
 
@@ -502,7 +495,6 @@ export default function GamePage() {
            }
          }
          
-         // Update Head-to-Head
          const bhId = [rmData.player1Id, rmData.player2Id].sort().join('_');
          const bhRef = doc(db, "battleHistories", bhId);
          const bhSnap = await transaction.get(bhRef);
@@ -571,7 +563,7 @@ export default function GamePage() {
   };
 
   const sendEmote = async (emoteId: string) => {
-    if (!roomId || !user || gameState === 'result') return; 
+    if (!roomId || !user || gameState === 'result' || gameState === 'reveal') return; 
     await addDoc(collection(db, "gameRooms", roomId, "emotes"), { emoteId, senderId: user.uid, createdAt: serverTimestamp() });
   };
 
@@ -636,7 +628,7 @@ export default function GamePage() {
       </Dialog>
       
       <div className="fixed inset-0 pointer-events-none z-[60]">
-        {gameState !== 'result' && activeEmotes.map((e) => {
+        {(gameState !== 'result' && gameState !== 'reveal' && gameState !== 'finalizing') && activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
           return (<div key={e.id} className="absolute bottom-24 right-8 emote-float"><img src={emoteData?.url} className="w-16 h-16 rounded-xl shadow-2xl border-2 border-white/20" alt="emote" /></div>);
         })}
