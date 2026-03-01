@@ -585,7 +585,12 @@ export default function GamePage() {
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
   const getFlagUrl = (code: string) => {
-    const map: Record<string, string> = { 'en': 'gb-eng', 'sc': 'gb-sct', 'wa': 'gb-wls', 'ni': 'gb-nir' };
+    const map: Record<string, string> = { 
+      'en': 'gb-eng', 'eng': 'gb-eng',
+      'sc': 'gb-sct', 'sco': 'gb-sct',
+      'wa': 'gb-wls', 'wal': 'gb-wls',
+      'ni': 'gb-nir' 
+    };
     const finalCode = map[code.toLowerCase()] || code.toLowerCase();
     return `https://flagcdn.com/w640/${finalCode}.png`;
   };

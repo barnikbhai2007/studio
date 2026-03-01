@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
@@ -20,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { startOfDay } from "date-fns";
 import { DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS, ALL_EMOTES, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
+import { FOOTBALLERS } from "@/lib/footballer-data";
 
 export default function LandingPage() {
   const [roomCode, setRoomCode] = useState("");
@@ -126,6 +128,27 @@ export default function LandingPage() {
     }
   }, [profileData, syncQuests]);
 
+  const preloadFlags = useCallback(() => {
+    const uniqueCountryCodes = Array.from(new Set(FOOTBALLERS.map(f => f.countryCode)));
+    
+    uniqueCountryCodes.forEach(code => {
+      const map: Record<string, string> = { 
+        'en': 'gb-eng', 'eng': 'gb-eng',
+        'sc': 'gb-sct', 'sco': 'gb-sct',
+        'wa': 'gb-wls', 'wal': 'gb-wls',
+        'ni': 'gb-nir' 
+      };
+      const finalCode = map[code.toLowerCase()] || code.toLowerCase();
+      const img = new Image();
+      img.src = `https://flagcdn.com/w640/${finalCode}.png`;
+    });
+
+    ALL_EMOTES.forEach(emote => {
+      const img = new Image();
+      img.src = emote.url;
+    });
+  }, []);
+
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
@@ -142,6 +165,8 @@ export default function LandingPage() {
   const startAssetSync = async (uid: string, displayName: string | null, photoURL: string | null, isNew: boolean) => {
     setIsSyncing(true);
     setSyncProgress(0);
+    preloadFlags();
+    
     let progress = 0;
     const interval = setInterval(() => {
       progress += Math.random() * 15;
@@ -197,6 +222,7 @@ export default function LandingPage() {
         usedFootballerIds: [],
         gameVersion: 'FDv1.0',
         createdAt: new Date().toISOString(),
+        lastActionAt: new Date().toISOString()
       });
       router.push(`/lobby/${code}`);
     } catch (error: any) {
@@ -225,7 +251,8 @@ export default function LandingPage() {
       if (!data.player2Id && data.player1Id !== user.uid) {
         await updateDoc(roomRef, { 
           player2Id: user.uid,
-          player2CurrentHealth: data.healthOption
+          player2CurrentHealth: data.healthOption,
+          lastActionAt: new Date().toISOString()
         });
       }
       router.push(`/lobby/${roomCode.trim()}`);
@@ -294,8 +321,8 @@ export default function LandingPage() {
                 <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
                   {isSyncing ? (
                     <div className="space-y-4 text-center py-8">
-                       <p className="text-sm">CALCULATING SEASON RANKINGS...</p>
-                       <p className="opacity-50">Visit the INFO button on the home screen to know how to play the game.</p>
+                       <p className="text-sm italic">PRE-FETCHING STADIUM ASSETS & PLAYER CARDS...</p>
+                       <p className="opacity-50">This ensures flags and emotes load instantly during the duel.</p>
                     </div>
                   ) : (
                     <>
@@ -303,7 +330,7 @@ export default function LandingPage() {
                         <h3 className="text-primary text-sm flex items-center gap-2">
                            <Zap className="w-4 h-4" /> THE BASICS
                         </h3>
-                        <p className="normal-case text-slate-400">FootyDuel is a real-time 1v1 football trivia battle. Your goal is simple: identify the footballer from 5 clues before your opponent does.</p>
+                        <p className="normal-case text-slate-400">FootyDuel is a real-time 1v1 football trivia battle. Your goal is simple: identify the footballer from career clues before your opponent does.</p>
                       </div>
 
                       <div className="space-y-4">
@@ -342,9 +369,6 @@ export default function LandingPage() {
                       <div className="pt-6 border-t border-white/10 flex items-center gap-4">
                         <Smartphone className="w-8 h-8 text-primary shrink-0" />
                         <p className="text-primary text-sm font-black italic">OPTIMIZED FOR MOBILE DUELISTS.</p>
-                      </div>
-                      <div className="pt-4 text-center">
-                        <p className="text-primary text-[10px] font-black animate-pulse">VISIT THE INFO BUTTON TO KNOW HOW TO PLAY THE GAME.</p>
                       </div>
                     </>
                   )}
