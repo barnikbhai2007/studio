@@ -49,7 +49,6 @@ export default function GamePage() {
   const { data: room, isLoading: isRoomLoading } = useDoc(roomRef);
   const { data: profile } = useDoc(useMemoFirebase(() => user ? doc(db, "userProfiles", user.uid) : null, [db, user]));
 
-  const [participantProfiles, setParticipantProfiles] = useState<Record<string, any>>({});
   const [gameState, setGameState] = useState<GameState>('countdown');
   const [revealStep, setRevealStep] = useState<RevealStep>('none');
   const [countdown, setCountdown] = useState(5);
@@ -94,19 +93,25 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
+  // Inactivity Watchdog - 5 minutes
   useEffect(() => {
-    if (!room?.participantIds || !db) return;
-    const ids = room.participantIds as string[];
-    const interval = setInterval(async () => {
-      for (const uid of ids) {
-        if (!participantProfiles[uid]) {
-          const snap = await doc(db, "userProfiles", uid);
-          // Simplified profile fetch for now
-        }
+    if (!room || room.status !== 'InProgress' || !roomRef) return;
+    
+    const checkInactivity = async () => {
+      const lastAction = new Date(room.lastActionAt || room.createdAt).getTime();
+      if (Date.now() - lastAction > 300000) { // 5 minutes
+        await updateDoc(roomRef, { 
+          status: 'Completed', 
+          finishedAt: new Date().toISOString(),
+          winnerId: null,
+          drawReason: 'INACTIVITY'
+        });
       }
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [room?.participantIds, db, participantProfiles]);
+    };
+
+    const intervalId = setInterval(checkInactivity, 30000); // Check every 30s
+    return () => clearInterval(intervalId);
+  }, [room?.status, room?.lastActionAt, room?.createdAt, roomRef]);
 
   useEffect(() => {
     if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
@@ -279,11 +284,11 @@ export default function GamePage() {
     
     if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length) {
       const isParty = room?.mode === 'Party';
-      const someoneGuessed = !!roundData?.timerStartedAt;
+      const someoneGuessed = !!roundData?.timerStartedAt && !isParty;
       
-      // In 1v1, reveal stops when someone guesses. In Party, it continues regardless.
-      // Reveal timing: 2s for Party (all in 10s), 5s for 1v1.
-      if (!someoneGuessed || isParty) {
+      // In Party Mode, reveal all hints in 10s (2s each)
+      // In 1v1, reveal hints every 5s until someone guesses
+      if (isParty || !someoneGuessed) {
         const interval = isParty ? 2000 : 5000;
         timer = setTimeout(() => setVisibleHints(prev => prev + 1), interval);
       }

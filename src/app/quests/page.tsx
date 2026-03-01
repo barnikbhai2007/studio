@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -75,7 +74,7 @@ export default function QuestsPage() {
     },
     {
       id: "q7",
-      title: "KING OF THE HILL",
+      title: "KING OF THE ARENA",
       description: "Achieve RANK 1 when the Global Season resets (Monday 00:00 IST).",
       rewardId: "rank_one",
       icon: <Crown className="w-5 h-5 text-secondary" />,

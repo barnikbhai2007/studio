@@ -19,7 +19,7 @@ export const ALL_EMOTES: Emote[] = [
   { id: 'mbappe_silver', name: 'SILVER TURTLE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133455/960d6216f61adc051f8542fcacc8a37d_f2oyz5.jpg' },
   { id: 'neymar_master', name: 'MASTER NEY', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772133456/Neymar_Jr_meobwz.jpg' },
   { id: 'ten_wins', name: 'VICTORY ROYALE', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772162261/90e5cbf3-55d0-400f-8d55-85a53ac5412d_knnj7g.jpg' },
-  { id: 'rank_one', name: 'THE CROWN', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772162207/3620d2cc-ec1c-45f7-904c-51b7646f6f43_uxdxos.jpg' }
+  { id: 'rank_one', name: 'SUPREME CHAMPION', url: 'https://res.cloudinary.com/speed-searches/image/upload/v1772388463/5jhHZsR__400x400_zvxjsp.jpg' }
 ];
 
 export const UNLOCKED_EMOTE_IDS = [
