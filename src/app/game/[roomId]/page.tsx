@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -24,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
+import { validateAnswer } from "@/ai/flows/validate-answer-flow";
 
 type GameState = 'countdown' | 'playing' | 'finalizing' | 'reveal' | 'result';
 type RevealStep = 'none' | 'country' | 'position' | 'rarity' | 'full-card';
@@ -66,6 +66,7 @@ export default function GamePage() {
   const [targetPlayer, setTargetPlayer] = useState<Footballer | null>(null);
   const [visibleHints, setVisibleHints] = useState<number>(1);
   const [guessInput, setGuessInput] = useState("");
+  const [isGuessing, setIsGuessing] = useState(false);
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [currentRarity, setCurrentRarity] = useState<any>(null);
   const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, createdAt: number}[]>([]);
@@ -112,7 +113,6 @@ export default function GamePage() {
       .trim();
   };
 
-  // 5-Minute Inactivity Watchdog
   useEffect(() => {
     if (room?.status !== 'InProgress' || !room.lastActionAt) return;
     
@@ -120,7 +120,7 @@ export default function GamePage() {
       const lastAction = new Date(room.lastActionAt).getTime();
       const diff = Date.now() - lastAction;
       
-      if (diff > 300000) { // 5 Minutes
+      if (diff > 300000) { 
         clearInterval(interval);
         if (roomRef) {
           updateDoc(roomRef, { 
@@ -247,7 +247,6 @@ export default function GamePage() {
     }
   }, [currentRoundNumber]);
 
-  // Decentralized Hosting: Any active player can initialize the round if it doesn't exist
   const startNewRoundLocally = useCallback(async () => {
     if (isInitializingRound.current || !room || !roundRef || !roomRef) return;
     isInitializingRound.current = true;
@@ -255,7 +254,7 @@ export default function GamePage() {
     try {
       await runTransaction(db, async (transaction) => {
         const roundSnap = await transaction.get(roundRef);
-        if (roundSnap.exists()) return; // Already initialized by someone else
+        if (roundSnap.exists()) return; 
 
         const roomSnap = await transaction.get(roomRef);
         if (!roomSnap.exists()) return;
@@ -349,13 +348,23 @@ export default function GamePage() {
   }, [gameState, autoNextRoundCountdown]);
 
   const handleGuess = async () => {
-    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current) return;
+    if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current || isGuessing) return;
     
+    setIsGuessing(true);
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
     
     const correctParts = (targetPlayer?.name || "").split(/\s+/).map(normalizeStr);
-    const isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
+    let isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
+    
+    if (!isCorrect && targetPlayer) {
+      try {
+        const aiCheck = await validateAnswer({ correctName: targetPlayer.name, userGuess: guessInput });
+        isCorrect = aiCheck.isCorrect;
+      } catch (err) {
+        console.error("AI check failed:", err);
+      }
+    }
     
     const update: any = isPlayer1 ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect } : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
     if (!roundData.timerStartedAt) update.timerStartedAt = new Date().toISOString();
@@ -364,6 +373,7 @@ export default function GamePage() {
     await updateDoc(roomRef!, { lastActionAt: new Date().toISOString() });
     
     toast({ title: "DECISION LOCKED", description: `GUESS: ${guessInput.toUpperCase()}` });
+    setIsGuessing(false);
   };
 
   const handleSkip = async () => {
@@ -513,7 +523,7 @@ export default function GamePage() {
            transaction.set(bhRef, { 
              id: bhId, 
              player1Id: rmData.player1Id < rmData.player2Id ? rmData.player1Id : rmData.player2Id, 
-             player2Id: rmData.player1Id < rmData.player2Id ? rmData.player2Id : rmData.player1Id, 
+             player2Id: rmData.player1Id < rmData.player2Id ? rmData.player1Id : rmData.player2Id, 
              player1Wins: winnerId === rmData.player1Id ? 1 : 0, 
              player2Wins: winnerId === rmData.player2Id ? 1 : 0, 
              totalMatches: 1 
@@ -783,7 +793,7 @@ export default function GamePage() {
         <Popover><PopoverTrigger asChild><Button size="icon" className="h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-2xl hover:scale-110 border-4 border-white/20"><SmilePlus className="w-7 h-7" /></Button></PopoverTrigger><PopoverContent className="w-64 p-3 bg-black/95 backdrop-blur-2xl border-white/10" side="top" align="end"><div className="grid grid-cols-3 gap-2">{equippedEmotes.map(emote => (<button key={emote.id} onClick={() => sendEmote(emote.id)} className="p-2 hover:bg-white/10 rounded-xl transition-all active:scale-90"><img src={emote.url} className="w-full aspect-square rounded-lg object-cover" alt={emote.name} /></button>))}</div></PopoverContent></Popover>
       </div>
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
-        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing'} /><div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim()} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing'} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
+        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">{oppHasGuessed ? 'WAITING FOR REVEAL...' : 'WAITING FOR OPPONENT...'}</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} />{isGuessing && <div className="flex items-center justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" /><span className="text-[8px] font-black uppercase text-primary">AI VALIDATING GUESS...</span></div>}<div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim() || isGuessing} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
       </footer>
     </div>
   );
