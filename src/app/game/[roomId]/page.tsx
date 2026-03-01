@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
-import { doc, updateDoc, setDoc, onSnapshot, arrayUnion, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, addDoc, writeBatch } from "firebase/firestore";
+import { 
+  doc, updateDoc, setDoc, onSnapshot, arrayUnion, 
+  getDoc, increment, serverTimestamp, collection, 
+  query, orderBy, limit, addDoc, writeBatch, runTransaction 
+} from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
 
@@ -99,8 +103,42 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
+  // Aggressive Normalization for Spelling Fix
+  const normalizeStr = (str: string) => {
+    return str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .trim();
+  };
+
+  // Heartbeat/Inactivity Finisher: Ends match if no response for 2 minutes
   useEffect(() => {
-    // Explicitly ignore and clear emotes if in summary state to fix the bug
+    if (room?.status !== 'InProgress' || !room.lastActionAt) return;
+    
+    const interval = setInterval(() => {
+      const lastAction = new Date(room.lastActionAt).getTime();
+      const diff = Date.now() - lastAction;
+      
+      if (diff > 120000) { // 2 Minutes
+        clearInterval(interval);
+        if (roomRef) {
+          updateDoc(roomRef, { 
+            status: 'Completed', 
+            winnerId: null, 
+            loserId: null, 
+            finishedAt: new Date().toISOString(),
+            drawReason: 'INACTIVITY'
+          });
+        }
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [room?.status, room?.lastActionAt, roomRef]);
+
+  useEffect(() => {
     if (gameState === 'result' || gameState === 'finalizing') {
       if (activeEmotes.length > 0) setActiveEmotes([]);
       return;
@@ -237,9 +275,13 @@ export default function GamePage() {
         player2ScoreChange: 0,
         roundEndedAt: null,
         timerStartedAt: null,
+        resultsProcessed: false
       }, { merge: true });
       
-      await updateDoc(roomRef, { usedFootballerIds: arrayUnion(player.id) });
+      await updateDoc(roomRef, { 
+        usedFootballerIds: arrayUnion(player.id),
+        lastActionAt: new Date().toISOString()
+      });
     } catch (err) {
       console.error("Round init error:", err);
     }
@@ -291,22 +333,29 @@ export default function GamePage() {
     let timer: NodeJS.Timeout;
     if (autoNextRoundCountdown !== null && autoNextRoundCountdown > 0) {
       timer = setTimeout(() => setAutoNextRoundCountdown(autoNextRoundCountdown - 1), 1000);
-    } else if (autoNextRoundCountdown === 0 && isPlayer1) {
+    } else if (autoNextRoundCountdown === 0) {
+      // Decentralized trigger for next round
       handleNextRound();
     }
     return () => clearTimeout(timer);
-  }, [gameState, autoNextRoundCountdown, isPlayer1]);
-
-  const normalizeStr = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  }, [gameState, autoNextRoundCountdown]);
 
   const handleGuess = async () => {
     if (!guessInput.trim() || !roundRef || !roundData || gameState !== 'playing' || revealTriggered.current) return;
+    
     const correctFull = normalizeStr(targetPlayer?.name || "");
     const guessNormalized = normalizeStr(guessInput);
-    const isCorrect = correctFull.split(/\s+/).some(part => part === guessNormalized) || correctFull === guessNormalized;
+    
+    // Check if guess matches full name or any word within the name
+    const correctParts = (targetPlayer?.name || "").split(/\s+/).map(normalizeStr);
+    const isCorrect = correctParts.includes(guessNormalized) || correctFull === guessNormalized;
+    
     const update: any = isPlayer1 ? { player1Guess: guessInput, player1GuessedCorrectly: isCorrect } : { player2Guess: guessInput, player2GuessedCorrectly: isCorrect };
     if (!roundData.timerStartedAt) update.timerStartedAt = new Date().toISOString();
+    
     await updateDoc(roundRef, update);
+    await updateDoc(roomRef!, { lastActionAt: new Date().toISOString() });
+    
     toast({ title: "DECISION LOCKED", description: `GUESS: ${guessInput.toUpperCase()}` });
   };
 
@@ -314,7 +363,10 @@ export default function GamePage() {
     if (!roundRef || gameState !== 'playing' || revealTriggered.current) return;
     const update: any = isPlayer1 ? { player1Guess: "SKIPPED", player1GuessedCorrectly: false } : { player2Guess: "SKIPPED", player2GuessedCorrectly: false };
     if (!roundData?.timerStartedAt) update.timerStartedAt = new Date().toISOString();
+    
     await updateDoc(roundRef, update);
+    await updateDoc(roomRef!, { lastActionAt: new Date().toISOString() });
+    
     toast({ title: "ROUND SKIPPED" });
   };
 
@@ -357,83 +409,132 @@ export default function GamePage() {
     
     const finalT = setTimeout(() => {
       setGameState('result');
-      setActiveEmotes([]); // Extra safety: clear emotes when summary starts
-      if (isPlayer1) calculateRoundResults();
+      setActiveEmotes([]); 
+      calculateRoundResults(); // Decentralized result processing
     }, 9500); 
     revealTimeouts.current.push(finalT);
   };
 
   const handleNextRound = async () => {
-     if (!room || !roomRef || !isPlayer1) return;
-     if (room.player1CurrentHealth > 0 && room.player2CurrentHealth > 0) {
-        await updateDoc(roomRef, { currentRoundNumber: room.currentRoundNumber + 1 });
-     }
+     if (!room || !roomRef) return;
+     if (room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0) return;
+
+     // Use transaction to avoid double increment
+     await runTransaction(db, async (transaction) => {
+       const freshRoomSnap = await transaction.get(roomRef);
+       if (!freshRoomSnap.exists()) return;
+       const roomData = freshRoomSnap.data();
+       
+       if (roomData.currentRoundNumber === currentRoundNumber) {
+         transaction.update(roomRef, { 
+           currentRoundNumber: currentRoundNumber + 1,
+           lastActionAt: new Date().toISOString()
+         });
+       }
+     });
   };
 
   const calculateRoundResults = async () => {
-    if (!roundData || !targetPlayer || !room || !roomRef) return;
-    let s1 = roundData.player1GuessedCorrectly ? 10 : (roundData.player1Guess === "SKIPPED" || !roundData.player1Guess ? 0 : -10);
-    let s2 = roundData.player2GuessedCorrectly ? 10 : (roundData.player2Guess === "SKIPPED" || !roundData.player2Guess ? 0 : -10);
-    const diff = s1 - s2;
-    let p1NewHealth = room.player1CurrentHealth;
-    let p2NewHealth = room.player2CurrentHealth;
-    if (diff > 0) p2NewHealth = Math.max(0, p2NewHealth - diff);
-    else if (diff < 0) p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
-    
-    const updatePayload: any = { player1CurrentHealth: p1NewHealth, player2CurrentHealth: p2NewHealth };
-    
-    if (p1NewHealth <= 0 || p2NewHealth <= 0) {
-       const winnerId = p1NewHealth > 0 ? room.player1Id : (p2NewHealth > 0 ? room.player2Id : null);
-       const loserId = p1NewHealth <= 0 ? room.player1Id : (p2NewHealth <= 0 ? room.player2Id : null);
-       const isDraw = p1NewHealth <= 0 && p2NewHealth <= 0;
+    if (!roundData || !targetPlayer || !room || !roomRef || !roundRef) return;
 
-       updatePayload.status = 'Completed';
-       updatePayload.winnerId = isDraw ? null : winnerId;
-       updatePayload.loserId = isDraw ? null : loserId;
-       updatePayload.finishedAt = new Date().toISOString();
-       
-       const batch = writeBatch(db);
-       
-       if (isDraw) {
-         batch.update(doc(db, "userProfiles", room.player1Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
-         batch.update(doc(db, "userProfiles", room.player2Id), { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
-       } else {
-         if (winnerId) {
-           batch.update(doc(db, "userProfiles", winnerId), { 
-             totalWins: increment(1), 
-             weeklyWins: increment(1), 
-             winStreak: increment(1),
-             totalGamesPlayed: increment(1) 
-           });
-         }
-         if (loserId) {
-           batch.update(doc(db, "userProfiles", loserId), { 
-             totalLosses: increment(1), 
-             totalGamesPlayed: increment(1),
-             winStreak: 0 
-           });
-         }
-       }
-       
-       const bhId = [room.player1Id, room.player2Id].sort().join('_');
-       const bhRef = doc(db, "battleHistories", bhId);
-       const bhSnap = await getDoc(bhRef);
-       if (!bhSnap.exists()) {
-         batch.set(bhRef, { id: bhId, player1Id: room.player1Id < room.player2Id ? room.player1Id : room.player2Id, player2Id: room.player1Id < room.player2Id ? room.player2Id : room.player1Id, player1Wins: winnerId === room.player1Id ? 1 : 0, player2Wins: winnerId === room.player2Id ? 1 : 0, totalMatches: 1 });
-       } else {
-         if (!isDraw) {
-           const winnerKey = winnerId === bhSnap.data().player1Id ? 'player1Wins' : 'player2Wins';
-           batch.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+    // Use transaction to ensure calculation happens exactly once
+    await runTransaction(db, async (transaction) => {
+      const freshRoundSnap = await transaction.get(roundRef);
+      const freshRoomSnap = await transaction.get(roomRef);
+      
+      if (!freshRoundSnap.exists() || !freshRoomSnap.exists()) return;
+      const rData = freshRoundSnap.data();
+      const rmData = freshRoomSnap.data();
+
+      if (rData.resultsProcessed) return;
+
+      // Scoring logic (Strictly 0 for skipping)
+      let s1 = rData.player1GuessedCorrectly ? 10 : (rData.player1Guess?.toUpperCase() === "SKIPPED" || !rData.player1Guess ? 0 : -10);
+      let s2 = rData.player2GuessedCorrectly ? 10 : (rData.player2Guess?.toUpperCase() === "SKIPPED" || !rData.player2Guess ? 0 : -10);
+      
+      const diff = s1 - s2;
+      let p1NewHealth = rmData.player1CurrentHealth;
+      let p2NewHealth = rmData.player2CurrentHealth;
+      
+      if (diff > 0) p2NewHealth = Math.max(0, p2NewHealth - diff);
+      else if (diff < 0) p1NewHealth = Math.max(0, p1NewHealth - Math.abs(diff));
+      
+      const updatePayload: any = { 
+        player1CurrentHealth: p1NewHealth, 
+        player2CurrentHealth: p2NewHealth,
+        lastActionAt: new Date().toISOString()
+      };
+      
+      if (p1NewHealth <= 0 || p2NewHealth <= 0) {
+         const winnerId = p1NewHealth > 0 ? rmData.player1Id : (p2NewHealth > 0 ? rmData.player2Id : null);
+         const loserId = p1NewHealth <= 0 ? rmData.player1Id : (p2NewHealth <= 0 ? rmData.player2Id : null);
+         const isDraw = p1NewHealth <= 0 && p2NewHealth <= 0;
+
+         updatePayload.status = 'Completed';
+         updatePayload.winnerId = isDraw ? null : winnerId;
+         updatePayload.loserId = isDraw ? null : loserId;
+         updatePayload.finishedAt = new Date().toISOString();
+         
+         // Update Profiles (Global stats + Streaks)
+         const p1ProfileRef = doc(db, "userProfiles", rmData.player1Id);
+         const p2ProfileRef = doc(db, "userProfiles", rmData.player2Id);
+
+         if (isDraw) {
+           transaction.update(p1ProfileRef, { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
+           transaction.update(p2ProfileRef, { winStreak: 0, totalGamesPlayed: increment(1), totalLosses: increment(1) });
          } else {
-           batch.update(bhRef, { totalMatches: increment(1) });
+           if (winnerId) {
+             const winnerRef = winnerId === rmData.player1Id ? p1ProfileRef : p2ProfileRef;
+             transaction.update(winnerRef, { 
+               totalWins: increment(1), 
+               weeklyWins: increment(1), 
+               winStreak: increment(1),
+               totalGamesPlayed: increment(1) 
+             });
+           }
+           if (loserId) {
+             const loserRef = loserId === rmData.player1Id ? p1ProfileRef : p2ProfileRef;
+             transaction.update(loserRef, { 
+               totalLosses: increment(1), 
+               totalGamesPlayed: increment(1),
+               winStreak: 0 
+             });
+           }
          }
-       }
-       batch.update(roomRef, updatePayload);
-       await batch.commit();
-    } else {
-      await updateDoc(roomRef, updatePayload);
-    }
-    await updateDoc(roundRef, { player1ScoreChange: s1, player2ScoreChange: s2, roundEndedAt: new Date().toISOString() });
+         
+         // Update Head-to-Head
+         const bhId = [rmData.player1Id, rmData.player2Id].sort().join('_');
+         const bhRef = doc(db, "battleHistories", bhId);
+         const bhSnap = await transaction.get(bhRef);
+         
+         if (!bhSnap.exists()) {
+           transaction.set(bhRef, { 
+             id: bhId, 
+             player1Id: rmData.player1Id < rmData.player2Id ? rmData.player1Id : rmData.player2Id, 
+             player2Id: rmData.player1Id < rmData.player2Id ? rmData.player2Id : rmData.player1Id, 
+             player1Wins: winnerId === rmData.player1Id ? 1 : 0, 
+             player2Wins: winnerId === rmData.player2Id ? 1 : 0, 
+             totalMatches: 1 
+           });
+         } else {
+           const bhData = bhSnap.data();
+           if (!isDraw) {
+             const winnerKey = winnerId === bhData.player1Id ? 'player1Wins' : 'player2Wins';
+             transaction.update(bhRef, { [winnerKey]: increment(1), totalMatches: increment(1) });
+           } else {
+             transaction.update(bhRef, { totalMatches: increment(1) });
+           }
+         }
+      }
+      
+      transaction.update(roomRef, updatePayload);
+      transaction.update(roundRef, { 
+        player1ScoreChange: s1, 
+        player2ScoreChange: s2, 
+        roundEndedAt: new Date().toISOString(),
+        resultsProcessed: true
+      });
+    });
   };
 
   const handleForfeit = async () => {
@@ -470,7 +571,7 @@ export default function GamePage() {
   };
 
   const sendEmote = async (emoteId: string) => {
-    if (!roomId || !user || gameState === 'result') return; // Don't send emotes in summary
+    if (!roomId || !user || gameState === 'result') return; 
     await addDoc(collection(db, "gameRooms", roomId, "emotes"), { emoteId, senderId: user.uid, createdAt: serverTimestamp() });
   };
 
@@ -482,7 +583,6 @@ export default function GamePage() {
   const oppHasGuessed = isPlayer1 ? hasP2Guessed : hasP1Guessed;
 
   const getFlagUrl = (code: string) => {
-    // Map internal codes to flagcdn standards
     const map: Record<string, string> = { 'en': 'gb-eng', 'sc': 'gb-sct', 'wa': 'gb-wls', 'ni': 'gb-nir' };
     const finalCode = map[code.toLowerCase()] || code.toLowerCase();
     return `https://flagcdn.com/w640/${finalCode}.png`;
@@ -535,7 +635,6 @@ export default function GamePage() {
         </DialogContent>
       </Dialog>
       
-      {/* Emote Overlay: Hidden in Result screen to prevent repeating summary bug */}
       <div className="fixed inset-0 pointer-events-none z-[60]">
         {gameState !== 'result' && activeEmotes.map((e) => {
           const emoteData = ALL_EMOTES.find(em => em.id === e.emoteId);
@@ -545,7 +644,7 @@ export default function GamePage() {
 
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
-           <div className="relative w-full max-w-md">
+           <div className="relative w-full max-md">
               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
               <div className="relative z-10 space-y-8">
                  <h2 className="text-7xl font-black text-white uppercase animate-bounce drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
@@ -556,7 +655,7 @@ export default function GamePage() {
                       {room.player1CurrentHealth <= 0 || room.player2CurrentHealth <= 0 ? "TOTAL KNOCKOUT" : "VICTORY BY FORFEIT"}
                     </p>
                     <p className="text-xl font-black text-white uppercase tracking-tight">
-                      {room.winnerId ? (room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName) : "BOTH DUELISTS KNOCKED OUT"} HAS WON
+                      {room.winnerId ? (room.winnerId === room.player1Id ? p1Profile?.displayName : p2Profile?.displayName) : "DRAW MATCH"}
                     </p>
                  </div>
                  
