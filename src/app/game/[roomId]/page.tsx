@@ -306,11 +306,17 @@ export default function GamePage() {
       setGameState('playing');
     }
     
-    if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length && !roundData?.timerStartedAt) {
-      timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
+    if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length) {
+      const isParty = room?.mode === 'Party';
+      const someoneGuessed = !!roundData?.timerStartedAt;
+      
+      // In 1v1, reveal stops when someone guesses. In Party, it continues regardless.
+      if (!someoneGuessed || isParty) {
+        timer = setTimeout(() => setVisibleHints(prev => prev + 1), 5000);
+      }
     }
     return () => clearTimeout(timer);
-  }, [gameState, countdown, visibleHints, roundData?.timerStartedAt, targetPlayer]);
+  }, [gameState, countdown, visibleHints, roundData?.timerStartedAt, targetPlayer, room?.mode]);
 
   useEffect(() => {
     if (gameState === 'result' && autoNextRoundCountdown === null) {
