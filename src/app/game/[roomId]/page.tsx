@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Trophy, Clock, Swords, CheckCircle2, AlertCircle, Loader2, 
   SmilePlus, Sparkles, Ban, XCircle, Flame,
@@ -102,7 +103,6 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
-  // Load participant profiles
   useEffect(() => {
     if (!room?.participantIds || !db) return;
     const unsubs = room.participantIds.map((uid: string) => 
@@ -113,7 +113,6 @@ export default function GamePage() {
     return () => unsubs.forEach((u: any) => u());
   }, [room?.participantIds, db]);
 
-  // Inactivity watchdog
   useEffect(() => {
     if (room?.status !== 'InProgress' || !room.lastActionAt) return;
     
@@ -138,7 +137,6 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [room?.status, room?.lastActionAt, roomRef]);
 
-  // Emote logic
   useEffect(() => {
     if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
       if (activeEmotes.length > 0) setActiveEmotes([]);
@@ -174,7 +172,6 @@ export default function GamePage() {
     }
   }, [recentEmotes, gameState]);
 
-  // Game over popup
   useEffect(() => {
     let timerId: NodeJS.Timeout;
     if (room?.status === 'Completed' && !showGameOverPopup) {
@@ -198,7 +195,6 @@ export default function GamePage() {
     return () => { if (timerId) clearInterval(timerId); };
   }, [room?.status, roomId, router, showGameOverPopup]);
 
-  // Round Timer
   useEffect(() => {
     if (roundData?.timerStartedAt && gameState === 'playing' && roundData.roundNumber === currentRoundNumber) {
       const startTime = new Date(roundData.timerStartedAt).getTime();
@@ -217,7 +213,6 @@ export default function GamePage() {
     }
   }, [roundData?.timerStartedAt, gameState, currentRoundNumber, room?.timePerRound]);
 
-  // Reset round state
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
       lastProcessedRound.current = currentRoundNumber;
@@ -252,6 +247,7 @@ export default function GamePage() {
 
         const player = getRandomFootballer(roomData.usedFootballerIds || [], roomData.gameVersion || 'FDv1.0');
         const rarity = getRandomRarity();
+        const now = new Date().toISOString();
 
         transaction.set(roundRef, {
           id: currentRoundId,
@@ -262,17 +258,17 @@ export default function GamePage() {
           hintsRevealedCount: 1,
           guesses: {},
           roundEndedAt: null,
-          timerStartedAt: null,
+          timerStartedAt: roomData.mode === 'Party' ? now : null,
           resultsProcessed: false
         });
         
         transaction.update(roomRef, { 
           usedFootballerIds: arrayUnion(player.id),
-          lastActionAt: new Date().toISOString()
+          lastActionAt: now
         });
       });
     } catch (err) {
-      console.error("Round init error:", err);
+      console.error("Round init conflict (expected/retry):", err);
     } finally {
       isInitializingRound.current = false;
     }
@@ -463,7 +459,6 @@ export default function GamePage() {
           if (g?.isCorrect) {
             const guessedAt = new Date(g.guessedAt).getTime();
             const elapsed = Math.max(0, guessedAt - timerStart);
-            // Points = Max 100, min 10. Decreases over time.
             pts = Math.max(10, Math.round(100 * (1 - (elapsed / maxTime))));
           }
           scores[uid] = (scores[uid] || 0) + pts;
@@ -471,7 +466,6 @@ export default function GamePage() {
         });
         updates.scores = scores;
       } else {
-        // 1v1 Mode
         const p1 = rmData.participantIds[0];
         const p2 = rmData.participantIds[1];
         const g1 = guesses[p1];
@@ -498,13 +492,10 @@ export default function GamePage() {
           const winnerId = p1Health > 0 ? p1 : (p2Health > 0 ? p2 : null);
           updates.winnerId = winnerId;
           
-          // Update win streaks
           rmData.participantIds.forEach((uid: string) => {
             const pRef = doc(db, "userProfiles", uid);
             if (winnerId === uid) {
               transaction.update(pRef, { totalWins: increment(1), weeklyWins: increment(1), winStreak: increment(1), totalGamesPlayed: increment(1) });
-            } else if (winnerId === null) {
-              transaction.update(pRef, { totalLosses: increment(1), winStreak: 0, totalGamesPlayed: increment(1) });
             } else {
               transaction.update(pRef, { totalLosses: increment(1), winStreak: 0, totalGamesPlayed: increment(1) });
             }
@@ -657,7 +648,25 @@ export default function GamePage() {
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
-        <div className="max-w-lg mx-auto w-full">{iHaveGuessed && gameState === 'playing' ? (<div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30"><CheckCircle2 className="w-7 h-7 text-green-500" /><p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">DECISION LOCKED.<br/><span className="opacity-70">WAITING FOR OTHERS...</span></p></div>) : (<div className="flex flex-col gap-3"><Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} />{isGuessing && <div className="flex items-center justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" /><span className="text-[8px] font-black uppercase text-primary">VALIDATING...</span></div>}<div className="flex gap-2"><Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim() || isGuessing} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button><Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button></div></div>)}</div>
+        <div className="max-w-lg mx-auto w-full">
+          {iHaveGuessed && gameState === 'playing' ? (
+            <div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30">
+              <CheckCircle2 className="w-7 h-7 text-green-500" />
+              <p className="text-xs font-black text-green-400 uppercase tracking-widest leading-tight">
+                DECISION LOCKED.<br/><span className="opacity-70">WAITING FOR OTHERS...</span>
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Input placeholder="TYPE PLAYER NAME..." className="h-14 bg-white/5 border-white/10 font-black tracking-widest text-white text-center uppercase text-base rounded-2xl" value={guessInput} onChange={(e) => setGuessInput(e.target.value)} disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} />
+              {isGuessing && <div className="flex items-center justify-center py-2"><Loader2 className="w-4 h-4 animate-spin text-primary mr-2" /><span className="text-[8px] font-black uppercase text-primary">VALIDATING...</span></div>}
+              <div className="flex gap-2">
+                <Button onClick={handleGuess} disabled={iHaveGuessed || gameState !== 'playing' || !guessInput.trim() || isGuessing} className="flex-1 h-12 rounded-xl bg-primary text-black font-black uppercase text-xs">LOCK in GUESS</Button>
+                <Button onClick={handleSkip} variant="outline" disabled={iHaveGuessed || gameState !== 'playing' || isGuessing} className="w-24 h-12 rounded-xl border-white/10 bg-white/5 text-xs font-black uppercase">SKIP</Button>
+              </div>
+            </div>
+          )}
+        </div>
       </footer>
     </div>
   );
