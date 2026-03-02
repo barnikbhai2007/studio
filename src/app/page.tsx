@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -88,12 +87,17 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
-    const threshold = new Date("2026-03-02T00:00:00+05:30");
+    // Dynamic Threshold: Most recent Sunday 18:30 UTC (Monday 00:00 IST)
+    const threshold = new Date(now);
+    const day = now.getUTCDay();
+    threshold.setUTCDate(now.getUTCDate() - day);
+    threshold.setUTCHours(18, 30, 0, 0);
+    if (threshold > now) threshold.setUTCDate(threshold.getUTCDate() - 7);
     
     const lastResetStr = profileData.lastWeeklyReset;
     const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
-    if (lastReset < threshold && now >= threshold) {
+    if (lastReset < threshold) {
       setIsSyncing(true);
       try {
         const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
@@ -418,6 +422,12 @@ export default function LandingPage() {
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Trophy className="text-secondary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span><span className="text-2xl font-black">{roomsToday}</span></div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Users className="text-primary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS</span><span className="text-2xl font-black">{totalPlayers}</span></div>
         </div>
+
+        <footer className="text-center pt-4 opacity-40">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2">
+            MADE WITH ❤️ IN INDIA
+          </p>
+        </footer>
       </div>
     </div>
   );

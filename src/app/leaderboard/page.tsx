@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -18,14 +17,24 @@ export default function LeaderboardPage() {
   const router = useRouter();
   const db = useFirestore();
 
+  // Helper to get the most recent Monday 00:00 IST (Sunday 18:30 UTC)
   const getResetThreshold = () => {
-    // THE RESET THRESHOLD: Monday March 2nd, 2026 00:00 IST
-    const threshold = new Date("2026-03-02T00:00:00+05:30");
+    const now = new Date();
+    const threshold = new Date(now);
+    // Find most recent Sunday 18:30 UTC (which is Monday 00:00 IST)
+    const day = now.getUTCDay();
+    const diff = (day + 7 - 0) % 7; // Distance to previous Sunday
+    threshold.setUTCDate(now.getUTCDate() - diff);
+    threshold.setUTCHours(18, 30, 0, 0);
+    
+    // If current time is before this week's Sun 18:30 UTC, then it was last week
+    if (threshold > now) {
+      threshold.setUTCDate(threshold.getUTCDate() - 7);
+    }
     return threshold.toISOString();
   };
 
   // Simplified query to avoid permission/index errors with complex filters.
-  // We fetch top players by weeklyWins and filter by reset date client-side.
   const leaderboardQuery = useMemoFirebase(() => {
     return query(
       collection(db, "userProfiles"),
@@ -53,16 +62,22 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const calculateTime = () => {
       const now = new Date();
-      const target = new Date("2026-03-02T00:00:00+05:30");
-      if (now >= target) {
-        setTimeLeft("SEASON ENDED");
-        return;
+      // Calculate NEXT Monday 00:00 IST (Sunday 18:30 UTC)
+      const target = new Date(now);
+      const day = now.getUTCDay();
+      const diff = (7 - day) % 7; 
+      target.setUTCDate(now.getUTCDate() + diff);
+      target.setUTCHours(18, 30, 0, 0);
+
+      // If we already passed Sunday 18:30 UTC this week, move to next week
+      if (target <= now) {
+        target.setUTCDate(target.getUTCDate() + 7);
       }
       
-      const diff = target.getTime() - now.getTime();
-      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const diffMs = target.getTime() - now.getTime();
+      const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
       setTimeLeft(`${d}D ${h}H ${m}M`);
     };
 
@@ -144,12 +159,17 @@ export default function LeaderboardPage() {
                   </div>
                 ))}
 
-                {topPlayers.length === 0 && (
+                {topPlayers.length === 0 && ( topPlayersRaw?.length !== 0 ? (
+                  <div className="p-12 text-center opacity-30">
+                    <Users className="w-12 h-12 mx-auto mb-4" />
+                    <p className="text-xs font-black uppercase tracking-widest">AWAITING WEEKLY DATA...</p>
+                  </div>
+                ) : (
                   <div className="p-12 text-center opacity-30">
                     <Users className="w-12 h-12 mx-auto mb-4" />
                     <p className="text-xs font-black uppercase tracking-widest">NO DATA FOR CURRENT WEEK</p>
                   </div>
-                )}
+                ))}
               </div>
             </CardContent>
           </Card>
