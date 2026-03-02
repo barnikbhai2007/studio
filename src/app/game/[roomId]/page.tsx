@@ -11,7 +11,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Trophy, Clock, Swords, CheckCircle2, Loader2, 
-  PartyPopper, Sparkles, Smile
+  PartyPopper, Smile
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -82,7 +82,6 @@ export default function GamePage() {
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
 
-  // Sync participant profiles for emote names
   useEffect(() => {
     if (!room?.participantIds) return;
     const unsubs = room.participantIds.map((uid: string) => 
@@ -113,7 +112,7 @@ export default function GamePage() {
     
     const checkInactivity = async () => {
       const lastAction = new Date(room.lastActionAt || room.createdAt).getTime();
-      if (Date.now() - lastAction > 300000) { // 5 minutes
+      if (Date.now() - lastAction > 300000) { 
         await updateDoc(roomRef, { 
           status: 'Completed', 
           finishedAt: new Date().toISOString(),
@@ -250,7 +249,7 @@ export default function GamePage() {
           hintsRevealedCount: 1,
           guesses: {},
           roundEndedAt: null,
-          timerStartedAt: now, // Timer starts immediately for all modes now
+          timerStartedAt: now,
           resultsProcessed: false
         });
         
@@ -284,7 +283,6 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      // Party mode doesn't auto-end round early
       if (room?.mode !== 'Party' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
@@ -588,10 +586,10 @@ export default function GamePage() {
         const data = ALL_EMOTES.find(e => e.id === emote.emoteId);
         return (
           <div key={emote.id} className="fixed bottom-40 right-10 z-[60] flex flex-col items-center gap-1 emote-float pointer-events-none">
-            <Badge className="bg-primary/90 text-black text-[8px] font-black uppercase px-2 py-0">
+            <Badge className="bg-primary text-black text-[10px] font-black uppercase px-3 py-0.5 shadow-xl border-2 border-[#0a0a0b] scale-110">
               {emote.senderId === user?.uid ? "YOU" : emote.senderName}
             </Badge>
-            <img src={data?.url} className="w-16 h-16 rounded-2xl shadow-2xl border-2 border-white/20 object-cover" alt="emote" />
+            <img src={data?.url} className="w-20 h-20 rounded-2xl shadow-2xl border-4 border-primary object-cover bg-black" alt="emote" />
           </div>
         );
       })}

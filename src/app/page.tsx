@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Plus, Swords, LogIn, Trophy, Users, Download, 
-  LogOut, Target, Heart, Info, HelpCircle,
-  BarChart3, Smile, Sparkles, X, Coffee, CheckCircle2, PartyPopper, Crown,
-  Gamepad2, Medal, Smartphone, Zap, Music
+  LogOut, Target, Heart, Info, 
+  BarChart3, Smile, Sparkles, X, Coffee, PartyPopper, Crown,
+  Gamepad2, Medal, Smartphone, Zap
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -71,15 +71,11 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
-    // Monday 00:00 IST = Sunday 18:30 UTC
     const recentReset = new Date();
-    const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
-    
-    // Calculate the most recent Sunday 18:30 UTC
-    recentReset.setUTCHours(18, 30, 0, 0);
+    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
+    const day = now.getUTCDay();
     recentReset.setUTCDate(now.getUTCDate() - day);
     
-    // If it's already Sunday/Monday but before 18:30 UTC, we need the previous week
     if (recentReset > now) {
       recentReset.setUTCDate(recentReset.getUTCDate() - 7);
     }
@@ -106,7 +102,7 @@ export default function LandingPage() {
         }
 
         await updateDoc(doc(db, "userProfiles", user.uid), updatePayload);
-        toast({ title: "SEASON REFRESHED", description: "WEEKLY WINS HAVE BEEN RESET." });
+        toast({ title: "SEASON REFRESHED", description: "WEEKLY WINS RESET FOR NEW SEASON." });
       } catch (err) {
         console.error("Season reset error:", err);
       } finally {
@@ -137,19 +133,12 @@ export default function LandingPage() {
 
   const preloadFlags = useCallback(() => {
     const uniqueCountryCodes = Array.from(new Set(FOOTBALLERS.map(f => f.countryCode)));
-    
     uniqueCountryCodes.forEach(code => {
-      const map: Record<string, string> = { 
-        'en': 'gb-eng', 'eng': 'gb-eng',
-        'sc': 'gb-sct', 'sco': 'gb-sct',
-        'wa': 'gb-wls', 'wal': 'gb-wls',
-        'ni': 'gb-nir' 
-      };
+      const map: Record<string, string> = { 'en': 'gb-eng', 'eng': 'gb-eng', 'sc': 'gb-sct', 'sco': 'gb-sct', 'wa': 'gb-wls', 'wal': 'gb-wls', 'ni': 'gb-nir' };
       const finalCode = map[code.toLowerCase()] || code.toLowerCase();
       const img = new Image();
       img.src = `https://flagcdn.com/w640/${finalCode}.png`;
     });
-
     ALL_EMOTES.forEach(emote => {
       const img = new Image();
       img.src = emote.url;
@@ -254,50 +243,38 @@ export default function LandingPage() {
         return;
       }
       const data = roomSnap.data();
-      
       if (data.status !== 'Lobby' && !data.participantIds.includes(user.uid)) {
         toast({ variant: "destructive", title: "Full", description: "Match in progress." });
         setIsActionLoading(false);
         return;
       }
-
       if (data.mode === '1v1' && data.participantIds.length >= 2 && !data.participantIds.includes(user.uid)) {
-        toast({ variant: "destructive", title: "Full", description: "This room is for 1v1 only." });
+        toast({ variant: "destructive", title: "Full", description: "Room is for 1v1 only." });
         setIsActionLoading(false);
         return;
       }
-
       if (data.participantIds.length >= 10 && !data.participantIds.includes(user.uid)) {
         toast({ variant: "destructive", title: "Full", description: "Party is at max capacity." });
         setIsActionLoading(false);
         return;
       }
-
       if (!data.participantIds.includes(user.uid)) {
-        const update: any = {
-          participantIds: arrayUnion(user.uid),
-          lastActionAt: new Date().toISOString()
-        };
+        const update: any = { participantIds: arrayUnion(user.uid), lastActionAt: new Date().toISOString() };
         if (data.mode === '1v1' && !data.player2Id) {
           update.player2Id = user.uid;
           update.player2CurrentHealth = data.healthOption;
         }
         await updateDoc(roomRef, update);
       }
-      
       router.push(`/lobby/${roomCode.trim()}`);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Join Failed", description: "Check connection or permissions." });
+      toast({ variant: "destructive", title: "Join Failed", description: "Check connection." });
       setIsActionLoading(false);
     }
   };
 
   if (isUserLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
-        <Swords className="w-12 h-12 text-primary animate-spin" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
   }
 
   return (
@@ -306,24 +283,11 @@ export default function LandingPage() {
 
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/30 blur-[60px] animate-pulse" />
-            <PartyPopper className="w-16 h-16 text-primary relative z-10 animate-bounce" />
-          </div>
-          <div className="space-y-2 relative z-10">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">SEASON REWARD!</h2>
-            <p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p>
-          </div>
-          <div className="bg-white/5 p-4 rounded-3xl border border-white/10 flex flex-col items-center gap-3 w-full relative z-10">
-            <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
-            <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase">EXCLUSIVE UNLOCK</p>
-              <p className="text-sm font-black text-white uppercase">{completedQuest?.emote?.name}</p>
-            </div>
-          </div>
-          <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">
-            COLLECT REWARD
-          </Button>
+          <PartyPopper className="w-16 h-16 text-primary animate-bounce" />
+          <h2 className="text-2xl font-black text-white uppercase">SEASON REWARD!</h2>
+          <p className="text-primary text-sm font-black uppercase tracking-widest">{completedQuest?.title}</p>
+          <img src={completedQuest?.emote?.url} className="w-24 h-24 rounded-2xl object-cover shadow-2xl border-2 border-primary/50" alt="reward" />
+          <Button onClick={() => setCompletedQuest(null)} className="w-full bg-primary text-black font-black uppercase rounded-2xl h-12">CLAIM</Button>
         </DialogContent>
       </Dialog>
 
@@ -335,93 +299,33 @@ export default function LandingPage() {
                 <X className="w-6 h-6" />
               </Button>
             )}
-            <div className="relative inline-block shrink-0">
-              <div className="absolute inset-0 bg-primary/20 blur-[40px] rounded-full animate-pulse" />
-              {isSyncing ? (
-                <Download className="w-12 h-12 text-primary mx-auto relative z-10 animate-bounce" />
-              ) : (
-                <Smartphone className="w-12 h-12 text-primary mx-auto relative z-10" />
-              )}
-            </div>
-            <div className="w-full space-y-4">
-              <h2 className="text-3xl font-black uppercase text-primary">
-                {isSyncing ? "SYNCING SEASON" : "WELCOME TO ARENA"}
-              </h2>
-              <ScrollArea className="h-[55vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
-                <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
-                  {isSyncing ? (
-                    <div className="space-y-4 text-center py-8">
-                       <p className="text-sm italic">PRE-FETCHING STADIUM ASSETS & PLAYER CARDS...</p>
-                       <p className="opacity-50">This ensures flags and emotes load instantly during the duel.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="space-y-4">
-                        <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Zap className="w-4 h-4" /> THE BASICS
-                        </h3>
-                        <p className="normal-case text-slate-400">FootyDuel is a real-time football trivia battle. Identify the footballer from career clues before your opponents do.</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Heart className="w-4 h-4" /> MODES & SCORING
-                        </h3>
-                        <div className="normal-case text-slate-400 space-y-4">
-                          <p><strong className="text-white uppercase">1v1 Duel:</strong> Start with HP. Correct guesses deal damage based on points. Last one standing wins.</p>
-                          <p><strong className="text-white uppercase">Party Arena:</strong> Up to 10 players. No health, just points. Faster correct guesses earn higher scores. High points at the end wins.</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-secondary text-sm flex items-center gap-2">
-                           <Info className="w-4 h-4" /> INTELLIGENT SYSTEM
-                        </h3>
-                        <p className="normal-case italic text-slate-400">Minor typos are allowed based on name length (e.g., "Messy" for "Messi"). Aim for correct spelling for guaranteed points!</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Smile className="w-4 h-4" /> EMOTES & TAUNTS
-                        </h3>
-                        <p className="normal-case text-slate-400">Equip up to 6 emotes. Use them during reveals to distract rivals or celebrate a win. Unlock rare emotes via Quests!</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Target className="w-4 h-4" /> QUESTS & REWARDS
-                        </h3>
-                        <p className="normal-case text-slate-400">Complete challenges like "Encounter Cristiano Ronaldo" or "Win 10 Duels" to unlock exclusive player cards and emotes.</p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-primary text-sm flex items-center gap-2">
-                           <Trophy className="w-4 h-4" /> LEADERBOARD
-                        </h3>
-                        <p className="normal-case text-slate-400">Weekly rankings reset every Monday (00:00 IST). Finish at Rank 1 to win "The Crown" emote.</p>
-                      </div>
-
-                      <div className="pt-6 border-t border-white/10 flex items-center gap-4">
-                        <Smartphone className="w-8 h-8 text-primary shrink-0" />
-                        <p className="text-primary text-sm font-black italic">OPTIMIZED FOR MOBILE DUELISTS.</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </ScrollArea>
-              {isSyncing ? (
-                <div className="w-full space-y-2 px-4">
-                  <Progress value={syncProgress} className="h-2 bg-white/5" />
-                  <p className="text-primary text-[10px] font-black uppercase tracking-widest animate-pulse">
-                    SETUP FILE LOADING... {Math.round(syncProgress)}%
-                  </p>
-                </div>
-              ) : (
-                <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">
-                  ENTER ARENA
-                </Button>
-              )}
-            </div>
+            <Smartphone className="w-12 h-12 text-primary mx-auto relative z-10" />
+            <h2 className="text-3xl font-black uppercase text-primary">{isSyncing ? "SYNCING SEASON" : "WELCOME TO ARENA"}</h2>
+            <ScrollArea className="h-[55vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
+              <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
+                {isSyncing ? (
+                  <div className="space-y-4 text-center py-8">
+                     <p className="text-sm italic">PRE-FETCHING STADIUM ASSETS & PLAYER CARDS...</p>
+                     <p className="opacity-50">STABILIZING LEADERBOARD DATA FOR THE NEW WEEK.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> THE BASICS</h3><p className="normal-case text-slate-400">Identify the footballer from career clues before your opponents do.</p></div>
+                    <div className="space-y-4"><h3 className="text-secondary text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> INTELLIGENT SYSTEM</h3><p className="normal-case text-slate-400 italic">Minor typos are allowed based on name length (e.g., "Messy" for "Messi"). Spell as close as possible for points!</p></div>
+                    <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Heart className="w-4 h-4" /> MODES</h3><p className="normal-case text-slate-400">1v1 Duel (HP based) or Party Arena (Points based, up to 10 players).</p></div>
+                    <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Trophy className="w-4 h-4" /> LEADERBOARD</h3><p className="normal-case text-slate-400">Weekly rankings reset every Monday at 00:00 IST. Rank 1 wins exclusive rewards.</p></div>
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+            {isSyncing ? (
+              <div className="w-full space-y-2 px-4">
+                <Progress value={syncProgress} className="h-2 bg-white/5" />
+                <p className="text-primary text-[10px] font-black uppercase tracking-widest animate-pulse">FILES LOADING... {Math.round(syncProgress)}%</p>
+              </div>
+            ) : (
+              <Button onClick={() => setShowManual(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl">ENTER ARENA</Button>
+            )}
           </div>
         </div>
       )}
@@ -429,40 +333,20 @@ export default function LandingPage() {
       {showSupport && (
         <div className="fixed inset-0 z-[110] bg-black/98 flex flex-col items-center justify-center p-6 backdrop-blur-3xl animate-in fade-in duration-500 overflow-hidden">
           <div className="w-full max-w-lg space-y-6 text-center flex flex-col items-center relative">
-            <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white">
-              <X className="w-6 h-6" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setShowSupport(false)} className="absolute -top-12 right-0 text-slate-500 hover:text-white"><X className="w-6 h-6" /></Button>
             <div className="bg-white/5 p-8 rounded-[2.5rem] border border-white/10 space-y-6 flex flex-col items-center w-full">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <div className="bg-primary/20 p-4 rounded-full border border-primary/20 mb-2">
-                  <Coffee className="w-10 h-10 text-primary" />
-                </div>
-                <h2 className="text-2xl font-black uppercase text-primary leading-tight">SUPPORT THE DEV</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fund if you want this project continue in future.</p>
-              </div>
-              
+              <Coffee className="w-10 h-10 text-primary" />
+              <h2 className="text-2xl font-black uppercase text-primary">SUPPORT THE DEV</h2>
               <ScrollArea className="h-[40vh] w-full text-left pr-4">
-                <div className="space-y-6 text-xs font-bold uppercase leading-relaxed text-slate-300">
-                  <div className="space-y-2">
-                    <p className="text-primary text-sm font-black">THE CREATOR</p>
-                    <p className="normal-case text-slate-400">I’m <span className="text-white font-black">Barnik (BrokenAqua)</span>, an 18-year-old student and web creator from India. I started this project on 23rd February, 2026 to build a competitive and creative football-based game.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-primary text-sm font-black">AI POWERED</p>
-                    <p className="normal-case text-slate-400">AI played a huge role in this journey. <span className="text-white font-bold">Google Gemini</span> mainly helped with logic building and development structure. <span className="text-white font-bold">ChatGPT</span> supported with debugging and idea refinement. I used <span className="text-white font-bold">ElevenLabs</span> for voice features and <span className="text-white font-bold">Canva</span> for UI design. AI tools were the core support behind this project.</p>
-                  </div>
-
-                  <div className="flex flex-col items-center gap-4 py-4 bg-white/5 rounded-2xl border border-white/5">
-                    <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-48 h-48 rounded-2xl bg-white p-2 shadow-2xl" alt="QR Code" />
-                    <p className="text-[10px] font-black uppercase text-primary tracking-widest">SCAN TO BUY ME A COFFEE</p>
+                <div className="space-y-6 text-xs font-bold uppercase text-slate-300">
+                  <p className="normal-case text-slate-400">I’m <span className="text-white font-black">Barnik (BrokenAqua)</span>, an 18-year-old creator. This project is fueled by passion and AI innovation. Every coffee helps keep the servers running!</p>
+                  <div className="flex flex-col items-center gap-4 py-4 bg-white/5 rounded-2xl">
+                    <img src="https://res.cloudinary.com/speed-searches/image/upload/v1772129990/photo_2026-02-26_23-45-57_isa851.jpg" className="w-48 h-48 rounded-2xl bg-white p-2 shadow-2xl" alt="QR" />
+                    <p className="text-[10px] font-black uppercase text-primary">SCAN TO SUPPORT</p>
                   </div>
                 </div>
               </ScrollArea>
-
-              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl flex gap-2">
-                <Heart className="w-5 h-5 fill-black" /> BACK TO ARENA
-              </Button>
+              <Button onClick={() => setShowSupport(false)} className="w-full h-14 bg-primary text-black font-black uppercase rounded-2xl shadow-xl flex gap-2">BACK TO ARENA</Button>
             </div>
           </div>
         </div>
@@ -470,22 +354,14 @@ export default function LandingPage() {
 
       <div className="relative z-10 w-full max-md space-y-10 py-8">
         <header className="text-center space-y-4">
-          <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
-            <Swords className="w-12 h-12" />
-          </div>
+          <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce"><Swords className="w-12 h-12" /></div>
           <h1 className="text-6xl font-black text-white uppercase">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
           <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
-            <CardHeader className="text-center pb-2">
-              <CardTitle className="text-2xl font-black text-white uppercase">AUTHENTICATION</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <Button onClick={handleGoogleLogin} className="w-full h-16 bg-white text-black font-black text-lg gap-3 rounded-2xl hover:scale-[1.02] transition-transform">
-                <LogIn className="w-6 h-6" /> GOOGLE SIGN IN
-              </Button>
-            </CardContent>
+            <CardHeader className="text-center pb-2"><CardTitle className="text-2xl font-black text-white uppercase">AUTHENTICATION</CardTitle></CardHeader>
+            <CardContent className="pt-4"><Button onClick={handleGoogleLogin} className="w-full h-16 bg-white text-black font-black text-lg gap-3 rounded-2xl hover:scale-[1.02] transition-transform">GOOGLE SIGN IN</Button></CardContent>
           </Card>
         ) : (
           <div className="space-y-6">
@@ -494,89 +370,44 @@ export default function LandingPage() {
                 <div className="flex items-center gap-4">
                   <div className="relative">
                     <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`} className="w-14 h-14 rounded-full ring-2 ring-primary object-cover" alt="Profile" />
-                    <div className="absolute -bottom-1 -right-1 bg-primary text-black rounded-full p-1 border-2 border-[#0a0a0b]">
-                      <Sparkles className="w-3 h-3" />
-                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-primary text-black rounded-full p-1 border-2 border-[#0a0a0b]"><Sparkles className="w-3 h-3" /></div>
                   </div>
                   <div className="flex flex-col">
                     <span className="font-black text-base uppercase truncate max-w-[140px]">{user.displayName}</span>
-                    <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 w-fit">
-                      <Crown className="w-2 h-2" /> {profileData?.winStreak || 0} WIN STREAK
-                    </span>
+                    <span className="text-[9px] text-primary font-black uppercase flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20 w-fit"><Crown className="w-2 h-2" /> {profileData?.winStreak || 0} STREAK</span>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500">
-                  <LogOut className="w-5 h-5" />
-                </Button>
+                <Button variant="ghost" size="icon" onClick={() => auth.signOut()} className="text-slate-500 hover:text-red-500"><LogOut className="w-5 h-5" /></Button>
               </div>
-
               <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Gamepad2 className="w-3 h-3" /> LIFETIME MATCHES
-                  </span>
-                  <span className="text-xl font-black text-white">{profileData?.totalGamesPlayed || 0}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
-                    <Medal className="w-3 h-3" /> LIFETIME WINS
-                  </span>
-                  <span className="text-xl font-black text-primary">{profileData?.totalWins || 0}</span>
-                </div>
+                <div className="flex flex-col"><span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> MATCHES</span><span className="text-xl font-black text-white">{profileData?.totalGamesPlayed || 0}</span></div>
+                <div className="flex flex-col items-end"><span className="text-[8px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1"><Medal className="w-3 h-3" /> TOTAL WINS</span><span className="text-xl font-black text-primary">{profileData?.totalWins || 0}</span></div>
               </div>
             </div>
 
             <div className="grid gap-3">
-              <Button onClick={handleCreateRoom} className="w-full h-12 text-sm font-black bg-primary rounded-xl uppercase shadow-lg hover:scale-[1.02] transition-all group">
-                CREATE ARENA <Plus className="ml-2 w-4 h-4 group-hover:rotate-90 transition-transform" />
-              </Button>
+              <Button onClick={handleCreateRoom} className="w-full h-12 text-sm font-black bg-primary rounded-xl uppercase shadow-lg hover:scale-[1.02] transition-all group">CREATE ARENA <Plus className="ml-2 w-4 h-4 group-hover:rotate-90 transition-transform" /></Button>
               <div className="flex gap-2">
-                <Input placeholder="CODE" className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl uppercase border-white/10 focus:border-primary/50" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
+                <Input placeholder="CODE" className="h-14 bg-[#161618] text-center font-black tracking-widest text-2xl rounded-xl border-white/10" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} maxLength={6} />
                 <Button onClick={handleJoinRoom} variant="secondary" className="h-14 px-8 font-black rounded-xl uppercase text-lg shadow-xl">JOIN</Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <Target className="w-5 h-5 mr-2 text-primary" /> QUESTS
-              </Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD
-              </Button>
-              <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES
-              </Button>
-              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10 hover:bg-white/10">
-                <Info className="w-5 h-5 mr-2 text-primary" /> INFO
-              </Button>
+              <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Target className="w-5 h-5 mr-2 text-primary" /> QUESTS</Button>
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERS</Button>
+              <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES</Button>
+              <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Info className="w-5 h-5 mr-2 text-primary" /> INFO</Button>
             </div>
 
-            <div className="pt-2">
-              <Button variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] hover:text-primary transition-colors tracking-widest" onClick={() => setShowSupport(true)}>
-                <Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT THE DEV
-              </Button>
-            </div>
+            <Button variant="link" className="w-full text-slate-500 font-black uppercase text-[10px] tracking-widest" onClick={() => setShowSupport(true)}><Heart className="w-3 h-3 mr-2 text-red-500 fill-red-500" /> SUPPORT THE DEV</Button>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
-              <Trophy className="text-secondary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">DUELS TODAY</span>
-              <span className="text-2xl font-black">{roomsToday}</span>
-           </div>
-           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center shadow-lg">
-              <Users className="text-primary w-8 h-8 mb-2" />
-              <span className="text-[10px] uppercase font-black text-slate-500 tracking-widest text-center">TOTAL PLAYERS</span>
-              <span className="text-2xl font-black">{totalPlayers}</span>
-           </div>
+           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Trophy className="text-secondary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span><span className="text-2xl font-black">{roomsToday}</span></div>
+           <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Users className="text-primary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS</span><span className="text-2xl font-black">{totalPlayers}</span></div>
         </div>
-
-        <footer className="text-center pt-8 opacity-40">
-          <p className="text-[10px] font-black uppercase tracking-[0.5em] flex items-center justify-center gap-2">
-            MADE WITH ❤️ IN INDIA
-          </p>
-        </footer>
       </div>
     </div>
   );

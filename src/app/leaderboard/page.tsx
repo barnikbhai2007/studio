@@ -8,25 +8,47 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { 
   Trophy, ArrowLeft, Medal, Users, Swords, 
-  TrendingUp, Clock, Sparkles, Flame, Crown
+  Clock, Sparkles, Crown
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, limit } from "firebase/firestore";
+import { collection, query, orderBy, limit, where } from "firebase/firestore";
 import { ALL_EMOTES, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
 
 export default function LeaderboardPage() {
   const router = useRouter();
   const db = useFirestore();
 
+  const getResetThreshold = () => {
+    const now = new Date();
+    const threshold = new Date(now);
+    threshold.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
+    const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
+    threshold.setUTCDate(now.getUTCDate() - day);
+    if (threshold > now) threshold.setUTCDate(threshold.getUTCDate() - 7);
+    return threshold.toISOString();
+  };
+
   const leaderboardQuery = useMemoFirebase(() => {
+    const thresholdStr = getResetThreshold();
+    // Filter by lastWeeklyReset to ensure we only show active players from this week
+    // This effectively "resets" the leaderboard for everyone looking at it.
     return query(
       collection(db, "userProfiles"),
+      where("lastWeeklyReset", ">=", thresholdStr),
+      orderBy("lastWeeklyReset"),
       orderBy("weeklyWins", "desc"),
       limit(5)
     );
   }, [db]);
 
-  const { data: topPlayers, isLoading } = useCollection(leaderboardQuery);
+  const { data: topPlayersRaw, isLoading } = useCollection(leaderboardQuery);
+  
+  // Secondary client-side sort to ensure wins are primary despite the reset filter requirement
+  const topPlayers = useMemo(() => {
+    if (!topPlayersRaw) return [];
+    return [...topPlayersRaw].sort((a, b) => (b.weeklyWins || 0) - (a.weeklyWins || 0));
+  }, [topPlayersRaw]);
+
   const [timeLeft, setTimeLeft] = useState("");
   const rewardEmote = ALL_EMOTES.find(e => e.id === SEASON_REWARD_EMOTE_ID);
 
@@ -34,21 +56,16 @@ export default function LeaderboardPage() {
     const calculateTime = () => {
       const now = new Date();
       const target = new Date();
-      target.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
-      
-      const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
+      target.setUTCHours(18, 30, 0, 0); 
+      const day = now.getUTCDay();
       const daysUntilSunday = (7 - day) % 7;
       target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-      
-      if (target <= now) {
-        target.setUTCDate(target.getUTCDate() + 7);
-      }
+      if (target <= now) target.setUTCDate(target.getUTCDate() + 7);
       
       const diff = target.getTime() - now.getTime();
       const d = Math.floor(diff / (1000 * 60 * 60 * 24));
       const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      
       setTimeLeft(`${d}D ${h}H ${m}M`);
     };
 
@@ -58,29 +75,20 @@ export default function LeaderboardPage() {
   }, []);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
-        <Swords className="w-12 h-12 text-primary animate-spin" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]"><Swords className="w-12 h-12 text-primary animate-spin" /></div>;
   }
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white p-4 flex flex-col items-center">
       <div className="w-full max-w-2xl space-y-8 py-8">
         <header className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => router.push('/')} 
-            className="rounded-xl bg-white/5 hover:bg-white/10 shrink-0"
-          >
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')} className="rounded-xl bg-white/5 hover:bg-white/10 shrink-0">
             <ArrowLeft className="w-6 h-6" />
           </Button>
           <div className="flex flex-col">
             <h1 className="text-4xl font-black uppercase tracking-tighter">LEADERBOARD</h1>
             <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase flex items-center gap-2">
-              <Sparkles className="w-3 h-3" /> TOP 5 ELITE DUELISTS
+              <Sparkles className="w-3 h-3" /> SEASON 1 • FRESH START
             </span>
           </div>
         </header>
@@ -95,10 +103,10 @@ export default function LeaderboardPage() {
               </div>
             </div>
             <div className="text-center md:text-left space-y-1">
-              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">SEASON 1 REWARD</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">CURRENT REWARD</p>
               <h2 className="text-2xl font-black uppercase text-white leading-none">{rewardEmote?.name}</h2>
               <p className="text-[10px] font-bold text-slate-500 uppercase leading-relaxed max-w-xs">
-                FINISH AT RANK 1 TO CLAIM THIS EXCLUSIVE EMOTE. AUTOMATICALLY ADDED AT SEASON END.
+                FINISH AT RANK 1 THIS WEEK TO CLAIM THIS EXCLUSIVE EMOTE.
               </p>
             </div>
           </Card>
@@ -106,9 +114,9 @@ export default function LeaderboardPage() {
           <Card className="bg-[#161618] border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
             <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5">
               <div>
-                <CardTitle className="text-xl font-black uppercase">CURRENT STANDINGS</CardTitle>
+                <CardTitle className="text-xl font-black uppercase">GLOBAL STANDINGS</CardTitle>
                 <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                  WEEKLY PERFORMANCE
+                  WEEKLY COMPETITION
                 </CardDescription>
               </div>
               <Badge variant="outline" className="border-primary/50 text-primary font-black uppercase text-[10px] py-1 gap-2">
@@ -117,46 +125,32 @@ export default function LeaderboardPage() {
             </CardHeader>
             <CardContent className="px-0">
               <div className="space-y-1">
-                {topPlayers?.map((player: any, index: number) => {
-                  return (
-                    <div 
-                      key={player.id} 
-                      className={`flex items-center gap-4 p-5 transition-all ${index === 0 ? 'bg-primary/10 border-y border-primary/20' : 'hover:bg-white/5'}`}
-                    >
-                      <div className="w-10 flex justify-center items-center">
-                        {index === 0 ? <Crown className="w-8 h-8 text-yellow-500 drop-shadow-lg" /> : 
-                         index === 1 ? <Medal className="w-7 h-7 text-slate-300" /> :
-                         index === 2 ? <Medal className="w-7 h-7 text-orange-600" /> :
-                         <span className="text-2xl font-black text-white/20 italic">#{index + 1}</span>}
-                      </div>
-                      
-                      <div className="relative">
-                        <img 
-                          src={player.avatarUrl || `https://picsum.photos/seed/${player.id}/100/100`} 
-                          className={`w-14 h-14 rounded-full border-2 object-cover ${index === 0 ? 'border-primary ring-4 ring-primary/20' : 'border-white/10'}`} 
-                          alt={player.displayName} 
-                        />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black uppercase text-base truncate">{player.displayName}</p>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                          PROFESSIONAL DUELIST • SEASON 1
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-3xl font-black text-white tracking-tighter leading-none">{player.weeklyWins || 0}</p>
-                        <p className="text-[8px] font-black text-primary uppercase tracking-widest">WEEKLY WINS</p>
-                      </div>
+                {topPlayers.map((player: any, index: number) => (
+                  <div key={player.id} className={`flex items-center gap-4 p-5 transition-all ${index === 0 ? 'bg-primary/10 border-y border-primary/20' : 'hover:bg-white/5'}`}>
+                    <div className="w-10 flex justify-center items-center">
+                      {index === 0 ? <Crown className="w-8 h-8 text-yellow-500 drop-shadow-lg" /> : 
+                       index === 1 ? <Medal className="w-7 h-7 text-slate-300" /> :
+                       index === 2 ? <Medal className="w-7 h-7 text-orange-600" /> :
+                       <span className="text-2xl font-black text-white/20 italic">#{index + 1}</span>}
                     </div>
-                  );
-                })}
+                    <div className="relative">
+                      <img src={player.avatarUrl || `https://picsum.photos/seed/${player.id}/100/100`} className={`w-14 h-14 rounded-full border-2 object-cover ${index === 0 ? 'border-primary ring-4 ring-primary/20' : 'border-white/10'}`} alt={player.displayName} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black uppercase text-base truncate">{player.displayName}</p>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">ACTIVE DUELIST</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-white tracking-tighter leading-none">{player.weeklyWins || 0}</p>
+                      <p className="text-[8px] font-black text-primary uppercase tracking-widest">WEEKLY WINS</p>
+                    </div>
+                  </div>
+                ))}
 
-                {(!topPlayers || topPlayers.length === 0) && (
+                {topPlayers.length === 0 && (
                   <div className="p-12 text-center opacity-30">
                     <Users className="w-12 h-12 mx-auto mb-4" />
-                    <p className="text-xs font-black uppercase tracking-widest">WAITING FOR KICKOFF</p>
+                    <p className="text-xs font-black uppercase tracking-widest">NO DATA FOR CURRENT WEEK</p>
                   </div>
                 )}
               </div>
