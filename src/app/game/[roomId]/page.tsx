@@ -94,7 +94,6 @@ export default function GamePage() {
     } catch (e) {}
   }, [user, profile, db]);
 
-  // Inactivity Watchdog - 5 minutes
   useEffect(() => {
     if (!room || room.status !== 'InProgress' || !roomRef) return;
     
@@ -110,7 +109,7 @@ export default function GamePage() {
       }
     };
 
-    const intervalId = setInterval(checkInactivity, 30000); // Check every 30s
+    const intervalId = setInterval(checkInactivity, 30000); 
     return () => clearInterval(intervalId);
   }, [room?.status, room?.lastActionAt, room?.createdAt, roomRef]);
 
@@ -245,7 +244,7 @@ export default function GamePage() {
         });
       });
     } catch (err) {
-      console.error("Round init conflict (expected/retry):", err);
+      console.error("Round init conflict (retry expected):", err);
     } finally {
       isInitializingRound.current = false;
     }
@@ -285,15 +284,11 @@ export default function GamePage() {
     
     if (gameState === 'playing' && targetPlayer && visibleHints < targetPlayer.hints.length) {
       const isParty = room?.mode === 'Party';
-      const someoneGuessed = !!roundData?.timerStartedAt && !isParty;
-      
-      if (isParty || !someoneGuessed) {
-        const interval = isParty ? 2000 : 5000;
-        timer = setTimeout(() => setVisibleHints(prev => prev + 1), interval);
-      }
+      const interval = isParty ? 2000 : 5000;
+      timer = setTimeout(() => setVisibleHints(prev => prev + 1), interval);
     }
     return () => clearTimeout(timer);
-  }, [gameState, countdown, visibleHints, roundData?.timerStartedAt, targetPlayer, room?.mode]);
+  }, [gameState, countdown, visibleHints, targetPlayer, room?.mode]);
 
   useEffect(() => {
     if (gameState === 'result' && autoNextRoundCountdown === null) {
@@ -434,7 +429,6 @@ export default function GamePage() {
       const updates: any = { lastActionAt: new Date().toISOString() };
       const roundScoreChanges: Record<string, number> = {};
 
-      // Season Reset logic inside Game Result
       const now = new Date();
       const recentResetPoint = new Date(now);
       recentResetPoint.setUTCHours(18, 30, 0, 0);
@@ -495,7 +489,6 @@ export default function GamePage() {
               lastLoginAt: now.toISOString()
             };
 
-            // Hard reset weekly wins if needed
             if (lastReset < recentResetPoint) {
               profileUpdate.weeklyWins = (winnerId === uid ? 1 : 0);
               profileUpdate.lastWeeklyReset = now.toISOString();

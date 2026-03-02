@@ -71,9 +71,13 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
+    // Monday 00:00 IST = Sunday 18:30 UTC
     const recentReset = new Date(now);
-    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
-    recentReset.setUTCDate(now.getUTCDate() - now.getUTCDay());
+    const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
+    
+    // Logic to find the most recent Sunday 18:30 UTC
+    recentReset.setUTCHours(18, 30, 0, 0);
+    recentReset.setUTCDate(now.getUTCDate() - day);
     
     if (recentReset > now) {
       recentReset.setUTCDate(recentReset.getUTCDate() - 7);
@@ -463,7 +467,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-md space-y-10 py-8">
+      <div className="relative z-10 w-full max-md space-y-10 py-8">
         <header className="text-center space-y-4">
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce">
             <Swords className="w-12 h-12" />

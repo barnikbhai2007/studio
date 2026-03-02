@@ -87,6 +87,11 @@ export default function LobbyPage() {
       return;
     }
     
+    if (room.mode === 'Party' && (!room.maxRounds || !room.timePerRound)) {
+      toast({ variant: "destructive", title: "Configuration Required", description: "Select Rounds and Time Limit." });
+      return;
+    }
+
     const update: any = { 
       status: 'InProgress',
       startedAt: new Date().toISOString(),
@@ -206,7 +211,7 @@ export default function LobbyPage() {
                       <Zap className="w-3 h-3 text-yellow-500" /> Total Rounds
                     </label>
                     {isLeader ? (
-                      <Select value={room.maxRounds?.toString() || '10'} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
+                      <Select value={room.maxRounds?.toString() || ''} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
                         <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                           <SelectValue placeholder="Select Rounds" />
                         </SelectTrigger>
@@ -218,7 +223,7 @@ export default function LobbyPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.maxRounds} Rounds</div>
+                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.maxRounds || '---'} Rounds</div>
                     )}
                   </div>
                 )}
@@ -229,7 +234,7 @@ export default function LobbyPage() {
                       <Clock className="w-3 h-3 text-cyan-500" /> Time Limit
                     </label>
                     {isLeader ? (
-                      <Select value={room.timePerRound?.toString() || '60'} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
+                      <Select value={room.timePerRound?.toString() || ''} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
                         <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
                           <SelectValue placeholder="Select Time" />
                         </SelectTrigger>
@@ -241,7 +246,7 @@ export default function LobbyPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{(room.timePerRound || 60) / 60} Min</div>
+                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.timePerRound ? `${room.timePerRound / 60} Min` : '---'}</div>
                     )}
                   </div>
                 )}
