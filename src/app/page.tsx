@@ -85,9 +85,11 @@ export default function LandingPage() {
     const lastResetStr = profileData.lastWeeklyReset;
     const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
+    // If last reset was before the most recent Sunday 18:30 UTC, we reset weekly wins.
     if (lastReset < recentReset) {
       setIsSyncing(true);
       try {
+        // Find current Rank 1 to award emote
         const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
         const lbSnap = await getDocs(lbQuery);
         const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
@@ -104,7 +106,7 @@ export default function LandingPage() {
         }
 
         await updateDoc(doc(db, "userProfiles", user.uid), updatePayload);
-        toast({ title: "NEW SEASON STARTED", description: "WEEKLY WINS HAVE BEEN REFRESHED." });
+        toast({ title: "SEASON REFRESHED", description: "WEEKLY WINS HAVE BEEN RESET." });
       } catch (err) {
         console.error("Season reset error:", err);
       } finally {

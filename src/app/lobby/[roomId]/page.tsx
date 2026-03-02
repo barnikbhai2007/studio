@@ -289,7 +289,7 @@ export default function LobbyPage() {
                   )}
                   <div className="flex items-start gap-2 border-t border-white/10 pt-2">
                     <Info className="w-3 h-3 text-secondary shrink-0" />
-                    <p className="normal-case italic text-slate-400">Intelligent system: Minor typos are allowed based on name length.</p>
+                    <p className="normal-case italic text-slate-400">Intelligent system: Minor typos are allowed based on name length. Try to get correct spellings if possible.</p>
                   </div>
                 </div>
               </ScrollArea>
