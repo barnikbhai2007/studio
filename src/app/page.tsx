@@ -67,11 +67,27 @@ export default function LandingPage() {
     fetchTotalPlayers();
   }, [db]);
 
+  // Handle Join Link param
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const searchParams = new URLSearchParams(window.location.search);
+    const joinId = searchParams.get('join');
+    if (joinId) {
+      setRoomCode(joinId);
+      if (!user && !isUserLoading) {
+        toast({ 
+          title: "ARENA LINK DETECTED", 
+          description: "LOGIN FIRST TO JOIN THE DUEL ARENA.",
+          variant: "default" 
+        });
+      }
+    }
+  }, [user, isUserLoading, toast]);
+
   const handleSeasonReset = useCallback(async () => {
     if (!user || !profileData) return;
 
     const now = new Date();
-    // THE RESET THRESHOLD: Monday March 2nd, 2026 00:00 IST
     const threshold = new Date("2026-03-02T00:00:00+05:30");
     
     const lastResetStr = profileData.lastWeeklyReset;
@@ -272,7 +288,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-hidden text-white">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#0a0a0b] relative overflow-x-hidden text-white">
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/20 blur-[120px] rounded-full pointer-events-none" />
 
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
@@ -346,19 +362,19 @@ export default function LandingPage() {
         </div>
       )}
 
-      <div className="relative z-10 w-full max-w-md space-y-10 py-8">
-        <header className="text-center space-y-4">
+      <div className="relative z-10 w-full max-w-md mx-auto space-y-10 py-8 flex flex-col items-center">
+        <header className="text-center space-y-4 w-full">
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce"><Swords className="w-12 h-12" /></div>
-          <h1 className="text-6xl font-black text-white uppercase">FOOTY DUEL</h1>
+          <h1 className="text-6xl font-black text-white uppercase leading-none">FOOTY DUEL</h1>
         </header>
 
         {!user ? (
-          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden">
+          <Card className="bg-[#161618] border-white/5 shadow-2xl rounded-[2.5rem] overflow-hidden w-full">
             <CardHeader className="text-center pb-2"><CardTitle className="text-2xl font-black text-white uppercase">AUTHENTICATION</CardTitle></CardHeader>
             <CardContent className="pt-4"><Button onClick={handleGoogleLogin} className="w-full h-16 bg-white text-black font-black text-lg gap-3 rounded-2xl hover:scale-[1.02] transition-transform">GOOGLE SIGN IN</Button></CardContent>
           </Card>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 w-full">
             <div className="flex flex-col gap-4 bg-white/5 p-6 rounded-[2.5rem] border border-white/5 backdrop-blur-md shadow-xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -398,7 +414,7 @@ export default function LandingPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4 w-full">
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Trophy className="text-secondary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">DUELS TODAY</span><span className="text-2xl font-black">{roomsToday}</span></div>
            <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col items-center"><Users className="text-primary w-8 h-8 mb-2" /><span className="text-[10px] uppercase font-black text-slate-500 tracking-widest">PLAYERS</span><span className="text-2xl font-black">{totalPlayers}</span></div>
         </div>

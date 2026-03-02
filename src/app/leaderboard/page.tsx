@@ -53,11 +53,9 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const calculateTime = () => {
       const now = new Date();
-      // Target next reset point (Monday 00:00 IST)
       const target = new Date("2026-03-02T00:00:00+05:30");
       if (now >= target) {
-        // If we passed it, show 0 for now until logic is updated for next week
-        setTimeLeft("0D 0H 0M");
+        setTimeLeft("SEASON ENDED");
         return;
       }
       
@@ -87,7 +85,7 @@ export default function LeaderboardPage() {
           <div className="flex flex-col">
             <h1 className="text-4xl font-black uppercase tracking-tighter">LEADERBOARD</h1>
             <span className="text-[10px] font-black text-primary tracking-[0.3em] uppercase flex items-center gap-2">
-              <Sparkles className="w-3 h-3" /> SEASON 1 • FRESH START
+              <Sparkles className="w-3 h-3" /> SEASON 1 • COMPETITION
             </span>
           </div>
         </header>

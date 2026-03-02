@@ -15,7 +15,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
-import { doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { doc, updateDoc, onSnapshot, arrayUnion } from "firebase/firestore";
 
 export default function LobbyPage() {
   const { roomId: roomIdFromParams } = useParams();
@@ -37,9 +37,48 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push('/');
+      router.push(`/?join=${roomIdStr}`);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, roomIdStr]);
+
+  // Handle auto-joining from shared link
+  useEffect(() => {
+    if (room && user && roomRef && !room.participantIds.includes(user.uid)) {
+      const performAutoJoin = async () => {
+        const ids = room.participantIds || [];
+        
+        if (room.mode === '1v1' && ids.length >= 2) {
+          toast({ variant: "destructive", title: "ARENA FULL", description: "THIS DUEL ALREADY HAS 2 PLAYERS." });
+          router.push('/');
+          return;
+        }
+        
+        if (room.mode === 'Party' && ids.length >= 10) {
+          toast({ variant: "destructive", title: "ARENA FULL", description: "PARTY AT MAX CAPACITY (10)." });
+          router.push('/');
+          return;
+        }
+
+        const update: any = { 
+          participantIds: arrayUnion(user.uid), 
+          lastActionAt: new Date().toISOString() 
+        };
+        
+        if (room.mode === '1v1' && !room.player2Id) {
+          update.player2Id = user.uid;
+          update.player2CurrentHealth = room.healthOption;
+        }
+        
+        try {
+          await updateDoc(roomRef, update);
+          toast({ title: "ARENA JOINED", description: "YOU ARE NOW IN THE LOBBY." });
+        } catch (err) {
+          console.error("Auto-join failed:", err);
+        }
+      };
+      performAutoJoin();
+    }
+  }, [room, user, roomRef, router, toast]);
 
   useEffect(() => {
     if (!room || !user) return;
@@ -78,7 +117,7 @@ export default function LobbyPage() {
 
   const handleShare = async () => {
     const shareUrl = window.location.href;
-    if (navigator.share) {
+    if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: 'Join my FootyDuel Arena!',
