@@ -71,19 +71,13 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
-    const recentReset = new Date();
-    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
-    const day = now.getUTCDay();
-    recentReset.setUTCDate(now.getUTCDate() - day);
+    // THE RESET THRESHOLD: Monday March 2nd, 2026 00:00 IST
+    const threshold = new Date("2026-03-02T00:00:00+05:30");
     
-    if (recentReset > now) {
-      recentReset.setUTCDate(recentReset.getUTCDate() - 7);
-    }
-
     const lastResetStr = profileData.lastWeeklyReset;
     const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
-    if (lastReset < recentReset) {
+    if (lastReset < threshold && now >= threshold) {
       setIsSyncing(true);
       try {
         const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));

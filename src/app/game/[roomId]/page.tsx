@@ -82,6 +82,7 @@ export default function GamePage() {
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
 
+  // Fetch profiles for all participants to show names on emotes
   useEffect(() => {
     if (!room?.participantIds) return;
     const unsubs = room.participantIds.map((uid: string) => 

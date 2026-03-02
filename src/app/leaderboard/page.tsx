@@ -19,19 +19,15 @@ export default function LeaderboardPage() {
   const db = useFirestore();
 
   const getResetThreshold = () => {
-    const now = new Date();
-    const threshold = new Date(now);
-    threshold.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
-    const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
-    threshold.setUTCDate(now.getUTCDate() - day);
-    if (threshold > now) threshold.setUTCDate(threshold.getUTCDate() - 7);
+    // THE RESET THRESHOLD: Monday March 2nd, 2026 00:00 IST
+    const threshold = new Date("2026-03-02T00:00:00+05:30");
     return threshold.toISOString();
   };
 
   const leaderboardQuery = useMemoFirebase(() => {
     const thresholdStr = getResetThreshold();
-    // Filter by lastWeeklyReset to ensure we only show active players from this week
-    // This effectively "resets" the leaderboard for everyone looking at it.
+    // Strictly filter by lastWeeklyReset to ensure we ONLY show players reset for THIS week.
+    // This effectively "clears" the leaderboard for all users who haven't reset yet.
     return query(
       collection(db, "userProfiles"),
       where("lastWeeklyReset", ">=", thresholdStr),
@@ -43,7 +39,6 @@ export default function LeaderboardPage() {
 
   const { data: topPlayersRaw, isLoading } = useCollection(leaderboardQuery);
   
-  // Secondary client-side sort to ensure wins are primary despite the reset filter requirement
   const topPlayers = useMemo(() => {
     if (!topPlayersRaw) return [];
     return [...topPlayersRaw].sort((a, b) => (b.weeklyWins || 0) - (a.weeklyWins || 0));
@@ -55,12 +50,13 @@ export default function LeaderboardPage() {
   useEffect(() => {
     const calculateTime = () => {
       const now = new Date();
-      const target = new Date();
-      target.setUTCHours(18, 30, 0, 0); 
-      const day = now.getUTCDay();
-      const daysUntilSunday = (7 - day) % 7;
-      target.setUTCDate(now.getUTCDate() + daysUntilSunday);
-      if (target <= now) target.setUTCDate(target.getUTCDate() + 7);
+      // Target next reset point (Monday 00:00 IST)
+      const target = new Date("2026-03-02T00:00:00+05:30");
+      if (now >= target) {
+        // If we passed it, show 0 for now until logic is updated for next week
+        setTimeLeft("0D 0H 0M");
+        return;
+      }
       
       const diff = target.getTime() - now.getTime();
       const d = Math.floor(diff / (1000 * 60 * 60 * 24));
