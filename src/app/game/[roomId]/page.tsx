@@ -11,14 +11,14 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Trophy, Clock, Swords, CheckCircle2, Loader2, 
-  PartyPopper, Sparkles
+  PartyPopper, Sparkles, Smile
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { 
   doc, updateDoc, arrayUnion, 
   increment, collection, 
-  query, orderBy, limit, addDoc, runTransaction, serverTimestamp 
+  query, orderBy, limit, addDoc, runTransaction, serverTimestamp, onSnapshot 
 } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
@@ -60,10 +60,11 @@ export default function GamePage() {
   const [isGuessing, setIsGuessing] = useState(false);
   const [roundTimer, setRoundTimer] = useState<number | null>(null);
   const [currentRarity, setCurrentRarity] = useState<any>(null);
-  const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, createdAt: number}[]>([]);
+  const [activeEmotes, setActiveEmotes] = useState<{id: string, emoteId: string, senderId: string, senderName: string, createdAt: number}[]>([]);
   const [showGameOverPopup, setShowGameOverPopup] = useState(false);
   const [gameOverTimer, setGameOverTimer] = useState(5);
   const [completedQuest, setCompletedQuest] = useState<any>(null);
+  const [participantProfiles, setParticipantProfiles] = useState<Record<string, any>>({});
   
   const currentRoundNumber = room?.currentRoundNumber || 1;
   const currentRoundId = `round_${currentRoundNumber}`;
@@ -80,6 +81,19 @@ export default function GamePage() {
     return query(collection(db, "gameRooms", roomId, "emotes"), orderBy("createdAt", "desc"), limit(5));
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
+
+  // Sync participant profiles for emote names
+  useEffect(() => {
+    if (!room?.participantIds) return;
+    const unsubs = room.participantIds.map((uid: string) => 
+      onSnapshot(doc(db, "userProfiles", uid), (snap) => {
+        if (snap.exists()) {
+          setParticipantProfiles(prev => ({ ...prev, [uid]: snap.data() }));
+        }
+      })
+    );
+    return () => unsubs.forEach(u => u());
+  }, [room?.participantIds, db]);
 
   const checkAndUnlockQuest = useCallback(async (emoteId: string, questTitle: string) => {
     if (!user || !profile) return;
@@ -124,11 +138,13 @@ export default function GamePage() {
       const freshEmotesFromDb = recentEmotes
         .filter(e => {
           const createdAt = e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now);
-          return now - createdAt < 2000;
+          return now - createdAt < 3000;
         })
         .map(e => ({ 
           id: e.id, 
           emoteId: e.emoteId, 
+          senderId: e.senderId,
+          senderName: participantProfiles[e.senderId]?.displayName || "PLAYER",
           createdAt: e.createdAt?.toMillis ? e.createdAt.toMillis() : (e.createdAt?.seconds ? e.createdAt.seconds * 1000 : now)
         }));
       
@@ -146,7 +162,7 @@ export default function GamePage() {
         return [...prev, ...filtered];
       });
     }
-  }, [recentEmotes, gameState]);
+  }, [recentEmotes, gameState, participantProfiles]);
 
   useEffect(() => {
     let timerId: NodeJS.Timeout;
@@ -234,7 +250,7 @@ export default function GamePage() {
           hintsRevealedCount: 1,
           guesses: {},
           roundEndedAt: null,
-          timerStartedAt: roomData.mode === 'Party' ? now : null,
+          timerStartedAt: now, // Timer starts immediately for all modes now
           resultsProcessed: false
         });
         
@@ -268,11 +284,12 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      if (everyoneVoted && !revealTriggered.current && gameState === 'playing') {
+      // Party mode doesn't auto-end round early
+      if (room?.mode !== 'Party' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
     }
-  }, [roundData, gameState, currentRoundNumber, room?.participantIds]);
+  }, [roundData, gameState, currentRoundNumber, room?.participantIds, room?.mode]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -567,6 +584,18 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+      {activeEmotes.map(emote => {
+        const data = ALL_EMOTES.find(e => e.id === emote.emoteId);
+        return (
+          <div key={emote.id} className="fixed bottom-40 right-10 z-[60] flex flex-col items-center gap-1 emote-float pointer-events-none">
+            <Badge className="bg-primary/90 text-black text-[8px] font-black uppercase px-2 py-0">
+              {emote.senderId === user?.uid ? "YOU" : emote.senderName}
+            </Badge>
+            <img src={data?.url} className="w-16 h-16 rounded-2xl shadow-2xl border-2 border-white/20 object-cover" alt="emote" />
+          </div>
+        );
+      })}
+
       <Dialog open={!!completedQuest} onOpenChange={() => setCompletedQuest(null)}>
         <DialogContent className="bg-black/95 border-primary/20 p-8 text-center flex flex-col items-center gap-6 max-w-sm rounded-[3rem] overflow-hidden">
           <PartyPopper className="w-16 h-16 text-primary animate-bounce" />
@@ -618,7 +647,7 @@ export default function GamePage() {
                 {participantIds.map(uid => (
                   <div key={uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : "OPPONENT"}</span>
+                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : (participantProfiles[uid]?.displayName || "OPPONENT")}</span>
                     </div>
                     <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : "bg-slate-700"} text-white font-black`}>
                       +{(roundData?.scoreChanges?.[uid] ?? 0)} PTS
@@ -645,7 +674,18 @@ export default function GamePage() {
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 p-6 bg-black/80 backdrop-blur-3xl border-t border-white/10 z-40">
-        <div className="max-w-lg mx-auto w-full">
+        <div className="max-w-lg mx-auto w-full space-y-4">
+          <div className="flex justify-center gap-2">
+            {(profile?.equippedEmoteIds || DEFAULT_EQUIPPED_IDS).map(eid => {
+              const emote = ALL_EMOTES.find(e => e.id === eid);
+              return (
+                <button key={eid} onClick={() => sendEmote(eid)} className="hover:scale-110 transition-transform">
+                  <img src={emote?.url} className="w-10 h-10 rounded-lg object-cover border border-white/10" alt="emote" />
+                </button>
+              );
+            })}
+          </div>
+
           {iHaveGuessed && gameState === 'playing' ? (
             <div className="flex items-center gap-4 bg-green-500/10 px-6 py-4 rounded-2xl border border-green-500/30">
               <CheckCircle2 className="w-7 h-7 text-green-500" />

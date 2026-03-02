@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,13 +72,14 @@ export default function LandingPage() {
 
     const now = new Date();
     // Monday 00:00 IST = Sunday 18:30 UTC
-    const recentReset = new Date(now);
+    const recentReset = new Date();
     const day = now.getUTCDay(); // 0 (Sun) - 6 (Sat)
     
-    // Logic to find the most recent Sunday 18:30 UTC
+    // Calculate the most recent Sunday 18:30 UTC
     recentReset.setUTCHours(18, 30, 0, 0);
     recentReset.setUTCDate(now.getUTCDate() - day);
     
+    // If it's already Sunday/Monday but before 18:30 UTC, we need the previous week
     if (recentReset > now) {
       recentReset.setUTCDate(recentReset.getUTCDate() - 7);
     }
