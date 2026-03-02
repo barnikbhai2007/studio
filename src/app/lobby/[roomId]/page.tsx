@@ -41,7 +41,6 @@ export default function LobbyPage() {
     }
   }, [user, isUserLoading, router, roomIdStr]);
 
-  // Handle auto-joining from shared link
   useEffect(() => {
     if (room && user && roomRef && !room.participantIds.includes(user.uid)) {
       const performAutoJoin = async () => {
@@ -124,9 +123,7 @@ export default function LobbyPage() {
           text: `Use code ${roomIdStr} to join the match.`,
           url: shareUrl,
         });
-      } catch (err) {
-        // Fallback if share is cancelled or fails
-      }
+      } catch (err) {}
     } else {
       navigator.clipboard.writeText(shareUrl);
       toast({ title: "LINK COPIED!", description: "SHARE IT WITH YOUR SQUAD." });
@@ -155,9 +152,11 @@ export default function LobbyPage() {
       lastActionAt: new Date().toISOString()
     };
 
-    const scores: Record<string, number> = {};
-    room.participantIds.forEach((id: string) => scores[id] = 0);
-    update.scores = scores;
+    if (room.mode === 'Party') {
+      const scores: Record<string, number> = {};
+      room.participantIds.forEach((id: string) => scores[id] = 0);
+      update.scores = scores;
+    }
 
     await updateDoc(roomRef, update);
   };
@@ -346,7 +345,7 @@ export default function LobbyPage() {
                       </div>
                       <div className="flex items-start gap-2">
                         <Clock className="w-3 h-3 text-primary shrink-0" />
-                        <p>HINTS REVEAL EVERY <span className="text-white">5 SECONDS</span> UNTIL SOMEONE LOCKS A GUESS.</p>
+                        <p>HINTS REVEAL EVERY <span className="text-white">5 SECONDS</span>. 15S TIMER STARTS AFTER FIRST GUESS.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Info className="w-3 h-3 text-primary shrink-0" />

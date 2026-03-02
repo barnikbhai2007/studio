@@ -11,7 +11,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Trophy, Clock, Swords, CheckCircle2, Loader2, 
-  PartyPopper, Smile
+  PartyPopper, Smile, AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@/firebase";
@@ -82,7 +82,6 @@ export default function GamePage() {
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
 
-  // Fetch profiles for all participants to show names on emotes
   useEffect(() => {
     if (!room?.participantIds) return;
     const unsubs = room.participantIds.map((uid: string) => 
@@ -107,25 +106,6 @@ export default function GamePage() {
       setCompletedQuest({ title: questTitle, emote });
     } catch (e) {}
   }, [user, profile, db]);
-
-  useEffect(() => {
-    if (!room || room.status !== 'InProgress' || !roomRef) return;
-    
-    const checkInactivity = async () => {
-      const lastAction = new Date(room.lastActionAt || room.createdAt).getTime();
-      if (Date.now() - lastAction > 300000) { 
-        await updateDoc(roomRef, { 
-          status: 'Completed', 
-          finishedAt: new Date().toISOString(),
-          winnerId: null,
-          drawReason: 'INACTIVITY'
-        });
-      }
-    };
-
-    const intervalId = setInterval(checkInactivity, 30000); 
-    return () => clearInterval(intervalId);
-  }, [room?.status, room?.lastActionAt, room?.createdAt, roomRef]);
 
   useEffect(() => {
     if (gameState === 'result' || gameState === 'reveal' || gameState === 'finalizing') {
@@ -190,7 +170,7 @@ export default function GamePage() {
   useEffect(() => {
     if (roundData?.timerStartedAt && gameState === 'playing' && roundData.roundNumber === currentRoundNumber) {
       const startTime = new Date(roundData.timerStartedAt).getTime();
-      const maxTime = room?.timePerRound || 60;
+      const maxTime = room?.mode === 'Party' ? (room?.timePerRound || 60) : 15;
       const tick = () => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const remaining = Math.max(0, maxTime - elapsed);
@@ -203,7 +183,7 @@ export default function GamePage() {
       const interval = setInterval(tick, 1000);
       return () => clearInterval(interval);
     }
-  }, [roundData?.timerStartedAt, gameState, currentRoundNumber, room?.timePerRound]);
+  }, [roundData?.timerStartedAt, gameState, currentRoundNumber, room?.timePerRound, room?.mode]);
 
   useEffect(() => {
     if (currentRoundNumber !== lastProcessedRound.current) {
@@ -250,7 +230,8 @@ export default function GamePage() {
           hintsRevealedCount: 1,
           guesses: {},
           roundEndedAt: null,
-          timerStartedAt: now,
+          // Party mode timer starts immediately
+          timerStartedAt: roomData.mode === 'Party' ? now : null,
           resultsProcessed: false
         });
         
@@ -260,7 +241,7 @@ export default function GamePage() {
         });
       });
     } catch (err) {
-      console.error("Round init conflict (retry expected):", err);
+      console.error("Round init conflict:", err);
     } finally {
       isInitializingRound.current = false;
     }
@@ -284,7 +265,8 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      if (room?.mode !== 'Party' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
+      // In 1v1, if everyone voted, finish immediately
+      if (room?.mode === '1v1' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
     }
@@ -337,7 +319,11 @@ export default function GamePage() {
     
     const now = new Date().toISOString();
     const update: any = { [`guesses.${user.uid}`]: { text: guessInput, isCorrect, guessedAt: now } };
-    if (!roundData.timerStartedAt) update.timerStartedAt = now;
+    
+    // In 1v1, starting the timer on the first guess
+    if (room?.mode === '1v1' && !roundData.timerStartedAt) {
+      update.timerStartedAt = now;
+    }
     
     await updateDoc(roundRef, update);
     if (roomRef) await updateDoc(roomRef, { lastActionAt: now });
@@ -350,7 +336,10 @@ export default function GamePage() {
     if (!roundRef || gameState !== 'playing' || revealTriggered.current || !user) return;
     const now = new Date().toISOString();
     const update: any = { [`guesses.${user.uid}`]: { text: "SKIPPED", isCorrect: false, guessedAt: now } };
-    if (!roundData?.timerStartedAt) update.timerStartedAt = now;
+    
+    if (room?.mode === '1v1' && !roundData?.timerStartedAt) {
+      update.timerStartedAt = now;
+    }
     
     await updateDoc(roundRef, update);
     if (roomRef) await updateDoc(roomRef, { lastActionAt: now });
@@ -446,10 +435,10 @@ export default function GamePage() {
       const roundScoreChanges: Record<string, number> = {};
 
       const now = new Date();
-      const recentResetPoint = new Date(now);
-      recentResetPoint.setUTCHours(18, 30, 0, 0);
-      recentResetPoint.setUTCDate(now.getUTCDate() - now.getUTCDay());
-      if (recentResetPoint > now) recentResetPoint.setUTCDate(recentResetPoint.getUTCDate() - 7);
+      const resetPoint = new Date(now);
+      resetPoint.setUTCDate(now.getUTCDate() - ((now.getUTCDay() + 6) % 7)); // Prev Mon
+      resetPoint.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
+      if (resetPoint > now) resetPoint.setUTCDate(resetPoint.getUTCDate() - 7);
 
       if (rmData.mode === 'Party') {
         const scores = { ...(rmData.scores || {}) };
@@ -505,7 +494,7 @@ export default function GamePage() {
               lastLoginAt: now.toISOString()
             };
 
-            if (lastReset < recentResetPoint) {
+            if (lastReset < resetPoint) {
               profileUpdate.weeklyWins = (winnerId === uid ? 1 : 0);
               profileUpdate.lastWeeklyReset = now.toISOString();
             } else if (winnerId === uid) {
@@ -612,17 +601,29 @@ export default function GamePage() {
       )}
 
       <header className="p-4 bg-card/60 backdrop-blur-xl border-b border-white/10 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Badge variant="outline" className="border-primary/30 text-[8px] font-black text-primary px-2 py-0 uppercase">ROOM: {roomId}</Badge>
+        <div className="flex flex-col min-w-0 flex-1">
+          {room.mode === '1v1' ? (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center px-1"><span className="text-[8px] font-black uppercase truncate max-w-[60px]">{user?.displayName}</span><span className="text-[10px] font-black text-primary">{room.player1CurrentHealth} HP</span></div>
+              <Progress value={room.player1CurrentHealth} className="h-1 bg-white/10" />
+            </div>
+          ) : (
+            <Badge variant="outline" className="border-primary/30 text-[8px] font-black text-primary px-2 py-0 uppercase">ROOM: {roomId}</Badge>
+          )}
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">
-            RD {currentRoundNumber} {room.mode === 'Party' ? `/ ${room.maxRounds || 10}` : ''}
-          </Badge>
+        <div className="flex flex-col items-center gap-1 mx-4">
+          <Badge className="bg-primary text-black font-black px-3 py-0.5 text-[10px] uppercase">RD {currentRoundNumber}</Badge>
           <button onClick={handleForfeit} className="text-[8px] text-red-500 font-black uppercase hover:underline">FORFEIT</button>
         </div>
-        <div className="flex items-center gap-2 flex-1 justify-end">
-          <Badge variant="secondary" className="text-[8px] font-black">{guessedCount}/{participantIds.length}</Badge>
+        <div className="flex flex-col min-w-0 flex-1 items-end">
+          {room.mode === '1v1' ? (
+            <div className="space-y-1 w-full">
+              <div className="flex justify-between items-center px-1"><span className="text-[10px] font-black text-primary">{room.player2CurrentHealth} HP</span><span className="text-[8px] font-black uppercase truncate max-w-[60px]">{participantProfiles[room.player2Id || ""]?.displayName || "WAITING..."}</span></div>
+              <Progress value={room.player2CurrentHealth} className="h-1 bg-white/10" />
+            </div>
+          ) : (
+            <Badge variant="secondary" className="text-[8px] font-black">{guessedCount}/{participantIds.length}</Badge>
+          )}
         </div>
       </header>
 
@@ -648,8 +649,8 @@ export default function GamePage() {
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : (participantProfiles[uid]?.displayName || "OPPONENT")}</span>
                     </div>
-                    <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : "bg-slate-700"} text-white font-black`}>
-                      +{(roundData?.scoreChanges?.[uid] ?? 0)} PTS
+                    <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : ((roundData?.scoreChanges?.[uid] ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black`}>
+                      {(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "+" : ""}{(roundData?.scoreChanges?.[uid] ?? 0)} {room.mode === 'Party' ? 'PTS' : 'HP'}
                     </Badge>
                   </div>
                 ))}
@@ -666,8 +667,28 @@ export default function GamePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS</h3>{roundTimer !== null && (<Badge className="bg-red-500 text-white font-black">{roundTimer}S</Badge>)}</div>
-            <div className="space-y-3">{!targetPlayer ? (<div className="flex flex-col items-center justify-center p-12 opacity-50"><Loader2 className="w-8 h-8 animate-spin text-primary mb-2" /><p className="text-[10px] font-black uppercase">Loading Intelligence...</p></div>) : (targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (<div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2"><p className="text-sm font-bold text-white/90 leading-relaxed">"{hint}"</p></div>)))}</div>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                <Clock className="w-4 h-4 text-primary" /> SCOUTING REPORTS
+              </h3>
+              {roundTimer !== null && (
+                <Badge className="bg-red-500 text-white font-black animate-pulse">{roundTimer}S</Badge>
+              )}
+            </div>
+            <div className="space-y-3">
+              {!targetPlayer ? (
+                <div className="flex flex-col items-center justify-center p-12 opacity-50">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
+                  <p className="text-[10px] font-black uppercase">Loading Intelligence...</p>
+                </div>
+              ) : (
+                targetPlayer.hints.slice(0, visibleHints).map((hint, idx) => (
+                  <div key={idx} className="bg-card/80 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-xl animate-in slide-in-from-bottom-2">
+                    <p className="text-sm font-bold text-white/90 leading-relaxed">"{hint}"</p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
       </main>
