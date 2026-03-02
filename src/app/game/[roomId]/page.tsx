@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import { useFirestore, useUser, useDoc, useMemoFirebase, useCollection } from "@
 import { 
   doc, updateDoc, arrayUnion, 
   increment, collection, 
-  query, orderBy, limit, addDoc, runTransaction, serverTimestamp, onSnapshot 
+  query, orderBy, limit, addDoc, runTransaction, serverTimestamp, onSnapshot, setDoc 
 } from "firebase/firestore";
 import { FOOTBALLERS, Footballer, getRandomFootballer, getRandomRarity, RARITIES } from "@/lib/footballer-data";
 import { ALL_EMOTES, DEFAULT_EQUIPPED_IDS, UNLOCKED_EMOTE_IDS } from "@/lib/emote-data";
@@ -230,9 +230,9 @@ export default function GamePage() {
           hintsRevealedCount: 1,
           guesses: {},
           roundEndedAt: null,
-          // Party mode timer starts immediately
           timerStartedAt: roomData.mode === 'Party' ? now : null,
-          resultsProcessed: false
+          resultsProcessed: false,
+          scoreChanges: {}
         });
         
         transaction.update(roomRef, { 
@@ -265,7 +265,6 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      // In 1v1, if everyone voted, finish immediately
       if (room?.mode === '1v1' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
@@ -320,7 +319,6 @@ export default function GamePage() {
     const now = new Date().toISOString();
     const update: any = { [`guesses.${user.uid}`]: { text: guessInput, isCorrect, guessedAt: now } };
     
-    // In 1v1, starting the timer on the first guess
     if (room?.mode === '1v1' && !roundData.timerStartedAt) {
       update.timerStartedAt = now;
     }
@@ -435,9 +433,11 @@ export default function GamePage() {
       const roundScoreChanges: Record<string, number> = {};
 
       const now = new Date();
+      // Reset point: Most recent Sunday 18:30 UTC
       const resetPoint = new Date(now);
-      resetPoint.setUTCDate(now.getUTCDate() - ((now.getUTCDay() + 6) % 7)); // Prev Mon
-      resetPoint.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
+      const day = now.getUTCDay();
+      resetPoint.setUTCDate(now.getUTCDate() - day);
+      resetPoint.setUTCHours(18, 30, 0, 0);
       if (resetPoint > now) resetPoint.setUTCDate(resetPoint.getUTCDate() - 7);
 
       if (rmData.mode === 'Party') {
@@ -480,7 +480,29 @@ export default function GamePage() {
           updates.finishedAt = new Date().toISOString();
           const winnerId = p1Health > 0 ? p1 : (p2Health > 0 ? p2 : null);
           updates.winnerId = winnerId;
+          updates.endReason = 'HP_DEPLETED';
           
+          // Update H2H Battle History
+          const h2hId = [p1, p2].sort().join('_');
+          const h2hRef = doc(db, "battleHistories", h2hId);
+          const h2hSnap = await transaction.get(h2hRef);
+          
+          if (!h2hSnap.exists()) {
+            transaction.set(h2hRef, {
+              id: h2hId,
+              player1Id: p1,
+              player2Id: p2,
+              [p1 === winnerId ? 'player1Wins' : 'player2Wins']: 1,
+              [p1 !== winnerId ? 'player1Wins' : 'player2Wins']: 0,
+              totalMatches: 1
+            });
+          } else {
+            transaction.update(h2hRef, {
+              [uid === winnerId ? (uid === p1 ? 'player1Wins' : 'player2Wins') : '']: increment(1),
+              totalMatches: increment(1)
+            });
+          }
+
           for (const uid of rmData.participantIds) {
             const pRef = doc(db, "userProfiles", uid);
             const pSnap = await transaction.get(pRef);
@@ -522,7 +544,12 @@ export default function GamePage() {
 
   const handleForfeit = async () => {
     if (!roomRef || !user || !room || room.status !== 'InProgress') return;
-    await updateDoc(roomRef, { status: 'Completed', finishedAt: new Date().toISOString(), winnerId: null, drawReason: 'FORFEIT' });
+    await updateDoc(roomRef, { 
+      status: 'Completed', 
+      finishedAt: new Date().toISOString(), 
+      winnerId: room.participantIds.find(id => id !== user.uid), 
+      endReason: 'FORFEIT' 
+    });
   };
 
   const sendEmote = async (emoteId: string) => {
@@ -570,6 +597,9 @@ export default function GamePage() {
     );
   }
 
+  const winnerName = room?.winnerId ? participantProfiles[room.winnerId]?.displayName : "NOBODY";
+  const endReasonText = room?.endReason === 'FORFEIT' ? 'OPPONENT FORFEITED' : 'TOTAL HP EXHAUSTED';
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {activeEmotes.map(emote => {
@@ -595,7 +625,10 @@ export default function GamePage() {
       
       {showGameOverPopup && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500 backdrop-blur-2xl">
-           <h2 className="text-7xl font-black text-white uppercase mb-8">MATCH ENDED</h2>
+           <Trophy className="w-20 h-20 text-yellow-500 mb-6 animate-bounce" />
+           <h2 className="text-5xl font-black text-white uppercase mb-2">MATCH ENDED</h2>
+           <p className="text-primary text-2xl font-black uppercase mb-8 italic">{winnerName} VICTORIOUS</p>
+           <Badge variant="outline" className="text-white border-white/20 uppercase mb-8 px-4 py-1">{endReasonText}</Badge>
            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">REDIRECTING TO RESULTS IN {gameOverTimer}S...</p>
         </div>
       )}
@@ -644,16 +677,19 @@ export default function GamePage() {
             <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter">ROUND SUMMARY</h2>
             <ScrollArea className="w-full max-h-[40vh] bg-white/5 p-4 rounded-3xl border border-white/10">
               <div className="space-y-3">
-                {participantIds.map(uid => (
-                  <div key={uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : (participantProfiles[uid]?.displayName || "OPPONENT")}</span>
+                {participantIds.map(uid => {
+                  const scoreChange = roundData?.scoreChanges?.[uid] ?? 0;
+                  return (
+                    <div key={uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-black text-white uppercase truncate max-w-[100px]">{uid === user?.uid ? "YOU" : (participantProfiles[uid]?.displayName || "OPPONENT")}</span>
+                      </div>
+                      <Badge className={`${scoreChange > 0 ? "bg-green-500" : (scoreChange < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black`}>
+                        {scoreChange > 0 ? "+" : ""}{scoreChange} {room.mode === 'Party' ? 'PTS' : 'HP'}
+                      </Badge>
                     </div>
-                    <Badge className={`${(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "bg-green-500" : ((roundData?.scoreChanges?.[uid] ?? 0) < 0 ? "bg-red-500" : "bg-slate-700")} text-white font-black`}>
-                      {(roundData?.scoreChanges?.[uid] ?? 0) > 0 ? "+" : ""}{(roundData?.scoreChanges?.[uid] ?? 0)} {room.mode === 'Party' ? 'PTS' : 'HP'}
-                    </Badge>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </ScrollArea>
             <div className="w-full bg-white/5 p-8 rounded-[2.5rem] border border-white/10 flex flex-col items-center text-center gap-4">

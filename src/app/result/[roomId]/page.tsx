@@ -1,13 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trophy, Swords, Home, Sparkles, RefreshCw, History, Users, Medal, Crown } from "lucide-react";
+import { Trophy, Swords, Home, Sparkles, RefreshCw, Medal, Crown, History } from "lucide-react";
 import { useFirestore, useUser, useDoc, useMemoFirebase } from "@/firebase";
 import { doc, onSnapshot, writeBatch, getDocs, collection } from "firebase/firestore";
 
@@ -28,6 +27,20 @@ export default function ResultPage() {
   const [confetti, setConfetti] = useState<{left: string, delay: string}[]>([]);
 
   const isLeader = room?.creatorId === user?.uid;
+
+  const h2hId = useMemoFirebase(() => {
+    if (room?.mode === '1v1' && room.participantIds?.length === 2) {
+      return [...room.participantIds].sort().join('_');
+    }
+    return null;
+  }, [room]);
+
+  const h2hRef = useMemoFirebase(() => {
+    if (!h2hId) return null;
+    return doc(db, "battleHistories", h2hId);
+  }, [db, h2hId]);
+
+  const { data: h2hData } = useDoc(h2hRef);
 
   useEffect(() => {
     if (!isUserLoading && !user) router.push('/');
@@ -80,7 +93,7 @@ export default function ResultPage() {
         currentRoundNumber: 1,
         usedFootballerIds: [],
         winnerId: null,
-        loserId: null,
+        endReason: null,
         finishedAt: null,
       };
 
@@ -134,7 +147,6 @@ export default function ResultPage() {
       {room.mode === 'Party' ? (
         <section className="w-full max-w-2xl space-y-6">
           <div className="flex items-end justify-center gap-4 h-64 mb-12">
-            {/* 2nd Place */}
             {sortedParticipants[1] && (
               <div className="flex flex-col items-center gap-2 w-24">
                 <Medal className="text-slate-300 w-8 h-8" />
@@ -148,7 +160,6 @@ export default function ResultPage() {
                 </div>
               </div>
             )}
-            {/* 1st Place */}
             {sortedParticipants[0] && (
               <div className="flex flex-col items-center gap-2 w-28 scale-110">
                 <Crown className="text-yellow-500 w-10 h-10 animate-pulse" />
@@ -162,7 +173,6 @@ export default function ResultPage() {
                 </div>
               </div>
             )}
-            {/* 3rd Place */}
             {sortedParticipants[2] && (
               <div className="flex flex-col items-center gap-2 w-24">
                 <Medal className="text-orange-600 w-8 h-8" />
@@ -196,17 +206,43 @@ export default function ResultPage() {
           </Card>
         </section>
       ) : (
-        <section className="w-full max-w-2xl grid grid-cols-2 gap-6">
-           {sortedParticipants.map((p, i) => (
-             <div key={p.id} className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${i === 0 ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
-                <div className="relative">
-                  {i === 0 && <Crown className="w-6 h-6 text-yellow-500 absolute -top-4 left-1/2 -translate-x-1/2" />}
-                  <img src={p.avatarUrl} className={`w-20 h-20 rounded-full border-4 ${i === 0 ? 'border-primary' : 'border-slate-500'} object-cover`} alt="p" />
+        <section className="w-full max-w-2xl space-y-8">
+          <div className="grid grid-cols-2 gap-6">
+            {sortedParticipants.map((p, i) => (
+              <div key={p.id} className={`flex flex-col items-center p-6 rounded-[2rem] border-2 transition-all ${i === 0 ? 'border-primary bg-primary/10' : 'border-white/5 bg-white/5 opacity-60'}`}>
+                  <div className="relative">
+                    {i === 0 && <Crown className="w-6 h-6 text-yellow-500 absolute -top-4 left-1/2 -translate-x-1/2" />}
+                    <img src={p.avatarUrl} className={`w-20 h-20 rounded-full border-4 ${i === 0 ? 'border-primary' : 'border-slate-500'} object-cover`} alt="p" />
+                  </div>
+                  <span className="mt-4 font-black text-sm text-white uppercase">{p.displayName}</span>
+                  <span className="text-2xl font-black text-primary">{p.score} HP</span>
+              </div>
+            ))}
+          </div>
+
+          {h2hData && (
+            <Card className="bg-white/5 border-white/10 rounded-[2.5rem] overflow-hidden">
+              <CardContent className="p-8 text-center space-y-6">
+                <div className="flex items-center justify-center gap-2 text-slate-500 uppercase font-black text-xs tracking-widest">
+                  <History className="w-4 h-4" /> LIFETIME BATTLE RECORD
                 </div>
-                <span className="mt-4 font-black text-sm text-white uppercase">{p.displayName}</span>
-                <span className="text-2xl font-black text-primary">{p.score} HP</span>
-             </div>
-           ))}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 text-center">
+                    <p className="text-4xl font-black text-white">{h2hData.player1Wins || 0}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase truncate">{participantProfiles[h2hData.player1Id || ""]?.displayName || "PLAYER 1"}</p>
+                  </div>
+                  <div className="h-12 w-px bg-white/10" />
+                  <div className="flex-1 text-center">
+                    <p className="text-4xl font-black text-white">{h2hData.player2Wins || 0}</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase truncate">{participantProfiles[h2hData.player2Id || ""]?.displayName || "PLAYER 2"}</p>
+                  </div>
+                </div>
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-widest">TOTAL DUELS: {h2hData.totalMatches || 0}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </section>
       )}
 
