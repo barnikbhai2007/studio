@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Copy, Users, Play, ShieldAlert, Crown, Swords, 
   UserX, Settings2, Info, Heart, Zap, BookOpen, 
-  Target, Clock, AlertTriangle, CheckCircle2
+  Target, Clock, AlertTriangle, CheckCircle2, Share2
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -73,7 +73,25 @@ export default function LobbyPage() {
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomIdStr);
-    toast({ title: "Copied!", description: "Room code copied to clipboard." });
+    toast({ title: "COPIED!", description: "ROOM CODE ADDED TO CLIPBOARD." });
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Join my FootyDuel Arena!',
+          text: `Use code ${roomIdStr} to join the match.`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // Fallback if share is cancelled or fails
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      toast({ title: "LINK COPIED!", description: "SHARE IT WITH YOUR SQUAD." });
+    }
   };
 
   const updateSetting = async (field: string, val: any) => {
@@ -83,12 +101,12 @@ export default function LobbyPage() {
 
   const startGame = async () => {
     if ((room.participantIds?.length || 0) < 2) {
-      toast({ variant: "destructive", title: "Wait!", description: "Need at least 2 players to start." });
+      toast({ variant: "destructive", title: "WAIT!", description: "NEED AT LEAST 2 PLAYERS TO START." });
       return;
     }
     
     if (room.mode === 'Party' && (!room.maxRounds || !room.timePerRound)) {
-      toast({ variant: "destructive", title: "Configuration Required", description: "Select Rounds and Time Limit." });
+      toast({ variant: "destructive", title: "MISSING SETUP", description: "CHOOSE ROUNDS AND TIME LIMIT." });
       return;
     }
 
@@ -107,7 +125,7 @@ export default function LobbyPage() {
 
   if (isUserLoading || isLoading || !room) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0b]">
         <Swords className="w-12 h-12 text-primary animate-spin" />
       </div>
     );
@@ -117,23 +135,28 @@ export default function LobbyPage() {
   const maxSlots = isPartyMode ? 10 : 2;
 
   return (
-    <div className="min-h-screen bg-background p-4 flex flex-col items-center">
+    <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center">
       <div className="w-full max-w-lg space-y-6">
         <header className="flex justify-between items-center py-4">
           <div className="flex flex-col">
-            <h1 className="text-2xl font-black font-headline text-primary uppercase leading-tight">FOOTY DUEL</h1>
+            <h1 className="text-2xl font-black text-primary uppercase leading-tight">FOOTY DUEL</h1>
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">VERSION 1.0 • ARENA</span>
           </div>
-          <Badge variant="outline" className="text-xs font-black border-primary text-primary px-3 py-1">ROOM: {roomIdStr}</Badge>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleShare} className="bg-white/5 border-white/10 rounded-xl h-10 px-3 hover:bg-white/10">
+              <Share2 className="w-4 h-4 text-primary" />
+            </Button>
+            <Badge variant="outline" className="text-xs font-black border-primary text-primary px-3 py-1 flex items-center gap-2">CODE: {roomIdStr}</Badge>
+          </div>
         </header>
 
-        <Card className="bg-card border-none shadow-xl rounded-[2rem] overflow-hidden">
+        <Card className="bg-[#161618] border-none shadow-2xl rounded-[2rem] overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between pb-2 bg-white/5">
             <CardTitle className="text-lg font-black flex items-center gap-2 uppercase italic">
               <Users className="w-5 h-5 text-secondary" /> {isPartyMode ? 'PARTY' : 'DUEL'} LOBBY
             </CardTitle>
             <Button variant="ghost" size="sm" onClick={copyCode} className="text-[10px] text-muted-foreground gap-1 font-black uppercase hover:bg-white/5">
-              <Copy className="w-3 h-3" /> {roomIdStr}
+              <Copy className="w-3 h-3" /> COPY CODE
             </Button>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
@@ -156,51 +179,51 @@ export default function LobbyPage() {
             <div className="space-y-4 pt-4 border-t border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <Settings2 className="w-4 h-4 text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Match Configuration</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">MATCH CONFIGURATION</span>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                    <Swords className="w-3 h-3 text-primary" /> Game Mode
+                    <Swords className="w-3 h-3 text-primary" /> GAME MODE
                   </label>
                   {isLeader ? (
                     <Select value={room.mode || '1v1'} onValueChange={(val) => updateSetting('mode', val)}>
-                      <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
+                      <SelectTrigger className="bg-[#0a0a0b] border-none h-12 rounded-xl font-bold uppercase text-left">
                         <SelectValue placeholder="Select Mode" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-[#161618] border-white/10 text-white">
                         <SelectItem value="1v1">1v1 DUEL</SelectItem>
                         <SelectItem value="Party">PARTY ARENA</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.mode || '1v1'}</div>
+                    <div className="h-12 bg-[#0a0a0b] rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.mode || '1v1'}</div>
                   )}
                 </div>
 
                 {!isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Heart className="w-3 h-3 text-red-500" /> Match Health
+                      <Heart className="w-3 h-3 text-red-500" /> MATCH HEALTH
                     </label>
                     {isLeader ? (
                       <Select value={room.healthOption?.toString() || '100'} onValueChange={(val) => {
                         const h = parseInt(val);
                         updateDoc(roomRef!, { healthOption: h, player1CurrentHealth: h, player2CurrentHealth: h });
                       }}>
-                        <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
+                        <SelectTrigger className="bg-[#0a0a0b] border-none h-12 rounded-xl font-bold uppercase text-left">
                           <SelectValue placeholder="Select Health" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="50">50 HP (Blitz)</SelectItem>
-                          <SelectItem value="100">100 HP (Standard)</SelectItem>
-                          <SelectItem value="150">150 HP (Pro)</SelectItem>
-                          <SelectItem value="200">200 HP (Elite)</SelectItem>
+                        <SelectContent className="bg-[#161618] border-white/10 text-white">
+                          <SelectItem value="50">50 HP (BLITZ)</SelectItem>
+                          <SelectItem value="100">100 HP (STANDARD)</SelectItem>
+                          <SelectItem value="150">150 HP (PRO)</SelectItem>
+                          <SelectItem value="200">200 HP (ELITE)</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
+                      <div className="h-12 bg-[#0a0a0b] rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.healthOption} HP</div>
                     )}
                   </div>
                 )}
@@ -208,22 +231,22 @@ export default function LobbyPage() {
                 {isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-yellow-500" /> Total Rounds
+                      <Zap className="w-3 h-3 text-yellow-500" /> TOTAL ROUNDS
                     </label>
                     {isLeader ? (
                       <Select value={room.maxRounds?.toString() || ''} onValueChange={(val) => updateSetting('maxRounds', parseInt(val))}>
-                        <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
+                        <SelectTrigger className="bg-[#0a0a0b] border-none h-12 rounded-xl font-bold uppercase text-left">
                           <SelectValue placeholder="Select Rounds" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5 Rounds</SelectItem>
-                          <SelectItem value="10">10 Rounds</SelectItem>
-                          <SelectItem value="15">15 Rounds</SelectItem>
-                          <SelectItem value="20">20 Rounds</SelectItem>
+                        <SelectContent className="bg-[#161618] border-white/10 text-white">
+                          <SelectItem value="5">5 ROUNDS</SelectItem>
+                          <SelectItem value="10">10 ROUNDS</SelectItem>
+                          <SelectItem value="15">15 ROUNDS</SelectItem>
+                          <SelectItem value="20">20 ROUNDS</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.maxRounds || '---'} Rounds</div>
+                      <div className="h-12 bg-[#0a0a0b] rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.maxRounds || '---'} ROUNDS</div>
                     )}
                   </div>
                 )}
@@ -231,22 +254,22 @@ export default function LobbyPage() {
                 {isPartyMode && (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-cyan-500" /> Time Limit
+                      <Clock className="w-3 h-3 text-cyan-500" /> TIME LIMIT
                     </label>
                     {isLeader ? (
                       <Select value={room.timePerRound?.toString() || ''} onValueChange={(val) => updateSetting('timePerRound', parseInt(val))}>
-                        <SelectTrigger className="bg-muted border-none h-12 rounded-xl font-bold uppercase text-left">
+                        <SelectTrigger className="bg-[#0a0a0b] border-none h-12 rounded-xl font-bold uppercase text-left">
                           <SelectValue placeholder="Select Time" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="60">1 Minute</SelectItem>
-                          <SelectItem value="120">2 Minutes</SelectItem>
-                          <SelectItem value="180">3 Minutes</SelectItem>
-                          <SelectItem value="300">5 Minutes</SelectItem>
+                        <SelectContent className="bg-[#161618] border-white/10 text-white">
+                          <SelectItem value="60">1 MINUTE</SelectItem>
+                          <SelectItem value="120">2 MINUTES</SelectItem>
+                          <SelectItem value="180">3 MINUTES</SelectItem>
+                          <SelectItem value="300">5 MINUTES</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="h-12 bg-muted rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.timePerRound ? `${room.timePerRound / 60} Min` : '---'}</div>
+                      <div className="h-12 bg-[#0a0a0b] rounded-xl flex items-center px-4 font-black uppercase text-sm">{room.timePerRound ? `${room.timePerRound / 60} MIN` : '---'}</div>
                     )}
                   </div>
                 )}
@@ -256,7 +279,7 @@ export default function LobbyPage() {
             <div className="space-y-4 pt-4 border-t border-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <BookOpen className="w-4 h-4 text-secondary" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rules & How to Play</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">RULES & HOW TO PLAY</span>
               </div>
               
               <ScrollArea className="h-32 rounded-2xl bg-white/5 p-4 border border-white/5">
@@ -265,30 +288,30 @@ export default function LobbyPage() {
                     <>
                       <div className="flex items-start gap-2">
                         <Target className="w-3 h-3 text-primary shrink-0" />
-                        <p>Score max <span className="text-white">100 points</span> per round. Points decrease the longer you take to guess.</p>
+                        <p>SCORE MAX <span className="text-white">100 POINTS</span> PER ROUND. POINTS DECREASE THE LONGER YOU TAKE TO GUESS.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Zap className="w-3 h-3 text-primary shrink-0" />
-                        <p>All <span className="text-white">5 hints reveal in 10 seconds</span> (one every 2s). Be fast!</p>
+                        <p>ALL <span className="text-white">5 HINTS REVEAL IN 10 SECONDS</span> (ONE EVERY 2S). BE FAST!</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-                        <p>No penalties for wrong guesses. Keep guessing until the time runs out.</p>
+                        <p>NO PENALTIES FOR WRONG GUESSES. KEEP GUESSING UNTIL THE TIME RUNS OUT.</p>
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-3 h-3 text-red-500 shrink-0" />
-                        <p>Wrong answers deduct <span className="text-red-500">10 HP</span>. Reaching 0 HP ends the match.</p>
+                        <p>WRONG ANSWERS DEDUCT <span className="text-red-500">10 HP</span>. REACHING 0 HP ENDS THE MATCH.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Clock className="w-3 h-3 text-primary shrink-0" />
-                        <p>Hints reveal every <span className="text-white">5 seconds</span> until someone locks a guess.</p>
+                        <p>HINTS REVEAL EVERY <span className="text-white">5 SECONDS</span> UNTIL SOMEONE LOCKS A GUESS.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Info className="w-3 h-3 text-primary shrink-0" />
-                        <p>Skipping awards 0 points but ends your turn for the round.</p>
+                        <p>SKIPPING AWARDS 0 POINTS BUT ENDS YOUR TURN FOR THE ROUND.</p>
                       </div>
                     </>
                   )}
@@ -309,8 +332,8 @@ export default function LobbyPage() {
         ) : (
           <div className="p-6 bg-muted/50 rounded-[2rem] flex items-center gap-4 text-muted-foreground border border-dashed border-white/10">
             <ShieldAlert className="w-8 h-8 text-primary animate-pulse" />
-            <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
-              Waiting for the Duel Leader to initiate the match...
+            <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed text-center">
+              WAITING FOR THE DUEL LEADER TO INITIATE THE MATCH...
             </p>
           </div>
         )}
