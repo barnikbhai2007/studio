@@ -11,7 +11,7 @@ import {
   Clock, Sparkles, Crown
 } from "lucide-react";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { collection, query, orderBy, limit, where } from "firebase/firestore";
+import { collection, query, orderBy, limit } from "firebase/firestore";
 import { ALL_EMOTES, SEASON_REWARD_EMOTE_ID } from "@/lib/emote-data";
 
 export default function LeaderboardPage() {
@@ -24,16 +24,13 @@ export default function LeaderboardPage() {
     return threshold.toISOString();
   };
 
+  // Simplified query to avoid permission/index errors with complex filters.
+  // We fetch top players by weeklyWins and filter by reset date client-side.
   const leaderboardQuery = useMemoFirebase(() => {
-    const thresholdStr = getResetThreshold();
-    // Strictly filter by lastWeeklyReset to ensure we ONLY show players reset for THIS week.
-    // This effectively "clears" the leaderboard for all users who haven't reset yet.
     return query(
       collection(db, "userProfiles"),
-      where("lastWeeklyReset", ">=", thresholdStr),
-      orderBy("lastWeeklyReset"),
       orderBy("weeklyWins", "desc"),
-      limit(5)
+      limit(20)
     );
   }, [db]);
 
@@ -41,7 +38,13 @@ export default function LeaderboardPage() {
   
   const topPlayers = useMemo(() => {
     if (!topPlayersRaw) return [];
-    return [...topPlayersRaw].sort((a, b) => (b.weeklyWins || 0) - (a.weeklyWins || 0));
+    const thresholdStr = getResetThreshold();
+    
+    // Filter out users who haven't reset for the current week yet
+    return topPlayersRaw
+      .filter(player => (player.lastWeeklyReset || "") >= thresholdStr)
+      .sort((a, b) => (b.weeklyWins || 0) - (a.weeklyWins || 0))
+      .slice(0, 5);
   }, [topPlayersRaw]);
 
   const [timeLeft, setTimeLeft] = useState("");

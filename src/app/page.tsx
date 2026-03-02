@@ -346,7 +346,7 @@ export default function LandingPage() {
         </div>
       )}
 
-      <div className="relative z-10 w-full max-md space-y-10 py-8">
+      <div className="relative z-10 w-full max-w-md space-y-10 py-8">
         <header className="text-center space-y-4">
           <div className="inline-flex p-4 rounded-3xl bg-primary/20 text-primary border border-primary/20 mb-2 animate-bounce"><Swords className="w-12 h-12" /></div>
           <h1 className="text-6xl font-black text-white uppercase">FOOTY DUEL</h1>
@@ -389,7 +389,7 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Button onClick={() => router.push('/quests')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Target className="w-5 h-5 mr-2 text-primary" /> QUESTS</Button>
-              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERS</Button>
+              <Button onClick={() => router.push('/leaderboard')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><BarChart3 className="w-5 h-5 mr-2 text-secondary" /> LEADERBOARD</Button>
               <Button onClick={() => router.push('/emotes')} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Smile className="w-5 h-5 mr-2 text-primary" /> EMOTES</Button>
               <Button onClick={() => setShowManual(true)} variant="outline" className="h-16 bg-white/5 rounded-2xl font-black uppercase border-white/10"><Info className="w-5 h-5 mr-2 text-primary" /> INFO</Button>
             </div>
