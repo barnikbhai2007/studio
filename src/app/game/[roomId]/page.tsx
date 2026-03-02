@@ -287,8 +287,6 @@ export default function GamePage() {
       const isParty = room?.mode === 'Party';
       const someoneGuessed = !!roundData?.timerStartedAt && !isParty;
       
-      // In Party Mode, reveal all hints in 10s (2s each)
-      // In 1v1, reveal hints every 5s until someone guesses
       if (isParty || !someoneGuessed) {
         const interval = isParty ? 2000 : 5000;
         timer = setTimeout(() => setVisibleHints(prev => prev + 1), interval);
@@ -436,6 +434,13 @@ export default function GamePage() {
       const updates: any = { lastActionAt: new Date().toISOString() };
       const roundScoreChanges: Record<string, number> = {};
 
+      // Season Reset logic inside Game Result
+      const now = new Date();
+      const recentResetPoint = new Date(now);
+      recentResetPoint.setUTCHours(18, 30, 0, 0);
+      recentResetPoint.setUTCDate(now.getUTCDate() - now.getUTCDay());
+      if (recentResetPoint > now) recentResetPoint.setUTCDate(recentResetPoint.getUTCDate() - 7);
+
       if (rmData.mode === 'Party') {
         const scores = { ...(rmData.scores || {}) };
         rmData.participantIds.forEach((uid: string) => {
@@ -477,14 +482,34 @@ export default function GamePage() {
           const winnerId = p1Health > 0 ? p1 : (p2Health > 0 ? p2 : null);
           updates.winnerId = winnerId;
           
-          rmData.participantIds.forEach((uid: string) => {
+          for (const uid of rmData.participantIds) {
             const pRef = doc(db, "userProfiles", uid);
-            if (winnerId === uid) {
-              transaction.update(pRef, { totalWins: increment(1), weeklyWins: increment(1), winStreak: increment(1), totalGamesPlayed: increment(1) });
+            const pSnap = await transaction.get(pRef);
+            if (!pSnap.exists()) continue;
+            
+            const pData = pSnap.data();
+            const lastReset = pData.lastWeeklyReset ? new Date(pData.lastWeeklyReset) : new Date(0);
+            
+            const profileUpdate: any = {
+              totalGamesPlayed: increment(1),
+              lastLoginAt: now.toISOString()
+            };
+
+            // Hard reset weekly wins if needed
+            if (lastReset < recentResetPoint) {
+              profileUpdate.weeklyWins = (winnerId === uid ? 1 : 0);
+              profileUpdate.lastWeeklyReset = now.toISOString();
+            } else if (winnerId === uid) {
+              profileUpdate.weeklyWins = increment(1);
+              profileUpdate.totalWins = increment(1);
+              profileUpdate.winStreak = increment(1);
             } else {
-              transaction.update(pRef, { totalLosses: increment(1), winStreak: 0, totalGamesPlayed: increment(1) });
+              profileUpdate.totalLosses = increment(1);
+              profileUpdate.winStreak = 0;
             }
-          });
+            
+            transaction.update(pRef, profileUpdate);
+          }
         }
       }
       

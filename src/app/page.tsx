@@ -71,13 +71,10 @@ export default function LandingPage() {
     if (!user || !profileData) return;
 
     const now = new Date();
-    // Reset point: Monday 00:00 IST = Sunday 18:30 UTC
     const recentReset = new Date(now);
-    recentReset.setUTCHours(18, 30, 0, 0);
-    // Find the most recent Sunday
+    recentReset.setUTCHours(18, 30, 0, 0); // Sunday 18:30 UTC = Monday 00:00 IST
     recentReset.setUTCDate(now.getUTCDate() - now.getUTCDay());
     
-    // If the calculated reset time is in the future (it's currently Sunday before 18:30 UTC), subtract 7 more days
     if (recentReset > now) {
       recentReset.setUTCDate(recentReset.getUTCDate() - 7);
     }
@@ -85,11 +82,9 @@ export default function LandingPage() {
     const lastResetStr = profileData.lastWeeklyReset;
     const lastReset = lastResetStr ? new Date(lastResetStr) : new Date(0);
     
-    // If last reset was before the most recent Sunday 18:30 UTC, we reset weekly wins.
     if (lastReset < recentReset) {
       setIsSyncing(true);
       try {
-        // Find current Rank 1 to award emote
         const lbQuery = query(collection(db, "userProfiles"), orderBy("weeklyWins", "desc"), limit(1));
         const lbSnap = await getDocs(lbQuery);
         const isWinner = !lbSnap.empty && lbSnap.docs[0].id === user.uid;
@@ -371,6 +366,13 @@ export default function LandingPage() {
                           <p><strong className="text-white uppercase">1v1 Duel:</strong> Start with HP. Correct guesses deal damage based on points. Last one standing wins.</p>
                           <p><strong className="text-white uppercase">Party Arena:</strong> Up to 10 players. No health, just points. Faster correct guesses earn higher scores. High points at the end wins.</p>
                         </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-secondary text-sm flex items-center gap-2">
+                           <Info className="w-4 h-4" /> INTELLIGENT SYSTEM
+                        </h3>
+                        <p className="normal-case italic text-slate-400">Minor typos are allowed based on name length (e.g., "Messy" for "Messi"). Aim for correct spelling for guaranteed points!</p>
                       </div>
 
                       <div className="space-y-4">
