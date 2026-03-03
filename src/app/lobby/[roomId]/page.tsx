@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -175,16 +174,19 @@ export default function LobbyPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center">
       <div className="w-full max-w-lg space-y-6">
-        <header className="flex justify-between items-center py-4">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-black text-primary uppercase leading-tight">FOOTY DUEL</h1>
+        <header className="flex justify-between items-center py-4 gap-4">
+          <div className="flex flex-col min-w-0">
+            <h1 className="text-2xl font-black text-primary uppercase leading-tight truncate">FOOTY DUEL</h1>
             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">VERSION 1.0 • ARENA</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={handleShare} className="bg-white/5 border-white/10 rounded-xl h-10 px-3 hover:bg-white/10">
               <Share2 className="w-4 h-4 text-primary" />
             </Button>
-            <Badge variant="outline" className="text-xs font-black border-primary text-primary px-3 py-1 flex items-center gap-2">CODE: {roomIdStr}</Badge>
+            <div className="bg-primary/10 border border-primary/30 rounded-xl px-3 h-10 flex items-center gap-2 shadow-xl">
+              <span className="text-[10px] font-black text-primary uppercase">CODE:</span>
+              <span className="text-sm font-black text-white tracking-widest">{roomIdStr}</span>
+            </div>
           </div>
         </header>
 
@@ -202,7 +204,7 @@ export default function LobbyPage() {
               {participants.slice(0, maxSlots).map((p) => (
                 <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-2xl bg-white/5 border border-white/5 relative group animate-in fade-in zoom-in">
                   {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2 drop-shadow-md" />}
-                  <img src={p.avatarUrl || "https://picsum.photos/seed/p/100/100"} className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover shadow-lg" alt={p.displayName} />
+                  <img src={p.avatarUrl || `https://picsum.photos/seed/${p.id}/100/100`} className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover shadow-lg" alt={p.displayName} />
                   <span className="text-[8px] font-black truncate w-full text-center uppercase tracking-tight text-white/80">{p.displayName}</span>
                 </div>
               ))}
@@ -334,7 +336,7 @@ export default function LobbyPage() {
                       </div>
                       <div className="flex items-start gap-2">
                         <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-                        <p>NO PENALTIES FOR WRONG GUESSES. KEEP GUESSING UNTIL THE TIME RUNS OUT.</p>
+                        <p>NO PENALTIES FOR WRONG GUESSES. KEEP GUESSING UNTIL EVERYONE LOCKS IN OR TIME RUNS OUT.</p>
                       </div>
                     </>
                   ) : (

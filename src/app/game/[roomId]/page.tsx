@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -265,7 +264,8 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      if (room?.mode === '1v1' && everyoneVoted && !revealTriggered.current && gameState === 'playing') {
+      // Early Skip Logic for Party Mode: Everyone Locked In -> Skip Timer
+      if (everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
     }
@@ -433,7 +433,6 @@ export default function GamePage() {
       const roundScoreChanges: Record<string, number> = {};
 
       const now = new Date();
-      // Reset point: Most recent Sunday 18:30 UTC
       const resetPoint = new Date(now);
       const day = now.getUTCDay();
       resetPoint.setUTCDate(now.getUTCDate() - day);
@@ -482,7 +481,6 @@ export default function GamePage() {
           updates.winnerId = winnerId;
           updates.endReason = 'HP_DEPLETED';
           
-          // Update H2H Battle History
           const h2hId = [p1, p2].sort().join('_');
           const h2hRef = doc(db, "battleHistories", h2hId);
           const h2hSnap = await transaction.get(h2hRef);
@@ -641,7 +639,14 @@ export default function GamePage() {
               <Progress value={room.player1CurrentHealth} className="h-1 bg-white/10" />
             </div>
           ) : (
-            <Badge variant="outline" className="border-primary/30 text-[8px] font-black text-primary px-2 py-0 uppercase">ROOM: {roomId}</Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {participantIds.map(uid => (
+                <div key={uid} className={`relative shrink-0 transition-all duration-300 ${roundData?.guesses?.[uid] ? 'scale-110' : 'scale-90 opacity-50'}`}>
+                  <img src={participantProfiles[uid]?.avatarUrl || `https://picsum.photos/seed/${uid}/100/100`} className={`w-7 h-7 rounded-full border-2 ${roundData?.guesses?.[uid] ? 'border-primary shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'border-white/10'}`} alt="p" />
+                  {roundData?.guesses?.[uid] && <div className="absolute -top-1 -right-1 bg-primary text-black rounded-full p-0.5"><CheckCircle2 className="w-2 h-2" /></div>}
+                </div>
+              ))}
+            </div>
           )}
         </div>
         <div className="flex flex-col items-center gap-1 mx-4">
@@ -655,7 +660,10 @@ export default function GamePage() {
               <Progress value={room.player2CurrentHealth} className="h-1 bg-white/10" />
             </div>
           ) : (
-            <Badge variant="secondary" className="text-[8px] font-black">{guessedCount}/{participantIds.length}</Badge>
+            <div className="text-right">
+              <p className="text-[8px] font-black text-slate-500 uppercase">LOCK-IN</p>
+              <span className="text-sm font-black text-primary italic leading-none">{guessedCount}/{participantIds.length}</span>
+            </div>
           )}
         </div>
       </header>
