@@ -267,8 +267,8 @@ export default function LandingPage() {
         setIsActionLoading(false);
         return;
       }
-      if (data.participantIds.length >= 10 && !data.participantIds.includes(user.uid)) {
-        toast({ variant: "destructive", title: "Full", description: "Party is at max capacity." });
+      if (data.participantIds.length >= 100 && !data.participantIds.includes(user.uid)) {
+        toast({ variant: "destructive", title: "Full", description: "Party is at max capacity (100)." });
         setIsActionLoading(false);
         return;
       }
@@ -314,7 +314,7 @@ export default function LandingPage() {
               </Button>
             )}
             <Smartphone className="w-12 h-12 text-primary mx-auto relative z-10" />
-            <h2 className="text-3xl font-black uppercase text-primary">{isSyncing ? "SYNCING SEASON" : "WELCOME TO ARENA"}</h2>
+            <h2 className="text-3xl font-black uppercase text-primary">{isSyncing ? "SYNCING ARENA" : "WELCOME TO ARENA"}</h2>
             <ScrollArea className="h-[55vh] w-full bg-white/5 p-6 rounded-[2rem] border border-white/10 text-left">
               <div className="space-y-6 text-xs font-bold leading-relaxed text-slate-300 uppercase">
                 {isSyncing ? (
@@ -326,7 +326,7 @@ export default function LandingPage() {
                   <>
                     <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> THE BASICS</h3><p className="normal-case text-slate-400">Identify the footballer from career clues before your opponents do.</p></div>
                     <div className="space-y-4"><h3 className="text-secondary text-sm flex items-center gap-2"><Zap className="w-4 h-4" /> INTELLIGENT SYSTEM</h3><p className="normal-case text-slate-400 italic">Minor typos are allowed based on name length (e.g., "Messy" for "Messi"). Spell as close as possible for points!</p></div>
-                    <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Heart className="w-4 h-4" /> MODES</h3><p className="normal-case text-slate-400">1v1 Duel (HP based) or Party Arena (Points based, up to 10 players).</p></div>
+                    <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Heart className="w-4 h-4" /> MODES</h3><p className="normal-case text-slate-400">1v1 Duel (HP based) or Party Arena (Points based, up to 100 players).</p></div>
                     <div className="space-y-4"><h3 className="text-primary text-sm flex items-center gap-2"><Trophy className="w-4 h-4" /> LEADERBOARD</h3><p className="normal-case text-slate-400">Weekly rankings reset every Monday at 00:00 IST. Rank 1 wins exclusive rewards.</p></div>
                   </>
                 )}

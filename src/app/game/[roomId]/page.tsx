@@ -81,6 +81,19 @@ export default function GamePage() {
   }, [db, roomId]);
   const { data: recentEmotes } = useCollection(emotesQuery);
 
+  // Preload next player flags to prevent lag
+  useEffect(() => {
+    if (gameState === 'countdown' || gameState === 'result') {
+      const uniqueCountryCodes = Array.from(new Set(FOOTBALLERS.map(f => f.countryCode)));
+      uniqueCountryCodes.forEach(code => {
+        const map: Record<string, string> = { 'en': 'gb-eng', 'eng': 'gb-eng', 'sc': 'gb-sct', 'sco': 'gb-sct', 'wa': 'gb-wls', 'wal': 'gb-wls', 'ni': 'gb-nir' };
+        const finalCode = map[code.toLowerCase()] || code.toLowerCase();
+        const img = new Image();
+        img.src = `https://flagcdn.com/w640/${finalCode}.png`;
+      });
+    }
+  }, [gameState]);
+
   useEffect(() => {
     if (!room?.participantIds) return;
     const unsubs = room.participantIds.map((uid: string) => 
@@ -264,7 +277,6 @@ export default function GamePage() {
       const guesses = roundData.guesses || {};
       const everyoneVoted = allParticipants.length > 0 && allParticipants.every((uid: string) => !!guesses[uid]);
       
-      // Early Skip Logic for Party Mode: Everyone Locked In -> Skip Timer
       if (everyoneVoted && !revealTriggered.current && gameState === 'playing') {
         handleRevealTrigger();
       }
@@ -444,10 +456,16 @@ export default function GamePage() {
         rmData.participantIds.forEach((uid: string) => {
           const g = guesses[uid];
           let pts = 0;
-          if (g?.isCorrect) {
-            const guessedAt = new Date(g.guessedAt).getTime();
-            const elapsed = Math.max(0, guessedAt - timerStart);
-            pts = Math.max(10, Math.round(100 * (1 - (elapsed / maxTime))));
+          if (g) {
+            if (g.isCorrect) {
+              const guessedAt = new Date(g.guessedAt).getTime();
+              const elapsed = Math.max(0, guessedAt - timerStart);
+              // Max 100 pts, min 10 pts based on timing
+              pts = Math.max(10, Math.round(100 * (1 - (elapsed / maxTime))));
+            } else if (g.text !== "SKIPPED") {
+              // Penalty for wrong guess
+              pts = -30;
+            }
           }
           scores[uid] = (scores[uid] || 0) + pts;
           roundScoreChanges[uid] = pts;
@@ -496,7 +514,7 @@ export default function GamePage() {
             });
           } else {
             transaction.update(h2hRef, {
-              [uid === winnerId ? (uid === p1 ? 'player1Wins' : 'player2Wins') : '']: increment(1),
+              [winnerId === p1 ? 'player1Wins' : 'player2Wins']: increment(1),
               totalMatches: increment(1)
             });
           }
@@ -639,14 +657,16 @@ export default function GamePage() {
               <Progress value={room.player1CurrentHealth} className="h-1 bg-white/10" />
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {participantIds.map(uid => (
-                <div key={uid} className={`relative shrink-0 transition-all duration-300 ${roundData?.guesses?.[uid] ? 'scale-110' : 'scale-90 opacity-50'}`}>
-                  <img src={participantProfiles[uid]?.avatarUrl || `https://picsum.photos/seed/${uid}/100/100`} className={`w-7 h-7 rounded-full border-2 ${roundData?.guesses?.[uid] ? 'border-primary shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'border-white/10'}`} alt="p" />
-                  {roundData?.guesses?.[uid] && <div className="absolute -top-1 -right-1 bg-primary text-black rounded-full p-0.5"><CheckCircle2 className="w-2 h-2" /></div>}
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="w-full">
+              <div className="flex items-center gap-1.5 pb-1">
+                {participantIds.map(uid => (
+                  <div key={uid} className={`relative shrink-0 transition-all duration-300 ${roundData?.guesses?.[uid] ? 'scale-110' : 'scale-90 opacity-50'}`}>
+                    <img src={participantProfiles[uid]?.avatarUrl || `https://picsum.photos/seed/${uid}/100/100`} className={`w-7 h-7 rounded-full border-2 ${roundData?.guesses?.[uid] ? 'border-primary shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'border-white/10'}`} alt="p" />
+                    {roundData?.guesses?.[uid] && <div className="absolute -top-1 -right-1 bg-primary text-black rounded-full p-0.5"><CheckCircle2 className="w-2 h-2" /></div>}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </div>
         <div className="flex flex-col items-center gap-1 mx-4">

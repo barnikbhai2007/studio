@@ -51,8 +51,8 @@ export default function LobbyPage() {
           return;
         }
         
-        if (room.mode === 'Party' && ids.length >= 10) {
-          toast({ variant: "destructive", title: "ARENA FULL", description: "PARTY AT MAX CAPACITY (10)." });
+        if (room.mode === 'Party' && ids.length >= 100) {
+          toast({ variant: "destructive", title: "ARENA FULL", description: "PARTY AT MAX CAPACITY (100)." });
           router.push('/');
           return;
         }
@@ -169,7 +169,7 @@ export default function LobbyPage() {
   }
 
   const isPartyMode = room.mode === 'Party';
-  const maxSlots = isPartyMode ? 10 : 2;
+  const maxSlots = isPartyMode ? 100 : 2;
 
   return (
     <div className="min-h-screen bg-[#0a0a0b] p-4 flex flex-col items-center">
@@ -200,21 +200,23 @@ export default function LobbyPage() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-6 pt-6">
-            <div className={`grid ${isPartyMode ? 'grid-cols-3 md:grid-cols-5' : 'grid-cols-2'} gap-3`}>
-              {participants.slice(0, maxSlots).map((p) => (
-                <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-2xl bg-white/5 border border-white/5 relative group animate-in fade-in zoom-in">
-                  {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2 drop-shadow-md" />}
-                  <img src={p.avatarUrl || `https://picsum.photos/seed/${p.id}/100/100`} className="w-12 h-12 rounded-full border-2 border-primary/20 object-cover shadow-lg" alt={p.displayName} />
-                  <span className="text-[8px] font-black truncate w-full text-center uppercase tracking-tight text-white/80">{p.displayName}</span>
-                </div>
-              ))}
-              {Array.from({ length: Math.max(0, maxSlots - participants.length) }).map((_, i) => (
-                <div key={`empty-${i}`} className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/5 border border-dashed border-white/10 opacity-30">
-                  <UserX className="w-6 h-6 mb-1 text-slate-500" />
-                  <span className="text-[6px] font-black uppercase">EMPTY</span>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className={`${isPartyMode ? 'h-64' : 'h-auto'} pr-2`}>
+              <div className={`flex flex-wrap gap-3 justify-center`}>
+                {participants.map((p) => (
+                  <div key={p.id} className="flex flex-col items-center gap-1 p-2 rounded-2xl bg-white/5 border border-white/5 relative group animate-in fade-in zoom-in min-w-[70px]">
+                    {p.id === room.creatorId && <Crown className="w-3 h-3 text-yellow-500 absolute -top-1 left-1/2 -translate-x-1/2 drop-shadow-md" />}
+                    <img src={p.avatarUrl || `https://picsum.photos/seed/${p.id}/100/100`} className="w-10 h-10 rounded-full border-2 border-primary/20 object-cover shadow-lg" alt={p.displayName} />
+                    <span className="text-[7px] font-black truncate w-full text-center uppercase tracking-tight text-white/80">{p.displayName}</span>
+                  </div>
+                ))}
+                {Array.from({ length: Math.max(0, (isPartyMode ? 10 : 2) - participants.length) }).map((_, i) => (
+                  <div key={`empty-${i}`} className="flex flex-col items-center justify-center p-2 rounded-2xl bg-white/5 border border-dashed border-white/10 opacity-30 min-w-[70px]">
+                    <UserX className="w-4 h-4 mb-1 text-slate-500" />
+                    <span className="text-[6px] font-black uppercase">EMPTY</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
 
             <div className="space-y-4 pt-4 border-t border-white/5">
               <div className="flex items-center gap-2 mb-2">
@@ -328,7 +330,7 @@ export default function LobbyPage() {
                     <>
                       <div className="flex items-start gap-2">
                         <Target className="w-3 h-3 text-primary shrink-0" />
-                        <p>SCORE MAX <span className="text-white">100 POINTS</span> PER ROUND. POINTS DECREASE THE LONGER YOU TAKE TO GUESS.</p>
+                        <p>SCORE MAX <span className="text-white">100 POINTS</span> PER ROUND based on timing. <span className="text-red-500">-30 PTS</span> for wrong guesses.</p>
                       </div>
                       <div className="flex items-start gap-2">
                         <Zap className="w-3 h-3 text-primary shrink-0" />
@@ -336,7 +338,7 @@ export default function LobbyPage() {
                       </div>
                       <div className="flex items-start gap-2">
                         <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0" />
-                        <p>NO PENALTIES FOR WRONG GUESSES. KEEP GUESSING UNTIL EVERYONE LOCKS IN OR TIME RUNS OUT.</p>
+                        <p>IF EVERYONE LOCKS IN, THE TIMER SKIPS AUTOMATICALLY.</p>
                       </div>
                     </>
                   ) : (
